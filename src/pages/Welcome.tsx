@@ -8,7 +8,7 @@ const Welcome: React.FC = () => {
   const {initialState} = useModel('@@initialState');
 
   const index = 1;
-  const tittle = "StockTrading System";
+  const tittle = "鸿道智能量化交易系统";
   const href = "https://www.yuque.com/mwangli/ha7323/axga8dz9imansvl4";
 
   return (
@@ -109,13 +109,7 @@ const Welcome: React.FC = () => {
                   <div style={{
                     fontWeight: 'bolder'
                   }}>
-                    Stock-Trading System是一款自动化股票交易管理软件，可以按照自定义交易策略，进行自动化的股票买卖交易, 也可以查看股票历史价格，实时价格，买卖记录和相关报表数据<br/>
-                  </div>
-                  <div style={{
-                    fontWeight: 'bolder',
-                    fontSize: 'large'
-                  }}>
-                    2025-02-09：目前暂时无法从ZX证券平台请求的到股票的接口数据，待后期优化<br/>
+                    鸿道智能量化交易系统是一款自动化股票交易管理软件，可以按照自定义交易策略，进行自动化的股票买卖交易, 也可以查看股票历史价格，实时价格，买卖记录和相关报表数据<br/>
                   </div>
                   <div style={{
                     fontSize: '16px',
@@ -139,44 +133,10 @@ const Welcome: React.FC = () => {
                       marginBottom: 16,
                       width: '50%',
                     }}>
-                      <span>2023-06-03</span> <br/>
-                      1. 修复日期差计算bug <br/>
-                      2. 新增运行日志查询页面 <br/>
-                      <span>2023-06-04</span> <br/>
-                      3. 解决了日志查询滚动条固定到底部的问题 <br/>
-                      <span>2023-06-06</span> <br/>
-                      4. 优化买入金额问题 <br/>
-                      <span>2023-06-09</span> <br/>
-                      5. 增加取消订单的结果查询 <br/>
-                      6. 增加数据分时时段查询功能 <br/>
-                      <span>2023-06-10</span> <br/>
-                      7. 线程池任务执行异常问题修复 <br/>
-                      8. 验证码登录功能实现优化 <br/>
-                      <span>2023-06-11</span> <br/>
-                      9. HttpClient-FormData表单提交优化 <br/>
-                      10. 自动登陆功能实现 <br/>
-                      <span>2023-06-14</span> <br/>
-                      11. 买卖时机策略优化 <br/>
-                      12. 增加终止任务功能 <br/>
-                      <span>2023-06-16</span> <br/>
-                      13. 取消终止任务功能 <br/>
-                      14. 增加日志开关选项 <br/>
-                      <span>2023-06-20</span> <br/>
-                      15. 增加任务中断功能 <br/>
-                      16. 优化交易等待时间 <br/>
-                      <span>2023-06-27</span> <br/>
-                      17. 清除退市股票数据 <br/>
-                      18. 调整交易等待时间 <br/>
-                      <span>2023-06-29</span> <br/>
-                      19. 实数数据获取优化 <br/>
-                      <span>2023-07-04</span> <br/>
-                      20. 任务运行状态优化 <br/>
-                      21. 账户金额显示优化 <br/>
-                      <span>2023-07-17</span> <br/>
-                      22. 购买金额数量优化 <br/>
-                      23. 排名重复数据优化 <br/>
-                      <span>2025-02-09</span> <br/>
-                      24. 系统功能异常提示 <br/>
+                      <span>2025-03-16</span> <br/>
+                      1. 周期性定投 <br/>
+                      2. 股票下跌买入策略 <br/>
+                      3. 自动跟单
                     </div>
                     <div style={{
                       fontSize: '14px',
@@ -186,44 +146,7 @@ const Welcome: React.FC = () => {
                       marginBottom: 32,
                       width: '40%',
                     }}>
-                      <span>2024-04-8</span> <br/>
-                      22. 后台项目整体框架优化<br/>
-                      23. 使用LSTM模型预测价格 <br/>
-                      <span>2024-04-11</span> <br/>
-                      24. 增加订单查询页面 <br/>
-                      <span>2024-04-12</span> <br/>
-                      25. 优化欢迎页面补充文档 <br/>
-                      <span>2024-04-13</span> <br/>
-                      26. 预测价格图表展示优化 <br/>
-                      <span>2024-04-14</span> <br/>
-                      27. 修复历史订单确实，优化查询功能 <br/>
-                      28. 简化模型参数，提升训练速度 <br/>
-                      <span>2024-04-27</span> <br/>
-                      29. 优化访客用户登录名称 <br/>
-                      <span>2024-04-28</span> <br/>
-                      30. 买入股票逻辑优化 <br/>
-                      <span>2024-04-29</span> <br/>
-                      31. 买入卖出逻辑优化 <br/>
-                      32. 增加debug日志模式 <br/>
-                      <span>2024-05-01</span> <br/>
-                      33. DL4J升级1.0.0版本 <br/>
-                      34. 模型代码数据处理优化 <br/>
-                      <span>2024-05-03</span> <br/>
-                      35. 增加任务终止功能 <br/>
-                      <span>2024-05-07</span> <br/>
-                      36. 数据分析页面优化 <br/>
-                      <span>2024-05-21</span> <br/>
-                      37. 股票评分系数优化<br/>
-                      38. 历史数据同步BUG修复<br/>
-                      <span>2024-05-28</span> <br/>
-                      39. 价格预测BUG修复<br/>
-                      40. 线程池代码优化<br/>
-                      <span>2024-06-17</span> <br/>
-                      39. 预测结果展示修复<br/>
-                      40. 买入选股数量优化<br/>
-                      <span>2025-02-22</span> <br/>
-                      41. 平台数据接口修复<br/>
-                      40. 新增自选股票功能<br/>
+                      
                     </div>
 
                   </div>
@@ -240,9 +163,9 @@ const Welcome: React.FC = () => {
               >
                 {""}
               </div>
-              <a href={href} target="_blank" rel="noreferrer">
+              {/* <a href={href} target="_blank" rel="noreferrer">
                 了解更多 {'>'}
-              </a>
+              </a> */}
             </div>
           </div>
         </div>

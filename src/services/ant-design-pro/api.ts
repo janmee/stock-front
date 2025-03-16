@@ -114,6 +114,18 @@ export async function listOrderInfo(
   });
 }
 
+// 修改撤单API函数的路径
+export async function cancelOrder(params: {
+  orderNo: string;
+}) {
+  return request('/api/orderInfo/cancel', {  // 确保这个路径与后端API匹配
+    method: 'GET',
+    params: {
+      ...params
+    },
+  });
+} 
+
 /** 获取历史价格 GET /api/listHistoryPrices */
 export async function listHistoryPrices(
   params: {

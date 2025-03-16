@@ -1,5 +1,5 @@
 export default {
-  'pages.layouts.userLayout.title': 'Stock-Trading是一款股票自动交易管理系统，根据人工智能算法模型预测价格来自动买入卖出以获得收益',
+  'pages.layouts.userLayout.title': '鸿道智能量化交易是一款股票自动交易管理系统，根据人工智能算法模型预测价格来自动买入卖出以获得收益',
   'pages.login.accountLogin.tab': '账户密码登录',
   'pages.login.accountLogin.errorMessage': '错误的用户名和密码(admin/ant.design)',
   'pages.login.failure': '登录失败，请重试！',
@@ -62,7 +62,7 @@ export default {
   'pages.searchTable.item': '项',
   'pages.searchTable.totalServiceCalls': '服务调用次数总计',
   'pages.searchTable.tenThousand': '万',
-  'pages.searchTable.yuan': ' 元',
+  'pages.searchTable.yuan': ' 美金',
   'pages.searchTable.day': ' 天',
   'pages.searchTable.piece': ' 股',
   'pages.searchTable.percent': ' %',
