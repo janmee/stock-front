@@ -441,3 +441,96 @@ export async function download(file: API.LoginParams, options?: { [key: string]:
 
 
 }
+
+/** 获取账户列表 GET /api/accountInfo/list */
+export async function listAccountInfo(
+  params: {
+    // query
+    /** 当前的页码 */
+    current?: number;
+    /** 页面的容量 */
+    pageSize?: number;
+    account?: string;
+    enable?: boolean;
+  },
+  sort: object,
+  options?: { [key: string]: any },
+) {
+  return request('/api/accountInfo/list', {
+    method: 'GET',
+    params: {
+      ...params,
+      sortKey: sort ? Object.keys(sort)[0] : '',
+      sortOrder: sort ? Object.values(sort)[0] : '',
+    },
+    ...(options || {}),
+  });
+}
+
+/** 更新账户状态 POST /api/accountInfo/status */
+export async function updateAccountStatus(
+  params: {
+    id: number;
+    enable?: boolean;
+  },
+  options?: { [key: string]: any },
+) {
+  return request('/api/accountInfo/status', {
+    method: 'PUT',
+    data: params,
+    ...(options || {}),
+  });
+}
+
+/** 更新账户信息 POST /api/accountInfo */
+export async function updateAccountInfo(
+  params: {
+    id: number;
+    account?: string;
+    name?: string;
+    host?: string;
+    port?: number;
+    tradePassword?: string;
+    availableAmount?: number;
+    totalAmount?: number;
+    power?: number;
+    master?: boolean;
+    follow?: string;
+    enable?: boolean;
+  },
+  options?: { [key: string]: any },
+) {
+  return request('/api/accountInfo', {
+    method: 'PUT',
+    data: params,
+    ...(options || {}),
+  });
+}
+
+/** 创建账户 POST /api/accountInfo */
+export async function createAccountInfo(
+  params: {
+    account: string;
+    name: string;
+    host: string;
+    port: number;
+    tradePassword: string;
+    master?: boolean;
+    follow?: string;
+  },
+  options?: { [key: string]: any },
+) {
+  return request('/api/accountInfo', {
+    method: 'POST',
+    data: params,
+    ...(options || {}),
+  });
+}
+
+/** 删除账户 DELETE /api/accountInfo/{id} */
+export async function deleteAccountInfo(id: number, options?: { [key: string]: any }) {
+  return request<API.ApiResponse>(`/api/accountInfo/${id}`, {
+    method: 'DELETE',
+    ...(options || {}),
+  });
+}

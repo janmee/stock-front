@@ -73,6 +73,13 @@ export default [
     component: './OrderInfo',
     access: 'canAdmin',
   },
+  {
+    name: 'list.account-info',
+    icon: 'UserOutlined',
+    path: '/account',
+    component: './AccountInfo',
+    access: 'canAdmin',
+  },
   // {
   //   name: 'list.model',
   //   icon: 'AlertOutlined',
@@ -94,13 +101,13 @@ export default [
   //   component: './LogsInfo',
   //   access: 'canAdmin',
   // },
-  {
-    name: 'list.upload-image',
-    icon: 'upload',
-    path: '/upload',
-    component: './UploadImage',
-    access: 'canTest',
-  },
+  // {
+  //   name: 'list.upload-image',
+  //   icon: 'upload',
+  //   path: '/upload',
+  //   component: './UploadImage',
+  //   access: 'canTest',
+  // },
   {
     path: '/',
     redirect: '/welcome',

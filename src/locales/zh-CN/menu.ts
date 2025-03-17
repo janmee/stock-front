@@ -26,6 +26,7 @@ export default {
   'menu.list.upload-image': '账单生成',
   'menu.list.stock-info': '股票信息',
   'menu.list.order-info': '订单查询',
+  'menu.list.account-info': '账户管理',
   'menu.list.time-job': '定时任务',
   'menu.list.power-demo': '系统推荐',
   'menu.list.analysis': '数据分析',

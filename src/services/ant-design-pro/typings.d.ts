@@ -132,4 +132,21 @@ declare namespace API {
     description?: string;
     type?: NoticeIconItemType;
   };
+
+  type AccountInfo = {
+    id: number;
+    account: string;
+    name: string;
+    host: string;
+    port: number;
+    tradePassword?: string;
+    availableAmount: number;
+    totalAmount: number;
+    power: number;
+    master: boolean;
+    follow?: string;
+    enable: boolean;
+    createTime: string;
+    updateTime: string;
+  };
 }
