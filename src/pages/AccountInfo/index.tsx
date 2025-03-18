@@ -1,4 +1,4 @@
-import {createAccountInfo, listAccountInfo, updateAccountInfo, updateAccountStatus} from '@/services/ant-design-pro/api';
+import {createAccountInfo, deleteAccountInfo, listAccountInfo, updateAccountInfo, updateAccountStatus} from '@/services/ant-design-pro/api';
 import type {ActionType, ProColumns} from '@ant-design/pro-components';
 import {
   ModalForm,
@@ -57,10 +57,7 @@ const TableList: React.FC = () => {
       onOk: async () => {
         try {
           // 调用删除账户API
-          const response = await updateAccountStatus({
-            id,
-            deleted: true
-          });
+          const response = await deleteAccountInfo(id);
           
           if (response.success) {
             message.success('账户已删除');
@@ -244,7 +241,7 @@ const TableList: React.FC = () => {
         </Button>,
         <Switch
           key="toggle"
-          checked={record.enabled}
+          checked={record.enable}
           onChange={(checked) => handleToggleStatus(record.id, checked)}
           checkedChildren="启用"
           unCheckedChildren="禁用"
@@ -423,4 +420,4 @@ const TableList: React.FC = () => {
   );
 };
 
-export default TableList; 
+export default TableList;
