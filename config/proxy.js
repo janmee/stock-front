@@ -18,8 +18,8 @@ module.exports = {
       // 配置了这个可以从 http 代理到 https
       // 依赖 origin 的功能可能需要这个，比如 cookie
       changeOrigin: true,
-      // 保持路径不变，不重写
-      pathRewrite: null,
+      // 移除/api前缀
+      pathRewrite: { '^/api': '' },
     },
   },
 
@@ -27,12 +27,12 @@ module.exports = {
    * 在生产环境下使用的代理配置
    */
   pre: {
-    '/api/': {
+    '/': {
       // 生产环境API地址
       target: 'http://localhost:8080',
       changeOrigin: true,
-      // 保持路径不变，不重写
-      pathRewrite: null,
+      // 移除/api前缀
+     // pathRewrite: { '^/api': '/api' },
     },
   },
-}; 
+};

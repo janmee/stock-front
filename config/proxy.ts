@@ -18,8 +18,8 @@ export default {
       // 配置了这个可以从 http 代理到 https
       // 依赖 origin 的功能可能需要这个，比如 cookie
       changeOrigin: true,
-      // 不重写路径，保留/api前缀
-      pathRewrite: { '^': '' },
+      // 移除/api前缀
+      pathRewrite: { '^/api': '/api' },
     },
   },
 
@@ -31,8 +31,8 @@ export default {
       // 生产环境API地址
       target: 'http://localhost:8080',
       changeOrigin: true,
-      // 不重写路径，保留/api前缀
-      pathRewrite: { '^': '' },
+      // 移除/api前缀
+      pathRewrite: { '^/api': '/api' },
     },
   },
 };

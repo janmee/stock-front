@@ -7,8 +7,14 @@ const proxyConfig = require('./config/proxy');
 const app = express();
 
 // 获取当前环境的代理配置
-const REACT_APP_ENV = process.env.REACT_APP_ENV || 'dev';
+const REACT_APP_ENV = process.env.REACT_APP_ENV || 'pre';
 const currentProxy = proxyConfig[REACT_APP_ENV];
+
+// 确保代理配置存在
+if (!currentProxy) {
+  console.error(`未找到环境 ${REACT_APP_ENV} 的代理配置`);
+  process.exit(1);
+}
 
 // 添加请求体解析中间件
 app.use(bodyParser.json());
@@ -25,6 +31,10 @@ app.use((req, res, next) => {
   next();
 });
 
+// 静态资源服务必须在API代理之前
+app.use(express.static(path.join(__dirname, 'dist')));
+
+
 // 设置API代理
 Object.entries(currentProxy).forEach(([path, proxyOptions]) => {
   // 合并代理配置
@@ -34,13 +44,15 @@ Object.entries(currentProxy).forEach(([path, proxyOptions]) => {
     secure: false,
     ws: true,
     xfwd: true,
-    pathRewrite: null,
+    timeout: 5000, // 设置超时时间为5秒
+    // pathRewrite: { '^/api': '' }, // 移除/api前缀
     onProxyReq: (proxyReq, req, res) => {
       console.log('\n=== 代理请求信息 ===');
       console.log('原始URL:', req.url);
       console.log('代理URL:', proxyReq.path);
       console.log('代理方法:', proxyReq.method);
       console.log('代理请求头:', JSON.stringify(proxyReq.getHeaders(), null, 2));
+      console.log('目标服务器:', proxyOptions.target);
 
       // 处理 POST 请求体
       if (req.method === 'POST' && req.body) {
@@ -51,6 +63,18 @@ Object.entries(currentProxy).forEach(([path, proxyOptions]) => {
         console.log('代理请求体:', bodyData);
       }
       console.log('===================');
+
+      // 设置请求超时处理
+      proxyReq.on('timeout', () => {
+        console.error('请求超时');
+        res.status(504).send('Gateway Timeout');
+      });
+
+      // 设置错误处理
+      proxyReq.on('error', (err) => {
+        console.error('代理请求错误:', err);
+        res.status(502).send('Bad Gateway');
+      });
     },
     onProxyRes: (proxyRes, req, res) => {
       console.log('\n=== 代理响应信息 ===');
@@ -63,9 +87,24 @@ Object.entries(currentProxy).forEach(([path, proxyOptions]) => {
         responseBody += chunk;
       });
       proxyRes.on('end', () => {
-        console.log('响应体:', responseBody);
-        console.log('===================');
+        try {
+          console.log('响应体:', responseBody);
+          console.log('===================');
+        } catch (error) {
+          console.error('解析响应体失败:', error);
+          res.status(500).send('Internal Server Error');
+        }
       });
+
+      // 添加CORS头
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+      proxyRes.on('error', (error) => {
+        console.error('响应处理错误:', error);
+        res.status(500).send('Internal Server Error');
+      })
 
       // 添加CORS头
       res.setHeader('Access-Control-Allow-Origin', '*');
@@ -78,7 +117,9 @@ Object.entries(currentProxy).forEach(([path, proxyOptions]) => {
       console.error('===================');
       res.status(500).send('代理服务器错误');
     }
+    
   });
+  
   
   // 使用正则表达式匹配路径
   const pathRegex = new RegExp('^' + path);
@@ -87,7 +128,9 @@ Object.entries(currentProxy).forEach(([path, proxyOptions]) => {
       console.log('\n=== 路径匹配成功 ===');
       console.log('匹配模式:', pathRegex);
       console.log('请求路径:', req.url);
+      console.log('目标地址:', proxyOptions.target + req.url);
       console.log('===================');
+      
       createProxyMiddleware(options)(req, res, next);
     } else {
       next();
