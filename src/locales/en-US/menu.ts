@@ -29,6 +29,9 @@ export default {
   'menu.list.search-list.articles': 'Search List(articles)',
   'menu.list.search-list.projects': 'Search List(projects)',
   'menu.list.search-list.applications': 'Search List(applications)',
+  'menu.list.order-info': 'Order Query',
+  'menu.list.account-info': 'Account Management',
+  'menu.list.dingtou': 'Investment Plan',
   'menu.profile': 'Profile',
   'menu.profile.basic': 'Basic Profile',
   'menu.profile.advanced': 'Advanced Profile',
@@ -49,4 +52,5 @@ export default {
   'menu.editor.flow': 'Flow Editor',
   'menu.editor.mind': 'Mind Editor',
   'menu.editor.koni': 'Koni Editor',
+  'menu.dingtou': 'Investment Plan',
 };

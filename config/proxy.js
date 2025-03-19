@@ -9,7 +9,7 @@
  *
  * @doc https://umijs.org/docs/guides/proxy
  */
-export default {
+module.exports = {
   // 如果需要自定义本地开发服务器  请取消注释按需调整
   dev: {
     '/api/': {
@@ -18,8 +18,8 @@ export default {
       // 配置了这个可以从 http 代理到 https
       // 依赖 origin 的功能可能需要这个，比如 cookie
       changeOrigin: true,
-      // 不重写路径，保留/api前缀
-      pathRewrite: { '^': '' },
+      // 保持路径不变，不重写
+      pathRewrite: null,
     },
   },
 
@@ -31,8 +31,8 @@ export default {
       // 生产环境API地址
       target: 'http://localhost:8080',
       changeOrigin: true,
-      // 不重写路径，保留/api前缀
-      pathRewrite: { '^': '' },
+      // 保持路径不变，不重写
+      pathRewrite: null,
     },
   },
-};
+}; 

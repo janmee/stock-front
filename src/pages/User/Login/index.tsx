@@ -12,7 +12,7 @@ import {
 import {LoginForm, ProFormCaptcha, ProFormCheckbox, ProFormText,} from '@ant-design/pro-components';
 import {useEmotionCss} from '@ant-design/use-emotion-css';
 import {FormattedMessage, Helmet, history, SelectLang, useIntl, useModel} from '@umijs/max';
-import {Alert, message, Tabs} from 'antd';
+import {Alert, message, Tabs, ProCard, StatisticCard, Progress, Space, Tag} from 'antd';
 import Settings from '../../../../config/defaultSettings';
 import React, {useState} from 'react';
 import {flushSync} from 'react-dom';
@@ -145,6 +145,18 @@ const Login: React.FC = () => {
     }
   };
   const {status, type: loginType} = userLoginState;
+
+  // 计算定投进度
+  const calculateProgress = (record: Dingtou) => {
+    if (!record.allTimes) return 0;
+    return Math.round((record.alreadyTimes || 0) / record.allTimes * 100);
+  };
+
+  // 计算剩余定投金额
+  const calculateRemainingAmount = (record: Dingtou) => {
+    if (!record.amount || !record.allTimes || !record.alreadyTimes) return 0;
+    return record.amount * (record.allTimes - (record.alreadyTimes || 0));
+  };
 
   return (
     <div className={containerClassName}>

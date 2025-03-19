@@ -58,4 +58,6 @@ export default {
   'menu.editor.mind': '脑图编辑器',
   'menu.editor.koni': '拓扑编辑器',
   'menu.list.model': '模型列表',
+  'menu.dingtou': '定投管理',
+  'menu.list.dingtou': '定投管理',
 };

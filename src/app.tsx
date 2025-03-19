@@ -35,19 +35,23 @@ export async function getInitialState(aa: any): Promise<{
       });
       return msg.data;
     } catch (error) {
-      history.push(loginPath);
+      console.error('获取用户信息失败', error);
+      return undefined;
     }
     return undefined;
   };
   // 如果不是登录页面，执行
   const {location} = history;
   if (location.pathname !== loginPath) {
-    // history.push(loginPath)
     const currentUser = await fetchUserInfo();
-    // const currentUser = {
-    //   'name': 'Admin',
-    //   'avatar': 'https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png',
-    // };
+    // 如果获取用户信息失败且不在登录页，则跳转到登录页
+    if (!currentUser) {
+      history.push(loginPath);
+      return {
+        fetchUserInfo,
+        settings: defaultSettings as Partial<LayoutSettings>,
+      };
+    }
     return {
       fetchUserInfo,
       currentUser,
@@ -78,37 +82,14 @@ export const layout: RunTimeLayoutConfig = ({initialState, setInitialState}) => 
     // on
     footerRender: () => <Footer/>,
 
-    // onPageChange: (page) => {
-
-      // if (page?.pathname === '/logs' && !initialState?.wsLog) {
-      //   const localServer = "localhost:8080";
-      //   const remoteServer = "124.220.36.95:8080";
-      //   // console.log(JSON.stringify(process.env))
-      //   const server = process.env.NODE_ENV == 'production' ? remoteServer : localServer;
-      //   const webSocket = new WebSocket(`ws://${server}/webSocket/${page?.pathname}`);
-      //
-      //   webSocket.onmessage = (message: any) => {
-      //     // console.log(message.data)
-      //     // setLogs(message.data)
-      //     setInitialState((s) => ({
-      //       ...s,
-      //       // logs: message.data,
-      //       logs: s?.logs ? `${s.logs}\r${message.data}` : message.data,
-      //     }));
-      //   }
-      //
-      //   // setWS(webSocket);
-      //   setInitialState((s) => ({
-      //     ...s,
-      //     wsLog: webSocket,
-      //   }));
-      // }
-
+    // 添加页面变化监听，确保未登录时跳转到登录页
+    onPageChange: (page) => {
+      const { location } = history;
       // 如果没有登录，重定向到 login
-      // if (!initialState?.currentUser && location.pathname !== loginPath) {
-      //   history.push(loginPath);
-      // }
-    // },
+      if (!initialState?.currentUser && location.pathname !== loginPath) {
+        history.push(loginPath);
+      }
+    },
     layoutBgImgList: [
       {
         src: 'https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/D2LWSqNny4sAAAAAAAAAAAAAFl94AQBr',

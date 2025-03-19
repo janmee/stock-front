@@ -1,15 +1,20 @@
 // @ts-ignore
 /* eslint-disable */
 import {request} from '@umijs/max';
+import { message } from 'antd';
 
-/** 获取当前的用户 GET /api/login/curretUserr */
+/** 获取当前的用户 GET /api/login/currentUser */
 export async function currentUser(options?: { [key: string]: any }) {
-  return request<{
+  const msg = await request<{
     data: API.CurrentUser;
   }>('/api/login/currentUser', {
     method: 'GET',
     ...(options || {}),
   });
+  if (msg.data) {
+    msg.data.access = 'admin'; // 临时设置所有用户为管理员权限
+  }
+  return msg;
 }
 
 /** 退出登录接口 POST /api/login/outLogin */
@@ -531,6 +536,113 @@ export async function createAccountInfo(
 export async function deleteAccountInfo(id: number, options?: { [key: string]: any }) {
   return request<API.ApiResponse>(`/api/accountInfo/${id}`, {
     method: 'DELETE',
+    ...(options || {}),
+  });
+}
+
+/** 获取定投列表 GET /api/dingtou */
+export async function fetchDingtouList(
+  params: {
+    current?: number;
+    pageSize?: number;
+    account?: string;
+    code?: string;
+    enable?: boolean;
+  },
+  sort: object,
+  options?: { [key: string]: any },
+) {
+  return request('/api/dingtou', {
+    method: 'GET',
+    params: {
+      ...params,
+      sortKey: sort ? Object.keys(sort)[0] : '',
+      sortOrder: sort ? Object.values(sort)[0] : '',
+    },
+    ...(options || {}),
+  });
+}
+
+/** 获取定投详情 GET /api/dingtou/{id} */
+export async function fetchDingtouById(id: number, options?: { [key: string]: any }) {
+  return request(`/api/dingtou/${id}`, {
+    method: 'GET',
+    ...(options || {}),
+  });
+}
+
+/** 创建定投 POST /api/dingtou */
+export async function createDingtou(
+  params: {
+    account: string;
+    code: string;
+    startTime: string;
+    allTimes: number;
+    rate: number;
+    amount: number;
+    enable: boolean;
+  },
+  options?: { [key: string]: any },
+) {
+  // 验证定投比例和最少金额不能同时为空
+  if ((params.rate === undefined || params.rate === null || params.rate === 0) &&
+      (params.amount === undefined || params.amount === null || params.amount === 0)) {
+    message.error('每次定投比例和最少金额不能同时为空');
+    return false;
+  }
+  return request('/api/dingtou', {
+    method: 'POST',
+    data: params,
+    ...(options || {}),
+  });
+}
+
+/** 更新定投 PUT /api/dingtou/{id} */
+export async function updateDingtou(
+  params: {
+    id: number;
+    account?: string;
+    code?: string;
+    startTime?: string;
+    allTimes?: number;
+    rate?: number;
+    amount?: number;
+    enable?: boolean;
+  },
+  options?: { [key: string]: any },
+) {
+  // 验证定投比例和最少金额不能同时为空
+  if ((params.rate === undefined || params.rate === null || params.rate === 0) &&
+      (params.amount === undefined || params.amount === null || params.amount === 0)) {
+    message.error('每次定投比例和最少金额不能同时为空');
+    return false;
+  }
+  return request(`/api/dingtou/${params.id}`, {
+    method: 'PUT',
+    data: params,
+    ...(options || {}),
+  });
+}
+
+/** 删除定投 DELETE /api/dingtou/{id} */
+export async function deleteDingtou(id: number, options?: { [key: string]: any }) {
+  return request(`/api/dingtou/${id}`, {
+    method: 'DELETE',
+    ...(options || {}),
+  });
+}
+
+/** 更新定投状态 PUT /api/dingtou/status */
+export async function updateDingtouStatus(
+  params: {
+    id: number;
+    enable: boolean;
+  },
+  options?: { [key: string]: any },
+) {
+  return request('/api/dingtou/status', {
+    method: 'PUT',
+    data: params,
     ...(options || {}),
   });
 }

@@ -117,4 +117,12 @@ export default [
     layout: false,
     component: './404',
   },
+  // 添加定投管理路由
+  {
+    name: 'list.dingtou',
+    icon: 'LineChartOutlined',
+    path: '/dingtou',
+    component: './Dingtou',
+    access: 'canAdmin',
+  },
 ];
