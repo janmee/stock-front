@@ -19,7 +19,7 @@ module.exports = {
       // 依赖 origin 的功能可能需要这个，比如 cookie
       changeOrigin: true,
       // 移除/api前缀
-      pathRewrite: { '^/api': '' },
+      pathRewrite: { '^/api': '/api' },
     },
   },
 

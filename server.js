@@ -16,21 +16,6 @@ if (!currentProxy) {
   process.exit(1);
 }
 
-// 添加请求体解析中间件
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-
-// 调试中间件 - 记录所有请求
-app.use((req, res, next) => {
-  console.log('\n=== 收到新请求 ===');
-  console.log('请求URL:', req.url);
-  console.log('请求方法:', req.method);
-  console.log('请求头:', JSON.stringify(req.headers, null, 2));
-  console.log('请求体:', JSON.stringify(req.body, null, 2));
-  console.log('==================');
-  next();
-});
-
 // 静态资源服务必须在API代理之前
 app.use(express.static(path.join(__dirname, 'dist')));
 
@@ -46,71 +31,6 @@ Object.entries(currentProxy).forEach(([path, proxyOptions]) => {
     xfwd: true,
     timeout: 5000, // 设置超时时间为5秒
     // pathRewrite: { '^/api': '' }, // 移除/api前缀
-    onProxyReq: (proxyReq, req, res) => {
-      console.log('\n=== 代理请求信息 ===');
-      console.log('原始URL:', req.url);
-      console.log('代理URL:', proxyReq.path);
-      console.log('代理方法:', proxyReq.method);
-      console.log('代理请求头:', JSON.stringify(proxyReq.getHeaders(), null, 2));
-      console.log('目标服务器:', proxyOptions.target);
-
-      // 处理 POST 请求体
-      if (req.method === 'POST' && req.body) {
-        const bodyData = JSON.stringify(req.body);
-        proxyReq.setHeader('Content-Type', 'application/json');
-        proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-        proxyReq.write(bodyData);
-        console.log('代理请求体:', bodyData);
-      }
-      console.log('===================');
-
-      // 设置请求超时处理
-      proxyReq.on('timeout', () => {
-        console.error('请求超时');
-        res.status(504).send('Gateway Timeout');
-      });
-
-      // 设置错误处理
-      proxyReq.on('error', (err) => {
-        console.error('代理请求错误:', err);
-        res.status(502).send('Bad Gateway');
-      });
-    },
-    onProxyRes: (proxyRes, req, res) => {
-      console.log('\n=== 代理响应信息 ===');
-      console.log('响应状态码:', proxyRes.statusCode);
-      console.log('响应头:', JSON.stringify(proxyRes.headers, null, 2));
-
-      // 记录响应体
-      let responseBody = '';
-      proxyRes.on('data', chunk => {
-        responseBody += chunk;
-      });
-      proxyRes.on('end', () => {
-        try {
-          console.log('响应体:', responseBody);
-          console.log('===================');
-        } catch (error) {
-          console.error('解析响应体失败:', error);
-          res.status(500).send('Internal Server Error');
-        }
-      });
-
-      // 添加CORS头
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-      proxyRes.on('error', (error) => {
-        console.error('响应处理错误:', error);
-        res.status(500).send('Internal Server Error');
-      })
-
-      // 添加CORS头
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    },
     onError: (err, req, res) => {
       console.error('\n=== 代理错误 ===');
       console.error('错误信息:', err);
