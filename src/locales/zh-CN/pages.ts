@@ -62,7 +62,7 @@ export default {
   'pages.searchTable.item': '项',
   'pages.searchTable.totalServiceCalls': '服务调用次数总计',
   'pages.searchTable.tenThousand': '万',
-  'pages.searchTable.yuan': ' 美金',
+  'pages.searchTable.yuan': ' $',
   'pages.searchTable.day': ' 天',
   'pages.searchTable.piece': ' 股',
   'pages.searchTable.percent': ' %',

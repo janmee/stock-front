@@ -134,26 +134,32 @@ const TableList: React.FC = () => {
     {
       title: '订单价格',
       dataIndex: 'price',
-      valueType: 'textarea',
+      valueType: {
+        type: 'money',
+        locale: 'en-US',
+      },
       hideInSearch: true,
       sorter: true,
-      renderText: (val: string) =>
-        val ? `${val}${intl.formatMessage({
-          id: 'pages.searchTable.yuan',
-          defaultMessage: ' 刀 ',
-        })}` : '-',
+      // renderText: (val: string) =>
+      //   val ? `${val}${intl.formatMessage({
+      //     id: 'pages.searchTable.yuan',
+      //     defaultMessage: ' 刀 ',
+      //   })}` : '-',
     },
     {
       title: '订单金额',
       dataIndex: 'amount',
-      valueType: 'textarea',
+      valueType: {
+        type: 'money',
+        locale: 'en-US',
+      },
       hideInSearch: true,
       sorter: true,
-      renderText: (val: string) =>
-        val ? `${val}${intl.formatMessage({
-          id: 'pages.searchTable.yuan',
-          defaultMessage: ' 刀 ',
-        })}` : '-',
+      // renderText: (val: string) =>
+      //   val ? `${val}${intl.formatMessage({
+      //     id: 'pages.searchTable.yuan',
+      //     defaultMessage: ' 刀 ',
+      //   })}` : '-',
     },
     // {
     //   title: '手续费',
