@@ -381,7 +381,7 @@ const TableList: React.FC = () => {
         onFinish={handleCreateAccount}
         initialValues={{
           host: '127.0.0.1',
-          master: false
+          master: true
         }}
       >
         <ProForm.Group>
@@ -423,7 +423,7 @@ const TableList: React.FC = () => {
             label="主账户"
             checkedChildren="是"
             unCheckedChildren="否"
-            initialValue={false}
+            initialValue={true}
           />
           <Form.Item noStyle dependencies={['master']}>
             {({ getFieldValue }) => (

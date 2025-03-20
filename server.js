@@ -5,6 +5,16 @@ const bodyParser = require('body-parser');
 const proxyConfig = require('./config/proxy');
 
 const app = express();
+const port = process.env.PORT || 3000;
+
+// 增加事件监听器限制
+require('events').EventEmitter.defaultMaxListeners = 20;
+
+// 添加请求ID中间件
+app.use((req, res, next) => {
+  req.requestId = Math.random().toString(36).substring(7);
+  next();
+});
 
 // 获取当前环境的代理配置
 const REACT_APP_ENV = process.env.REACT_APP_ENV || 'pre';
@@ -45,11 +55,6 @@ Object.entries(currentProxy).forEach(([path, proxyOptions]) => {
   const pathRegex = new RegExp('^' + path);
   app.use((req, res, next) => {
     if (pathRegex.test(req.url)) {
-      console.log('\n=== 路径匹配成功 ===');
-      console.log('匹配模式:', pathRegex);
-      console.log('请求路径:', req.url);
-      console.log('目标地址:', proxyOptions.target + req.url);
-      console.log('===================');
       
       createProxyMiddleware(options)(req, res, next);
     } else {
@@ -66,10 +71,9 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(port, () => {
   console.log(`\n=== 服务器启动 ===`);
-  console.log(`前端服务运行在: http://localhost:${PORT}`);
+  console.log(`前端服务运行在: http://localhost:${port}`);
   console.log(`环境: ${REACT_APP_ENV}`);
   console.log(`代理配置:`, JSON.stringify(currentProxy, null, 2));
   console.log(`=================\n`);
