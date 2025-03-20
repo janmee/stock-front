@@ -19,6 +19,7 @@ const TableList: React.FC = () => {
   const [editModalVisible, setEditModalVisible] = useState<boolean>(false);
   const [createModalVisible, setCreateModalVisible] = useState<boolean>(false);
   const [currentAccount, setCurrentAccount] = useState<API.AccountInfo | undefined>(undefined);
+  const [form] = Form.useForm();
 
   /**
    * 国际化配置
@@ -78,8 +79,9 @@ const TableList: React.FC = () => {
 
   // 处理编辑账户
   const handleEditAccount = (record: API.AccountInfo) => {
-    setCurrentAccount(record);
-    setEditModalVisible(true);
+    setCurrentAccount(record);  // 先设置当前账户
+    form.setFieldsValue(record);  // 设置表单值
+    setEditModalVisible(true);  // 打开模态框
   };
 
   // 处理更新账户信息
@@ -295,9 +297,28 @@ const TableList: React.FC = () => {
         title="编辑账户信息"
         width={500}
         open={editModalVisible}
-        onOpenChange={setEditModalVisible}
+        onOpenChange={(visible) => {
+          setEditModalVisible(visible);
+          if (!visible) {
+            setCurrentAccount(undefined);
+            // 重置表单
+            form.resetFields();
+          }
+        }}
         onFinish={handleUpdateAccount}
         initialValues={currentAccount}
+        form={form}
+        submitter={{
+          searchConfig: {
+            submitText: '确认',
+            resetText: '取消',
+          },
+          render: (props, defaultDoms) => {
+            return [
+              ...defaultDoms,
+            ];
+          },
+        }}
       >
         <ProForm.Group>
           <ProFormText

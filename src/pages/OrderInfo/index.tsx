@@ -94,10 +94,11 @@ const TableList: React.FC = () => {
       sorter: true,
     },
     {
-      title: '股票名称',
-      dataIndex: 'name',
+      title: '订单来源',
+      dataIndex: 'systemType',
       valueType: 'textarea',
       sorter: true,
+      hideInSearch: true,
     },
     {
       title: '买入方向',

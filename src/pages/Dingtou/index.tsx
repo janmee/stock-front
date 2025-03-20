@@ -21,6 +21,7 @@ const DingtouList: React.FC = () => {
   const [editModalVisible, setEditModalVisible] = useState<boolean>(false);
   const [createModalVisible, setCreateModalVisible] = useState<boolean>(false);
   const [currentDingtou, setCurrentDingtou] = useState<Dingtou | undefined>(undefined);
+  const [form] = Form.useForm();
 
   /**
    * 国际化配置
@@ -80,19 +81,19 @@ const DingtouList: React.FC = () => {
 
   // 处理编辑定投
   const handleEditDingtou = (record: Dingtou) => {
-    // 设置当前编辑的定投记录
-    setCurrentDingtou(record);
-    setEditModalVisible(true);
+    form.setFieldsValue(record);  // 先设置表单值
+    setCurrentDingtou(record);  // 设置当前定投记录
+    setEditModalVisible(true);  // 最后打开模态框
   };
 
   // 处理更新定投信息
   const handleUpdateDingtou = async (values: any) => {
     if (!currentDingtou) return false;
     
-    // 验证定投比例和最少金额不能同时为空
+    // 验证定投比例和固定金额不能同时为空
     // if ((values.rate === undefined || values.rate === null || values.rate === 0) &&
     //     (values.amount === undefined || values.amount === null || values.amount === 0)) {
-    //   message.error('每次定投比例和最少金额不能同时为空');
+    //   message.error('每次定投比例和固定金额不能同时为空');
     //   return false;
     // }
     
@@ -123,10 +124,10 @@ const DingtouList: React.FC = () => {
 
   // 处理创建定投
   const handleCreateDingtou = async (values: any) => {
-    // 验证定投比例和最少金额不能同时为空
+    // 验证定投比例和固定金额不能同时为空
     // if ((values.rate === undefined || values.rate === null || values.rate === 0) &&
     //     (values.amount === undefined || values.amount === null || values.amount === 0)) {
-    //   message.error('每次定投比例和最少金额不能同时为空');
+    //   message.error('每次定投比例和固定金额不能同时为空');
     //   return false;
     // }
     
@@ -189,10 +190,10 @@ const DingtouList: React.FC = () => {
       valueType: 'percent',
       hideInSearch: true,
       renderText: (val: number) =>
-        val ? `${val * 100}%` : '-',
+        val === null || val === undefined ? '-' : `${val * 100}%`,
     },
     {
-      title: '最少定投金额(美金)',
+      title: '固定定投金额(美金)',
       dataIndex: 'amount',
       valueType: {
         type: 'money',
@@ -249,9 +250,10 @@ const DingtouList: React.FC = () => {
     <PageContainer>
       <div style={{ marginBottom: 16, padding: '16px 24px', background: '#f5f5f5', borderRadius: '4px' }}>
         <p style={{ marginBottom: 8, fontWeight: 'bold' }}>定投时间为每周五收盘前10分钟，单次定投金额, 计算方式优先级如下：</p>
-        <p style={{ marginBottom: 8, paddingLeft: 16 }}>1. 如果设置了每次定投比例，按总资金比例计算，如果计算结果大于设置的最少定投金额，使用计算结果，否则使用设置的最少定投金额。</p>
-        <p style={{ marginBottom: 8, paddingLeft: 16 }}>2. 如果没有设置定投比例，只设置了最少定投金额，直接使用定投金额。</p>
+        <p style={{ marginBottom: 8, paddingLeft: 16 }}>1. 如果设置了每次定投比例，按总资金比例计算，如果计算结果大于设置的固定定投金额，使用计算结果，否则使用设置的固定定投金额。</p>
+        <p style={{ marginBottom: 8, paddingLeft: 16 }}>2. 如果没有设置定投比例，只设置了固定定投金额，直接使用定投金额。</p>
         <p style={{ paddingLeft: 16 }}>3. 如果都没设置，使用默认的计算方式，单次金额 = 可用金额 ➗ 剩余定投次数 ➗ 定投股票数</p>
+        <p style={{ paddingLeft: 16 }}>4. 如果最终计算的金额少于当前股价，取消这次定投</p>
       </div>
       <ProTable
         headerTitle={intl.formatMessage({
@@ -288,9 +290,16 @@ const DingtouList: React.FC = () => {
         title="编辑定投信息(每周五收盘前10分钟执行定投)"
         width={500}
         open={editModalVisible}
-        onOpenChange={setEditModalVisible}
+        onOpenChange={(visible) => {
+          setEditModalVisible(visible);
+          if (!visible) {
+            form.resetFields();
+            setCurrentDingtou(undefined);
+          }
+        }}
         onFinish={handleUpdateDingtou}
         initialValues={currentDingtou}
+        form={form}
         submitter={{
           searchConfig: {
             submitText: '确认',
@@ -334,7 +343,7 @@ const DingtouList: React.FC = () => {
             //       const amount = getFieldValue('amount');
             //       if ((value === undefined || value === null || value === 0) &&
             //           (amount === undefined || amount === null || amount === 0)) {
-            //         return Promise.reject(new Error('定投比例和最少金额不能同时为空'));
+            //         return Promise.reject(new Error('定投比例和固定金额不能同时为空'));
             //       }
             //       return Promise.resolve();
             //     },
@@ -357,26 +366,26 @@ const DingtouList: React.FC = () => {
           <Form.Item
             dependencies={['rate']}
             name="amount"
-            label="定投最少金额(美金)"
-            rules={[
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  const rate = getFieldValue('rate');
-                  if ((value === undefined || value === null || value === 0) &&
-                      (rate === undefined || rate === null || rate === 0)) {
-                    return Promise.reject(new Error('定投比例和最少金额不能同时为空'));
-                  }
-                  return Promise.resolve();
-                },
-              }),
-            ]}
+            label="定投固定金额(美金)"
+            // rules={[
+            //   ({ getFieldValue }) => ({
+            //     validator(_, value) {
+            //       const rate = getFieldValue('rate');
+            //       if ((value === undefined || value === null || value === 0) &&
+            //           (rate === undefined || rate === null || rate === 0)) {
+            //         return Promise.reject(new Error('定投比例和固定金额不能同时为空'));
+            //       }
+            //       return Promise.resolve();
+            //     },
+            //   }),
+            // ]}
           >
             <ProFormDigit
               name="amount"
               noStyle
               min={0}
               precision={2}
-              placeholder="请输入定投最少金额"
+              placeholder="请输入定投固定金额"
             />
           </Form.Item>
           <ProFormSwitch
@@ -437,18 +446,18 @@ const DingtouList: React.FC = () => {
             dependencies={['amount']}
             name="rate"
             label="定投比例"
-            rules={[
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  const amount = getFieldValue('amount');
-                  if ((value === undefined || value === null || value === 0) &&
-                      (amount === undefined || amount === null || amount === 0)) {
-                    return Promise.reject(new Error('定投比例和最少金额不能同时为空'));
-                  }
-                  return Promise.resolve();
-                },
-              }),
-            ]}
+            // rules={[
+            //   ({ getFieldValue }) => ({
+            //     validator(_, value) {
+            //       const amount = getFieldValue('amount');
+            //       if ((value === undefined || value === null || value === 0) &&
+            //           (amount === undefined || amount === null || amount === 0)) {
+            //         return Promise.reject(new Error('定投比例和固定金额不能同时为空'));
+            //       }
+            //       return Promise.resolve();
+            //     },
+            //   }),
+            // ]}
           >
             <ProFormDigit
               name="rate"
@@ -466,26 +475,26 @@ const DingtouList: React.FC = () => {
           <Form.Item
             dependencies={['rate']}
             name="amount"
-            label="定投最少金额(美金)"
-            rules={[
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  const rate = getFieldValue('rate');
-                  if ((value === undefined || value === null || value === 0) &&
-                      (rate === undefined || rate === null || rate === 0)) {
-                    return Promise.reject(new Error('定投比例和最少金额不能同时为空'));
-                  }
-                  return Promise.resolve();
-                },
-              }),
-            ]}
+            label="定投固定金额(美金)"
+            // rules={[
+            //   ({ getFieldValue }) => ({
+            //     validator(_, value) {
+            //       const rate = getFieldValue('rate');
+            //       if ((value === undefined || value === null || value === 0) &&
+            //           (rate === undefined || rate === null || rate === 0)) {
+            //         return Promise.reject(new Error('定投比例和固定金额不能同时为空'));
+            //       }
+            //       return Promise.resolve();
+            //     },
+            //   }),
+            // ]}
           >
             <ProFormDigit
               name="amount"
               noStyle
               min={0}
               precision={2}
-              placeholder="请输入定投最少金额(美金)"
+              placeholder="请输入定投固定金额(美金)"
             />
           </Form.Item>
           <ProFormSwitch

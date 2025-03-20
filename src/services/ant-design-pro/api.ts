@@ -585,11 +585,11 @@ export async function createDingtou(
   options?: { [key: string]: any },
 ) {
   // 验证定投比例和最少金额不能同时为空
-  if ((params.rate === undefined || params.rate === null || params.rate === 0) &&
-      (params.amount === undefined || params.amount === null || params.amount === 0)) {
-    message.error('每次定投比例和最少金额不能同时为空');
-    return false;
-  }
+  // if ((params.rate === undefined || params.rate === null || params.rate === 0) &&
+  //     (params.amount === undefined || params.amount === null || params.amount === 0)) {
+  //   message.error('每次定投比例和最少金额不能同时为空');
+  //   return false;
+  // }
   return request('/api/dingtou', {
     method: 'POST',
     data: params,
