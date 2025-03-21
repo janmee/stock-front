@@ -282,7 +282,7 @@ const Trade: React.FC = () => {
                           return (
                             <Form.Item
                               name="sellTriggerValue"
-                              label={triggerType === 'percentage' ? '上涨幅度(%)' : '上涨比例($)'}
+                              label={triggerType === 'percentage' ? '上涨幅度(%)' : '上涨金额($)'}
                               initialValue={triggerType === 'percentage' ? 1 : 1}
                               rules={[{ required: true, message: '请输入触发值' }]}
                             >

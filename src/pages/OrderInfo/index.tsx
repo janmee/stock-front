@@ -123,50 +123,38 @@ const TableList: React.FC = () => {
       dataIndex: 'number',
       valueType: 'textarea',
       hideInSearch: true,
-      sorter: true,
     },
     {
-      title: '订单价格',
+      title: '股票单价',
       dataIndex: 'price',
-      valueType: {
-        type: 'money',
-        locale: 'en-US',
+      width: 100,
+      render: (_, record) => {
+        return record.orderType === '市价单' ? '市价' : record.price;
       },
-      hideInSearch: true,
-      sorter: true,
-      // renderText: (val: string) =>
-      //   val ? `${val}${intl.formatMessage({
-      //     id: 'pages.searchTable.yuan',
-      //     defaultMessage: ' 刀 ',
-      //   })}` : '-',
     },
     {
       title: '订单金额',
       dataIndex: 'amount',
+      width: 120,
+      render: (_, record) => {
+        return record.orderType === '市价单' ? '市价' : record.amount;
+      },
+    },
+    {
+      title: '成交数量',
+      dataIndex: 'fillQty',
+      valueType: 'textarea',
+      hideInSearch: true,
+    },
+    {
+      title: '成交均价',
+      dataIndex: 'fillAvgPrice',
       valueType: {
         type: 'money',
         locale: 'en-US',
       },
       hideInSearch: true,
-      sorter: true,
-      // renderText: (val: string) =>
-      //   val ? `${val}${intl.formatMessage({
-      //     id: 'pages.searchTable.yuan',
-      //     defaultMessage: ' 刀 ',
-      //   })}` : '-',
     },
-    // {
-    //   title: '手续费',
-    //   dataIndex: 'peer',
-    //   valueType: 'textarea',
-    //   hideInSearch: true,
-    //   sorter: true,
-    //   renderText: (val: string) =>
-    //     val ? `${val}${intl.formatMessage({
-    //       id: 'pages.searchTable.yuan',
-    //       defaultMessage: ' 元 ',
-    //     })}` : '-',
-    // },
     {
       title: '创建时间',
       dataIndex: 'createTime',
