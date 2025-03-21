@@ -125,4 +125,11 @@ export default [
     component: './Dingtou',
     access: 'canAdmin',
   },
+  {
+    name: 'list.trade',
+    icon: 'TrademarkOutlined',
+    path: '/trade',
+    component: './Trade',
+    access: 'canAdmin',
+  },
 ];

@@ -646,3 +646,42 @@ export async function updateDingtouStatus(
     ...(options || {}),
   });
 }
+
+/** 获取账户列表 GET /api/account/list */
+export async function fetchAccountList(
+  params: {
+    current?: number;
+    pageSize?: number;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<{
+    data: {
+      list: API.AccountInfo[];
+      total: number;
+    };
+  }>('/api/account/list', {
+    method: 'GET',
+    params: {
+      ...params,
+    },
+    ...(options || {}),
+  });
+}
+
+/** 批量交易 POST /api/orderInfo/batchTrade */
+export async function batchTrade(data: {
+  accounts: string[];
+  code: string;
+  number: number;
+  orderType: 1 | 2; // 1-普通订单(限价)  2-市价订单
+  trdSide: 1 | 2; // 1-买入, 2-卖出
+  price?: number;
+  sellTriggerType?: 'percentage' | 'amount' | 'limit';
+  sellTriggerValue?: number;
+}) {
+  return request<API.Response<boolean>>('/api/orderInfo/batchTrade', {
+    method: 'POST',
+    data,
+  });
+}

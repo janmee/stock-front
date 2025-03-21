@@ -172,21 +172,30 @@ const TableList: React.FC = () => {
     {
       title: '可用资金',
       dataIndex: 'availableAmount',
-      valueType: 'money',
+      valueType: {
+        type: 'money',
+        locale: 'en-US',
+      },
       hideInSearch: true,
       sorter: true,
     },
     {
       title: '总资产',
       dataIndex: 'totalAmount',
-      valueType: 'money',
+      valueType: {
+        type: 'money',
+        locale: 'en-US',
+      },
       hideInSearch: true,
       sorter: true,
     },
     {
       title: '购买力',
       dataIndex: 'power',
-      valueType: 'money',
+      valueType: {
+        type: 'money',
+        locale: 'en-US',
+      },
       hideInSearch: true,
       sorter: true,
     },

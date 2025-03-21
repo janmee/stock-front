@@ -60,4 +60,6 @@ export default {
   'menu.list.model': '模型列表',
   'menu.dingtou': '定投管理',
   'menu.list.dingtou': '定投管理',
+  'menu.trade': '实时交易',
+  'menu.list.trade': '实时交易',
 };

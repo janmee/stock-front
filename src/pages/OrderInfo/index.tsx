@@ -119,13 +119,6 @@ const TableList: React.FC = () => {
       sorter: true,
     },
     {
-      title: '订单日期',
-      dataIndex: 'createTime',
-      valueType: 'textarea',
-      hideInSearch: true,
-      sorter: true,
-    },
-    {
       title: '订单数量',
       dataIndex: 'number',
       valueType: 'textarea',
