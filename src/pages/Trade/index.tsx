@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
-import type { ProColumns } from '@ant-design/pro-components';
-import { Button, Modal, Form, Input, Radio, InputNumber, message, Checkbox } from 'antd';
-import { listAccountInfo, batchTrade } from '@/services/ant-design-pro/api';
+import type { ProColumns, ActionType } from '@ant-design/pro-components';
+import { Button, Modal, Form, Input, Radio, InputNumber, message, Checkbox, Divider } from 'antd';
+import { listAccountInfo, batchTrade, listOrderInfo, cancelOrder } from '@/services/ant-design-pro/api';
 
 interface TradeFormData {
   code: string;
@@ -21,6 +21,7 @@ const Trade: React.FC = () => {
   const [tradeModalVisible, setTradeModalVisible] = useState(false);
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
   const [form] = Form.useForm();
+  const actionRef = useRef<ActionType>();
 
   const columns: ProColumns<API.AccountInfo>[] = [
     {
@@ -62,6 +63,150 @@ const Trade: React.FC = () => {
     },
   ];
 
+  const orderColumns: ProColumns[] = [
+    {
+      title: '账号',
+      dataIndex: 'account',
+      valueType: 'textarea',
+      sorter: true,
+    },
+    {
+      title: '股票代码',
+      dataIndex: 'code',
+      valueType: 'textarea',
+      sorter: true,
+    },
+    {
+      title: '买入方向',
+      dataIndex: 'trdSide',
+      valueType: 'textarea',
+      hideInSearch: true,
+      valueEnum: {
+        1: { text: '买入', status: 'Success' },
+        2: { text: '卖出', status: 'Error' },
+      },
+    },
+    {
+      title: '订单类型',
+      dataIndex: 'orderType',
+      valueType: 'textarea',
+      hideInSearch: true,
+      valueEnum: {
+        1: { text: '限价单' },
+        2: { text: '市价单' },
+      },
+    },
+    {
+      title: '订单数量',
+      dataIndex: 'number',
+      valueType: 'textarea',
+      hideInSearch: true,
+    },
+    {
+      title: '股票单价',
+      dataIndex: 'price',
+      width: 100,
+      render: (_, record) => {
+        return record.orderType === 2 ? '市价' : record.price;
+      },
+      hideInSearch: true,
+    },
+    {
+      title: '订单金额',
+      dataIndex: 'amount',
+      width: 120,
+      hideInSearch: true,
+      render: (_, record) => {
+        return record.orderType === 2 ? '市价' : record.amount;
+      },
+    },
+    {
+      title: '成交数量',
+      dataIndex: 'fillQty',
+      valueType: 'textarea',
+      hideInSearch: true,
+    },
+    {
+      title: '成交均价',
+      dataIndex: 'fillAvgPrice',
+      valueType: {
+        type: 'money',
+        locale: 'en-US',
+      },
+      hideInSearch: true,
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      valueType: 'textarea',
+      hideInSearch: true,
+      sorter: true,
+    },
+    {
+      title: '订单状态',
+      dataIndex: 'status',
+      hideInSearch: true,
+      sorter: true,
+      valueEnum: {
+        0: { text: '未提交', status: 'Default' },
+        1: { text: '待执行', status: 'Processing' },
+        2: { text: '部分成交', status: 'Processing' },
+        3: { text: '全部成交', status: 'Success' },
+        4: { text: '已失效', status: 'Error' },
+        5: { text: '已撤单', status: 'Warning' },
+      },
+    },
+    {
+      title: '操作',
+      dataIndex: 'option',
+      valueType: 'option',
+      render: (_, record) => {
+        // 检查状态值是否不在1到10之间
+        const statusValue = Number(record.statusValue);
+        const canCancel = statusValue >= 1 && statusValue <= 10;
+        
+        return canCancel ? [
+          <Button 
+            key="cancel" 
+            type="primary" 
+            danger
+            onClick={() => handleCancelOrder(record.orderNo)}
+          >
+            撤单
+          </Button>
+        ] : null;
+      },
+    },
+  ];
+
+  // 处理撤单操作
+  const handleCancelOrder = async (orderNo: string) => {
+    Modal.confirm({
+      title: '确认撤单',
+      content: `确定要撤销订单 ${orderNo} 吗？`,
+      onOk: async () => {
+        try {
+          const response = await cancelOrder({
+            orderNo
+          });
+          
+          if (response.data === true) {
+            message.success('撤单成功');
+            // 刷新表格数据
+            actionRef.current?.reload();
+          } else {
+            const errorMsg = response?.errorMessage || response?.message || '撤单失败';
+            message.error(errorMsg);
+          }
+        } catch (error) {
+          message.error('撤单请求失败');
+          console.error('撤单错误:', error);
+        }
+      }
+    });
+  };
+  
+
   const handleTrade = (type: 'buy' | 'sell') => {
     if (selectedRows.length === 0) {
       message.warning('请选择交易账户');
@@ -101,7 +246,9 @@ const Trade: React.FC = () => {
       <ProTable<API.AccountInfo>
         headerTitle="账户列表"
         rowKey="id"
-        search={false}
+        search={{
+          labelWidth: 120,
+        }}
         options={false}
         request={listAccountInfo}
         columns={columns}
@@ -130,6 +277,24 @@ const Trade: React.FC = () => {
             卖出
           </Button>,
         ]}
+      />
+
+      <Divider style={{ margin: '5px 0' }} />
+
+      <ProTable
+        headerTitle="订单列表"
+        actionRef={actionRef}
+        rowKey="orderNo"
+        search={{
+          labelWidth: 120,
+        }}
+        request={listOrderInfo}
+        columns={orderColumns}
+        options={{
+          reload: true,
+        }}
+        revalidateOnFocus={true}
+        polling={5000}
       />
 
       <Modal
@@ -283,12 +448,12 @@ const Trade: React.FC = () => {
                             <Form.Item
                               name="sellTriggerValue"
                               label={triggerType === 'percentage' ? '上涨幅度(%)' : '上涨金额($)'}
-                              initialValue={triggerType === 'percentage' ? 1 : 1}
+                              initialValue={triggerType === 'percentage' ? 0.5 : 0.5}
                               rules={[{ required: true, message: '请输入触发值' }]}
                             >
                               <InputNumber
                                 min={0}
-                                step={triggerType === 'percentage' ? 0.1 : 0.01}
+                                step={triggerType === 'percentage' ? 0.1 : 0.1}
                                 placeholder={`请输入${triggerType === 'percentage' ? '上涨幅度' : '上涨比例'}`}
                                 style={{ width: '100%' }}
                               />

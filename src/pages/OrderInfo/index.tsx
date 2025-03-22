@@ -40,34 +40,14 @@ const TableList: React.FC = () => {
       content: `确定要撤销订单 ${orderNo} 吗？`,
       onOk: async () => {
         try {
-          // 调用撤单API
           const response = await cancelOrder({
             orderNo
           });
           
-          console.log('撤单响应数据:', response);
-          
-          // 根据不同的响应格式判断成功与否
           if (response.data === true) {
             message.success('撤单成功');
-            
-            // 强制完全刷新表格数据
-            if (actionRef.current) {
-              // 重置并重新加载
-              actionRef.current.reloadAndRest();
-              
-              // 如果上面的方法不够强力，可以尝试这个组合
-              setTimeout(() => {
-                // 清除所有筛选、排序和分页状态
-                actionRef.current?.clearSelected?.();
-                // 重新请求数据
-                actionRef.current?.reload(true); // 参数true表示强制刷新
-              }, 100);
-              
-              console.log('触发表格完全刷新');
-            } else {
-              console.warn('actionRef.current 不存在，无法刷新表格');
-            }
+            // 刷新表格数据
+            actionRef.current?.reload();
           } else {
             const errorMsg = response?.errorMessage || response?.message || '撤单失败';
             message.error(errorMsg);
@@ -117,6 +97,7 @@ const TableList: React.FC = () => {
       dataIndex: 'orderNo',
       valueType: 'textarea',
       sorter: true,
+      hideInSearch: true,
     },
     {
       title: '订单数量',
@@ -131,6 +112,7 @@ const TableList: React.FC = () => {
       render: (_, record) => {
         return record.orderType === '市价单' ? '市价' : record.price;
       },
+      hideInSearch: true,
     },
     {
       title: '订单金额',
@@ -139,6 +121,7 @@ const TableList: React.FC = () => {
       render: (_, record) => {
         return record.orderType === '市价单' ? '市价' : record.amount;
       },
+      hideInSearch: true,
     },
     {
       title: '成交数量',
