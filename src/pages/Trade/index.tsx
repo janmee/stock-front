@@ -46,6 +46,7 @@ const Trade: React.FC = () => {
         type: 'money',
         locale: 'en-US',
       },
+      hideInSearch: true,
     },
     {
       title: '总资金',
@@ -55,6 +56,7 @@ const Trade: React.FC = () => {
         type: 'money',
         locale: 'en-US',
       },
+      hideInSearch: true,
     },
     {
       title: '最大购买力',
@@ -64,6 +66,7 @@ const Trade: React.FC = () => {
         type: 'money',
         locale: 'en-US',
       },
+      hideInSearch: true,
     },
     {
       title: '操作',
@@ -71,6 +74,7 @@ const Trade: React.FC = () => {
       valueType: 'option',
       width: 120,
       fixed: 'right',
+      hideInSearch: true,
       render: (_, record) => [
         <Button
           key="position"
@@ -242,8 +246,8 @@ const Trade: React.FC = () => {
         accounts: selectedRows.map(row => row.account),
         code: values.code,
         number: values.qty,
-        orderType: values.orderType === 'market' ? 2 : 1, // 1-普通订单(限价)  2-市价订单
-        trdSide: tradeType === 'buy' ? 1 : 2, // 1-买入, 2-卖出
+        orderType: values.orderType === 'market' ? 2 : 1,
+        trdSide: tradeType === 'buy' ? 1 : 2,
         price: values.orderType === 'limit' ? values.price : undefined,
         sellTriggerType: values.autoSell && values.sellTriggerType ? values.sellTriggerType : undefined,
         sellTriggerValue: values.autoSell && values.sellTriggerValue ? values.sellTriggerValue : undefined,
@@ -253,13 +257,23 @@ const Trade: React.FC = () => {
         message.success('交易指令已发送');
         setTradeModalVisible(false);
         form.resetFields();
-        // 刷新订单列表
-        actionRef.current?.reload();
       } else {
         message.error('交易失败');
       }
+      // 无论成功失败都延迟刷新订单列表
+      setTimeout(() => {
+        if (actionRef.current) {
+          actionRef.current.reload();
+        }
+      }, 200);
     } catch (error) {
       message.error('交易失败');
+      // 发生错误时也刷新订单列表
+      setTimeout(() => {
+        if (actionRef.current) {
+          actionRef.current.reload();
+        }
+      }, 200);
     }
   };
 
@@ -290,7 +304,7 @@ const Trade: React.FC = () => {
     }
     setTradeType(type);
     setSelectedRows([{ account: currentAccount } as API.AccountInfo]);
-    setSelectedRowKeys([currentAccount]);
+    // setSelectedRowKeys([currentAccount]);
     setTradeModalVisible(true);
     form.setFieldValue('code', code);
   };
@@ -382,12 +396,15 @@ const Trade: React.FC = () => {
           labelWidth: 120,
         }}
         options={false}
+        params={{
+          enable: true
+        }}
         request={listAccountInfo}
         columns={columns}
         pagination={{
-          defaultPageSize: 5,
+          defaultPageSize: 10,
           showSizeChanger: true,
-          pageSizeOptions: ['5', '10', '20', '50', '100'],
+          pageSizeOptions: ['10', '20', '50', '100'],
         }}
         rowSelection={{
           selectedRowKeys,
@@ -442,6 +459,7 @@ const Trade: React.FC = () => {
         }}
         footer={null}
         width={600}
+        zIndex={1001}
       >
         {!currentAccount && (
           <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -537,7 +555,7 @@ const Trade: React.FC = () => {
                 valuePropName="checked"
                 initialValue={true}
               >
-                <Checkbox>自动卖出</Checkbox>
+                <Checkbox>全部成交后自动挂卖单</Checkbox>
               </Form.Item>
 
               <Form.Item
@@ -551,7 +569,7 @@ const Trade: React.FC = () => {
                     <>
                       <Form.Item
                         name="sellTriggerType"
-                        label="卖出触发条件"
+                        label="卖单规则"
                         initialValue="percentage"
                       >
                         <Radio.Group>
@@ -623,10 +641,11 @@ const Trade: React.FC = () => {
         onCancel={() => {
           setPositionModalVisible(false);
           setPositionData([]);  // 清空持仓数据
-          setCurrentAccount(undefined);  // 清空当前牛牛号
+          setCurrentAccount(undefined);
         }}
         footer={null}
         width={1000}
+        zIndex={1000}
       >
         <Table
           columns={positionColumns}
