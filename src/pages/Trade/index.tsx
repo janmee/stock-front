@@ -2,8 +2,8 @@ import React, { useState, useRef } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
-import { Button, Modal, Form, Input, Radio, InputNumber, message, Checkbox, Divider } from 'antd';
-import { listAccountInfo, batchTrade, listOrderInfo, cancelOrder } from '@/services/ant-design-pro/api';
+import { Button, Modal, Form, Input, Radio, InputNumber, message, Checkbox, Divider, Table, Space } from 'antd';
+import { listAccountInfo, batchTrade, listOrderInfo, cancelOrder, queryStockPosition } from '@/services/ant-design-pro/api';
 
 interface TradeFormData {
   code: string;
@@ -20,12 +20,16 @@ const Trade: React.FC = () => {
   const [selectedRows, setSelectedRows] = useState<API.AccountInfo[]>([]);
   const [tradeModalVisible, setTradeModalVisible] = useState(false);
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
+  const [positionModalVisible, setPositionModalVisible] = useState(false);
+  const [currentAccount, setCurrentAccount] = useState<string>();
+  const [positionData, setPositionData] = useState<API.PositionObj[]>([]);
+  const [positionLoading, setPositionLoading] = useState(false);
   const [form] = Form.useForm();
   const actionRef = useRef<ActionType>();
 
   const columns: ProColumns<API.AccountInfo>[] = [
     {
-      title: '账户',
+      title: '牛牛号',
       dataIndex: 'account',
       width: 120,
     },
@@ -61,11 +65,25 @@ const Trade: React.FC = () => {
         locale: 'en-US',
       },
     },
+    {
+      title: '操作',
+      dataIndex: 'option',
+      valueType: 'option',
+      render: (_, record) => [
+        <Button
+          key="position"
+          type="link"
+          onClick={() => handleViewPosition(record.account)}
+        >
+          查看持仓
+        </Button>
+      ],
+    },
   ];
 
   const orderColumns: ProColumns[] = [
     {
-      title: '账号',
+      title: '牛牛号',
       dataIndex: 'account',
       valueType: 'textarea',
       sorter: true,
@@ -209,7 +227,7 @@ const Trade: React.FC = () => {
 
   const handleTrade = (type: 'buy' | 'sell') => {
     if (selectedRows.length === 0) {
-      message.warning('请选择交易账户');
+      message.warning('请选择交易牛牛号');
       return;
     }
     setTradeType(type);
@@ -233,6 +251,8 @@ const Trade: React.FC = () => {
         message.success('交易指令已发送');
         setTradeModalVisible(false);
         form.resetFields();
+        // 刷新订单列表
+        actionRef.current?.reload();
       } else {
         message.error('交易失败');
       }
@@ -241,10 +261,120 @@ const Trade: React.FC = () => {
     }
   };
 
+  // 查看持仓
+  const handleViewPosition = async (account: string) => {
+    setCurrentAccount(account);
+    setPositionModalVisible(true);
+    setPositionLoading(true);
+    try {
+      const response = await queryStockPosition({ account });
+      if (response.data) {
+        setPositionData(response.data);
+      } else {
+        message.error('获取持仓数据失败');
+      }
+    } catch (error) {
+      message.error('获取持仓数据失败');
+    } finally {
+      setPositionLoading(false);
+    }
+  };
+
+  // 从持仓列表发起交易
+  const handlePositionTrade = (type: 'buy' | 'sell', code: string) => {
+    if (!currentAccount) {
+      message.warning('牛牛号信息不存在');
+      return;
+    }
+    setTradeType(type);
+    setSelectedRows([{ account: currentAccount } as API.AccountInfo]);
+    setSelectedRowKeys([currentAccount]);
+    setTradeModalVisible(true);
+    form.setFieldValue('code', code);
+  };
+
+  const positionColumns = [
+    {
+      title: '股票代码',
+      dataIndex: 'code',
+      key: 'code',
+    },
+    {
+      title: '持仓方向',
+      dataIndex: 'positionSide',
+      key: 'positionSide',
+      render: (val: number) => {
+        const color = val === 0 ? '#52c41a' : '#ff4d4f';
+        const text = val === 0 ? '多仓' : '空仓';
+        return <span style={{ color }}>{text}</span>;
+      },
+    },
+    {
+      title: '持仓数量',
+      dataIndex: 'qty',
+      key: 'qty',
+    },
+    {
+      title: '可用数量',
+      dataIndex: 'canSellQty',
+      key: 'canSellQty',
+    },
+    {
+      title: '成本价',
+      dataIndex: 'costPrice',
+      key: 'costPrice',
+      render: (val: number) => val?.toFixed(2),
+    },
+    {
+      title: '当前价',
+      dataIndex: 'price',
+      key: 'price',
+      render: (val: number) => val?.toFixed(2),
+    },
+    {
+      title: '持仓市值',
+      dataIndex: 'val',
+      key: 'val',
+      render: (val: number) => val?.toFixed(2),
+    },
+    {
+      title: '盈亏比例',
+      dataIndex: 'plRatio',
+      key: 'plRatio',
+      render: (val: number) => {
+        const color = val >= 0 ? '#52c41a' : '#ff4d4f';
+        return <span style={{ color }}>{(val * 100).toFixed(2)}%</span>;
+      },
+    },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_: unknown, record: API.PositionObj) => (
+        <Space>
+          <Button
+            type="primary"
+            size="small"
+            onClick={() => handlePositionTrade('buy', record.code)}
+          >
+            买入
+          </Button>
+          <Button
+            type="primary"
+            danger
+            size="small"
+            onClick={() => handlePositionTrade('sell', record.code)}
+          >
+            卖出
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
   return (
     <PageContainer>
       <ProTable<API.AccountInfo>
-        headerTitle="账户列表"
+        headerTitle="牛牛号列表"
         rowKey="id"
         search={{
           labelWidth: 120,
@@ -294,7 +424,6 @@ const Trade: React.FC = () => {
           reload: true,
         }}
         revalidateOnFocus={true}
-        polling={5000}
       />
 
       <Modal
@@ -307,28 +436,30 @@ const Trade: React.FC = () => {
         footer={null}
         width={600}
       >
-        <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {[
-            { code: 'AAPL', name: '苹果' },
-            { code: 'NVDA', name: '英伟达' },
-            { code: 'META', name: 'Meta' },
-            { code: 'MSFT', name: '微软' },
-            { code: 'AMZN', name: '亚马逊' },
-            { code: 'GOOGL', name: '谷歌' },
-            { code: 'TSLA', name: '特斯拉' },
-            { code: 'AVGO', name: '博通' },
-            { code: 'CRWD', name: 'CrowdStrike' },
-            { code: 'TSM', name: '台积电' },
-          ].map((stock) => (
-            <Button
-              key={stock.code}
-              size="small"
-              onClick={() => form.setFieldValue('code', stock.code)}
-            >
-              {stock.code}({stock.name})
-            </Button>
-          ))}
-        </div>
+        {!currentAccount && (
+          <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {[
+              { code: 'AAPL', name: '苹果' },
+              { code: 'NVDA', name: '英伟达' },
+              { code: 'META', name: 'Meta' },
+              { code: 'MSFT', name: '微软' },
+              { code: 'AMZN', name: '亚马逊' },
+              { code: 'GOOGL', name: '谷歌' },
+              { code: 'TSLA', name: '特斯拉' },
+              { code: 'AVGO', name: '博通' },
+              { code: 'CRWD', name: 'CrowdStrike' },
+              { code: 'TSM', name: '台积电' },
+            ].map((stock) => (
+              <Button
+                key={stock.code}
+                size="small"
+                onClick={() => form.setFieldValue('code', stock.code)}
+              >
+                {stock.code}({stock.name})
+              </Button>
+            ))}
+          </div>
+        )}
         <Form
           form={form}
           onFinish={handleTradeSubmit}
@@ -339,7 +470,10 @@ const Trade: React.FC = () => {
             label="股票代码"
             rules={[{ required: true, message: '请输入股票代码' }]}
           >
-            <Input placeholder="请输入股票代码" />
+            <Input 
+              placeholder="请输入股票代码" 
+              disabled={!!currentAccount}  // 从持仓进入时禁用输入
+            />
           </Form.Item>
 
           <Form.Item
@@ -474,6 +608,26 @@ const Trade: React.FC = () => {
             </Button>
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title={`牛牛号${currentAccount}持仓信息`}
+        open={positionModalVisible}
+        onCancel={() => {
+          setPositionModalVisible(false);
+          setPositionData([]);  // 清空持仓数据
+          setCurrentAccount(undefined);  // 清空当前牛牛号
+        }}
+        footer={null}
+        width={1000}
+      >
+        <Table
+          columns={positionColumns}
+          dataSource={positionData}
+          rowKey="code"
+          loading={positionLoading}
+          pagination={false}
+        />
       </Modal>
     </PageContainer>
   );

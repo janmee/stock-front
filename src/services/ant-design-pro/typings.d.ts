@@ -149,4 +149,15 @@ declare namespace API {
     createTime: string;
     updateTime: string;
   };
+
+  interface PositionObj {
+    code: string;
+    qty: number;
+    canSellQty: number;
+    costPrice: number;
+    price: number;
+    val: number;
+    plRatio: number;
+    positionSide: number;
+  }
 }

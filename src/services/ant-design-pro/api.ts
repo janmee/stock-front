@@ -685,3 +685,11 @@ export async function batchTrade(data: {
     data,
   });
 }
+
+/** 查询持仓 */
+export async function queryStockPosition(params: { account: string }) {
+  return request<API.Response<API.PositionObj[]>>('/api/accountInfo/queryStockPosition', {
+    method: 'GET',
+    params,
+  });
+}
