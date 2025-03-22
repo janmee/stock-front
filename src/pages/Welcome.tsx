@@ -133,6 +133,19 @@ const Welcome: React.FC = () => {
                       marginBottom: 16,
                       width: '50%',
                     }}>
+                      <span>2025-03-22</span> <br/>
+                      1. 订单查询功能 <br/>
+                      2. 账户管理功能 <br/>
+                      3. 实时交易功能
+                    </div>
+                    <div style={{
+                      fontSize: '14px',
+                      color: token.colorTextSecondary,
+                      lineHeight: '22px',
+                      marginTop: 16,
+                      marginBottom: 16,
+                      width: '50%',
+                    }}>
                       <span>2025-03-16</span> <br/>
                       1. 周期性定投 <br/>
                       2. 股票下跌买入策略 <br/>

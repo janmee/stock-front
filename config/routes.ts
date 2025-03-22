@@ -67,6 +67,13 @@ export default [
   //   access: 'canAdmin',
   // },
   {
+    name: 'list.trade',
+    icon: 'TrademarkOutlined',
+    path: '/trade',
+    component: './Trade',
+    access: 'canAdmin',
+  },
+  {
     name: 'list.order-info',
     icon: 'FileDoneOutlined',
     path: '/order',
@@ -109,16 +116,6 @@ export default [
   //   access: 'canTest',
   // },
   {
-    path: '/',
-    redirect: '/welcome',
-  },
-  {
-    path: '*',
-    layout: false,
-    component: './404',
-  },
-  // 添加定投管理路由
-  {
     name: 'list.dingtou',
     icon: 'LineChartOutlined',
     path: '/dingtou',
@@ -126,10 +123,12 @@ export default [
     access: 'canAdmin',
   },
   {
-    name: 'list.trade',
-    icon: 'TrademarkOutlined',
-    path: '/trade',
-    component: './Trade',
-    access: 'canAdmin',
+    path: '/',
+    redirect: '/welcome',
+  },
+  {
+    path: '*',
+    layout: false,
+    component: './404',
   },
 ];

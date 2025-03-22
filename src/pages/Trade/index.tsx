@@ -31,17 +31,17 @@ const Trade: React.FC = () => {
     {
       title: '牛牛号',
       dataIndex: 'account',
-      width: 120,
+      width: 180,
     },
     {
       title: '账户别名',
       dataIndex: 'name',
-      width: 120,
+      width: 180,
     },
     {
       title: '可用资金',
       dataIndex: 'availableAmount',
-      width: 120,
+      width: 180,
       valueType: {
         type: 'money',
         locale: 'en-US',
@@ -50,7 +50,7 @@ const Trade: React.FC = () => {
     {
       title: '总资金',
       dataIndex: 'totalAmount',
-      width: 120,
+      width: 180,
       valueType: {
         type: 'money',
         locale: 'en-US',
@@ -59,7 +59,7 @@ const Trade: React.FC = () => {
     {
       title: '最大购买力',
       dataIndex: 'power',
-      width: 120,
+      width: 180,
       valueType: {
         type: 'money',
         locale: 'en-US',
@@ -69,6 +69,8 @@ const Trade: React.FC = () => {
       title: '操作',
       dataIndex: 'option',
       valueType: 'option',
+      width: 120,
+      fixed: 'right',
       render: (_, record) => [
         <Button
           key="position"
@@ -374,7 +376,7 @@ const Trade: React.FC = () => {
   return (
     <PageContainer>
       <ProTable<API.AccountInfo>
-        headerTitle="牛牛号列表"
+        headerTitle="账户列表"
         rowKey="id"
         search={{
           labelWidth: 120,
@@ -382,6 +384,11 @@ const Trade: React.FC = () => {
         options={false}
         request={listAccountInfo}
         columns={columns}
+        pagination={{
+          defaultPageSize: 5,
+          showSizeChanger: true,
+          pageSizeOptions: ['5', '10', '20', '50', '100'],
+        }}
         rowSelection={{
           selectedRowKeys,
           onChange: (newSelectedRowKeys, newSelectedRows) => {
