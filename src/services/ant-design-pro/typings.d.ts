@@ -160,4 +160,12 @@ declare namespace API {
     plRatio: number;
     positionSide: number;
   }
+
+  type Response<T> = {
+    success: boolean;
+    data: T;
+    errorCode?: string;
+    errorMessage?: string;
+    message?: string;
+  };
 }

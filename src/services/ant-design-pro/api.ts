@@ -679,6 +679,7 @@ export async function batchTrade(data: {
   price?: number;
   sellTriggerType?: 'percentage' | 'amount' | 'limit';
   sellTriggerValue?: number;
+  timeForce?: number; // 0-不撤单有效, 1-撤单有效
 }) {
   return request<API.Response<boolean>>('/api/orderInfo/batchTrade', {
     method: 'POST',

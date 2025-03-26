@@ -13,6 +13,7 @@ interface TradeFormData {
   autoSell?: boolean;
   sellTriggerType?: 'percentage' | 'amount' | 'limit';
   sellTriggerValue?: number;
+  timeForce?: boolean;
 }
 
 const Trade: React.FC = () => {
@@ -251,6 +252,7 @@ const Trade: React.FC = () => {
         price: values.orderType === 'limit' ? values.price : undefined,
         sellTriggerType: values.autoSell && values.sellTriggerType ? values.sellTriggerType : undefined,
         sellTriggerValue: values.autoSell && values.sellTriggerValue ? values.sellTriggerValue : undefined,
+        timeForce: values.timeForce ? 1 : 0,
       });
       
       if (response.data) {
@@ -522,6 +524,14 @@ const Trade: React.FC = () => {
               <Radio value="market">市价单</Radio>
               <Radio value="limit">限价单</Radio>
             </Radio.Group>
+          </Form.Item>
+
+          <Form.Item
+            name="timeForce"
+            valuePropName="checked"
+            initialValue={false}
+          >
+            <Checkbox>撤单有效</Checkbox>
           </Form.Item>
 
           <Form.Item
