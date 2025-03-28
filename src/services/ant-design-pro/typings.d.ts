@@ -148,6 +148,10 @@ declare namespace API {
     enable: boolean;
     createTime: string;
     updateTime: string;
+    marketVal: number;  // 证券市值
+    riskLevel: number;  // 风险等级
+    overPercent: number;  // 最大使用资金占总资产百分比
+    initAmount: number;   // 初始资金
   };
 
   interface PositionObj {

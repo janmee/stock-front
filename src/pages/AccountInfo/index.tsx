@@ -80,7 +80,10 @@ const TableList: React.FC = () => {
   // 处理编辑账户
   const handleEditAccount = (record: API.AccountInfo) => {
     setCurrentAccount(record);  // 先设置当前账户
-    form.setFieldsValue(record);  // 设置表单值
+    form.setFieldsValue({
+      ...record,
+      overPercent: record.overPercent * 100, // 将小数转换为百分比显示
+    });  // 设置表单值
     setEditModalVisible(true);  // 打开模态框
   };
 
@@ -91,7 +94,8 @@ const TableList: React.FC = () => {
     try {
       const response = await updateAccountInfo({
         id: currentAccount.id,
-        ...values
+        ...values,
+        overPercent: values.overPercent / 100, // 将百分比转换为小数
       });
       
       if (response.success) {
@@ -116,7 +120,10 @@ const TableList: React.FC = () => {
   // 处理创建账户
   const handleCreateAccount = async (values: any) => {
     try {
-      const response = await createAccountInfo(values);
+      const response = await createAccountInfo({
+        ...values,
+        overPercent: values.overPercent / 100, // 将百分比转换为小数
+      });
       
       if (response.success) {
         message.success('账户创建成功');
@@ -150,18 +157,18 @@ const TableList: React.FC = () => {
       valueType: 'text',
       sorter: true,
     },
-    {
-      title: '主机地址',
-      dataIndex: 'host',
-      valueType: 'text',
-      hideInSearch: true,
-    },
-    {
-      title: '端口',
-      dataIndex: 'port',
-      valueType: 'text',
-      hideInSearch: true,
-    },
+    // {
+    //   title: '主机地址',
+    //   dataIndex: 'host',
+    //   valueType: 'text',
+    //   hideInSearch: true,
+    // },
+    // {
+    //   title: '端口',
+    //   dataIndex: 'port',
+    //   valueType: 'text',
+    //   hideInSearch: true,
+    // },
     {
       title: '交易密码',
       dataIndex: 'tradePassword',
@@ -190,6 +197,34 @@ const TableList: React.FC = () => {
       sorter: true,
     },
     {
+      title: '证券市值',
+      dataIndex: 'marketVal',
+      valueType: {
+        type: 'money',
+        locale: 'en-US',
+      },
+      hideInSearch: true,
+      sorter: true,
+    },
+    {
+      title: '初始资金',
+      dataIndex: 'initAmount',
+      valueType: {
+        type: 'money',
+        locale: 'en-US',
+      },
+      hideInSearch: true,
+      sorter: true,
+    },
+    {
+      title: '最大使用资金占比',
+      dataIndex: 'overPercent',
+      valueType: 'percent',
+      hideInSearch: true,
+      sorter: true,
+      render: (_, record) => `${(record.overPercent * 100).toFixed(2)}%`,
+    },
+    {
       title: '购买力',
       dataIndex: 'power',
       valueType: {
@@ -200,23 +235,37 @@ const TableList: React.FC = () => {
       sorter: true,
     },
     {
-      title: '主账户',
-      dataIndex: 'master',
+      title: '风险等级',
+      dataIndex: 'riskLevel',
       valueType: 'text',
       hideInSearch: true,
-      render: (_, record) => (
-        <span>{record.master ? '是' : '否'}</span>
-      ),
+      valueEnum: {
+        '-1': { text: '未知', status: 'Default' },
+        '0': { text: '安全', status: 'Success' },
+        '1': { text: '预警', status: 'Warning' },
+        '2': { text: '危险', status: 'Error' },
+        '3': { text: '绝对安全', status: 'Success' },
+        '4': { text: '危险', status: 'Error' },
+      },
     },
-    {
-      title: '跟单账户',
-      dataIndex: 'follow',
-      valueType: 'text',
-      hideInSearch: true,
-      render: (_, record) => (
-        <span>{record.follow || '-'}</span>
-      ),
-    },
+    // {
+    //   title: '主账户',
+    //   dataIndex: 'master',
+    //   valueType: 'text',
+    //   hideInSearch: true,
+    //   render: (_, record) => (
+    //     <span>{record.master ? '是' : '否'}</span>
+    //   ),
+    // },
+    // {
+    //   title: '跟单账户',
+    //   dataIndex: 'follow',
+    //   valueType: 'text',
+    //   hideInSearch: true,
+    //   render: (_, record) => (
+    //     <span>{record.follow || '-'}</span>
+    //   ),
+    // },
     {
       title: '状态',
       dataIndex: 'enable',
@@ -271,9 +320,9 @@ const TableList: React.FC = () => {
 
   return (
     <PageContainer>
-      <ProTable
+      <ProTable<API.AccountInfo>
         headerTitle={intl.formatMessage({
-          id: 'pages.searchTable.accountInfoList',
+          id: 'pages.accountInfo.title',
           defaultMessage: '账户列表',
         })}
         actionRef={actionRef}
@@ -281,24 +330,28 @@ const TableList: React.FC = () => {
         search={{
           labelWidth: 120,
         }}
+        params={{
+          master: false,
+          follow: false
+        }}
+        request={listAccountInfo}
+        columns={columns}
+        rowSelection={{
+          onChange: (_, selectedRows) => {
+            setSelectedRows(selectedRows);
+          },
+        }}
         toolBarRender={() => [
           <Button
             type="primary"
-            key="create"
-            onClick={() => setCreateModalVisible(true)}
+            key="primary"
+            onClick={() => {
+              setCreateModalVisible(true);
+            }}
           >
-            新建账户
+            新建
           </Button>,
         ]}
-        request={listAccountInfo}
-        columns={columns}
-        polling={undefined}
-        revalidateOnFocus={true}
-        debounceTime={0}
-        options={{
-          reload: true,
-        }}
-        key={JSON.stringify(selectedRowsState) + new Date().getTime()}
       />
 
       {/* 编辑账户表单 */}
@@ -362,6 +415,31 @@ const TableList: React.FC = () => {
             placeholder="请输入交易密码"
             rules={[{ required: true, message: '请输入交易密码' }]}
           />
+          <ProFormDigit
+            name="overPercent"
+            label="最大使用资金占比(%)"
+            placeholder="请输入最大使用资金占比"
+            min={0}
+            max={200}
+            fieldProps={{
+              precision: 2,
+              step: 1,
+              formatter: (value) => `${value}%`,
+              parser: (value) => value ? parseFloat(value.replace('%', '')) : 0,
+            }}
+            rules={[{ required: true, message: '请输入最大使用资金占比' }]}
+          />
+          <ProFormDigit
+            name="initAmount"
+            label="初始资金"
+            placeholder="请输入初始资金"
+            min={0}
+            fieldProps={{
+              precision: 2,
+              step: 0.01,
+            }}
+            rules={[{ required: true, message: '请输入初始资金' }]}
+          />
           <ProFormSwitch
             name="master"
             label="主账户"
@@ -390,7 +468,9 @@ const TableList: React.FC = () => {
         onFinish={handleCreateAccount}
         initialValues={{
           host: '127.0.0.1',
-          master: true
+          master: true,
+          overPercent: 100,  // 默认最大使用资金占比为100%
+          initAmount: 0  // 默认初始资金为0
         }}
       >
         <ProForm.Group>
@@ -426,6 +506,31 @@ const TableList: React.FC = () => {
             label="交易密码"
             placeholder="请输入交易密码"
             rules={[{ required: true, message: '请输入交易密码' }]}
+          />
+          <ProFormDigit
+            name="overPercent"
+            label="最大使用资金占比(%)"
+            placeholder="请输入最大使用资金占比"
+            min={0}
+            max={200}
+            fieldProps={{
+              precision: 2,
+              step: 1,
+              formatter: (value) => `${value}%`,
+              parser: (value) => value ? parseFloat(value.replace('%', '')) : 0,
+            }}
+            rules={[{ required: true, message: '请输入最大使用资金占比' }]}
+          />
+          <ProFormDigit
+            name="initAmount"
+            label="初始资金（美金）"
+            placeholder="请输入初始资金"
+            min={0}
+            fieldProps={{
+              precision: 2,
+              step: 0.01,
+            }}
+            rules={[{ required: true, message: '请输入初始资金' }]}
           />
           <ProFormSwitch
             name="master"

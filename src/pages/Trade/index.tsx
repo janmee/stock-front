@@ -60,6 +60,16 @@ const Trade: React.FC = () => {
       hideInSearch: true,
     },
     {
+      title: '证券市值',
+      dataIndex: 'marketVal',
+      width: 180,
+      valueType: {
+        type: 'money',
+        locale: 'en-US',
+      },
+      hideInSearch: true,
+    },
+    {
       title: '最大购买力',
       dataIndex: 'power',
       width: 180,
@@ -68,6 +78,20 @@ const Trade: React.FC = () => {
         locale: 'en-US',
       },
       hideInSearch: true,
+    },
+    {
+      title: '风险等级',
+      dataIndex: 'riskLevel',
+      width: 120,
+      hideInSearch: true,
+      valueEnum: {
+        '-1': { text: '未知', status: 'Default' },
+        '0': { text: '安全', status: 'Success' },
+        '1': { text: '预警', status: 'Warning' },
+        '2': { text: '危险', status: 'Error' },
+        '3': { text: '绝对安全', status: 'Success' },
+        '4': { text: '危险', status: 'Error' },
+      },
     },
     {
       title: '操作',
@@ -404,7 +428,7 @@ const Trade: React.FC = () => {
         request={listAccountInfo}
         columns={columns}
         pagination={{
-          defaultPageSize: 10,
+          defaultPageSize: 100,
           showSizeChanger: true,
           pageSizeOptions: ['10', '20', '50', '100'],
         }}

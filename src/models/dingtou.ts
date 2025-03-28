@@ -11,6 +11,8 @@ export interface Dingtou {
   enable: boolean;
   createTime?: string;
   updateTime?: string;
+  sellPercentage: number;  // 盈利百分比卖出，0为不卖出
+  buyAfterSellPercentage: number;  // 卖出后，下跌多少百分比后，再次买入，0为不买入
 }
 
 export interface DingtouQueryParams {

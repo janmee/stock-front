@@ -190,7 +190,8 @@ const DingtouList: React.FC = () => {
       valueType: 'percent',
       hideInSearch: true,
       renderText: (val: number) =>
-        val === null || val === undefined ? '-' : `${val * 100}%`,
+        val === null || val === undefined ? '-' : 
+        val === 0 ? '0.00%' : `${(val * 100).toFixed(2)}%`,
     },
     {
       title: '固定定投金额(美金)',
@@ -200,6 +201,26 @@ const DingtouList: React.FC = () => {
         locale: 'en-US',
       },
       hideInSearch: true,
+      renderText: (val: number) =>
+        val === null || val === undefined ? '-' : `$${val.toFixed(2)}`,
+    },
+    {
+      title: '盈利卖出比例(%)',
+      dataIndex: 'sellPercentage',
+      valueType: 'text',
+      hideInSearch: true,
+      renderText: (val: number) =>
+        val === null || val === undefined ? '-' : 
+        val === 0 ? '不卖出' : `${val.toFixed(2)}%`,
+    },
+    {
+      title: '回调买入比例(%)',
+      dataIndex: 'buyAfterSellPercentage',
+      valueType: 'text',
+      hideInSearch: true,
+      renderText: (val: number) =>
+        val === null || val === undefined ? '-' : 
+        val === 0 ? '不买入' : `${val.toFixed(2)}%`,
     },
     {
       title: '状态',
@@ -252,8 +273,9 @@ const DingtouList: React.FC = () => {
         <p style={{ marginBottom: 8, fontWeight: 'bold' }}>每一期定投时间为每周五收盘前10分钟，单次定投金额, 计算方式优先级如下：</p>
         <p style={{ marginBottom: 8, paddingLeft: 16 }}>1. 如果设置了每次定投比例，按总资金比例计算，如果计算结果大于设置的固定定投金额，使用计算结果，否则使用设置的固定定投金额。</p>
         <p style={{ marginBottom: 8, paddingLeft: 16 }}>2. 如果没有设置定投比例，只设置了固定定投金额，直接使用定投金额。</p>
-        <p style={{ paddingLeft: 16 }}>3. 如果都没设置，使用默认的计算方式，单次金额 = 可用金额 ➗ 剩余定投期数 ➗ 定投股票数</p>
-        <p style={{ paddingLeft: 16 }}>4. 如果最终计算的金额少于当前股价，取消这次定投</p>
+        <p style={{ paddingLeft: 16 }}>3. 如果都没设置，使用默认的计算方式，单次金额 = 总资金 * 最大使用资金占比 ➗ 剩余定投期数 ➗ 定投股票数</p>
+        <p style={{ paddingLeft: 16 }}>4. 如果（计算的定投金额 + 股票市值）&gt;（总资产 * 最大使用资金占比），则跳过本次定投</p>
+        <p style={{ paddingLeft: 16 }}>5. 如果最终计算的金额少于当前股价，默认只买1股</p>
       </div>
       <ProTable
         headerTitle={intl.formatMessage({
@@ -287,30 +309,19 @@ const DingtouList: React.FC = () => {
 
       {/* 编辑定投表单 */}
       <ModalForm
-        title="编辑定投信息(每周五收盘前10分钟执行定投)"
+        title="编辑定投计划"
         width={500}
         open={editModalVisible}
         onOpenChange={(visible) => {
           setEditModalVisible(visible);
           if (!visible) {
-            form.resetFields();
             setCurrentDingtou(undefined);
+            form.resetFields();
           }
         }}
         onFinish={handleUpdateDingtou}
         initialValues={currentDingtou}
         form={form}
-        submitter={{
-          searchConfig: {
-            submitText: '确认',
-            resetText: '取消',
-          },
-          render: (props, defaultDoms) => {
-            return [
-              ...defaultDoms,
-            ];
-          },
-        }}
       >
         <ProForm.Group>
           <ProFormText
@@ -330,95 +341,75 @@ const DingtouList: React.FC = () => {
             label="计划定投期数"
             placeholder="请输入计划定投期数"
             min={1}
-            initialValue={144}
             rules={[{ required: true, message: '请输入计划定投期数' }]}
           />
-          <Form.Item
-            dependencies={['amount']}
+          <ProFormDigit
             name="rate"
-            label="每次定投比例"
-            // rules={[
-            //   ({ getFieldValue }) => ({
-            //     validator(_, value) {
-            //       const amount = getFieldValue('amount');
-            //       if ((value === undefined || value === null || value === 0) &&
-            //           (amount === undefined || amount === null || amount === 0)) {
-            //         return Promise.reject(new Error('定投比例和固定金额不能同时为空'));
-            //       }
-            //       return Promise.resolve();
-            //     },
-            //   }),
-            // ]}
-          >
-            <ProFormDigit
-              name="rate"
-              noStyle
-              min={0}
-              max={1}
-              step={0.01}
-              placeholder="请输入定投比例"
-              fieldProps={{
-                formatter: (value) => `${(value || 0) * 100}%`,
-                parser: (value) => (value ? parseFloat(value.replace('%', '')) / 100 : 0),
-              }}
-            />
-          </Form.Item>
-          <Form.Item
-            dependencies={['rate']}
+            label="每次定投比例(%)"
+            placeholder="请输入每次定投比例"
+            min={0}
+            max={100}
+            fieldProps={{
+              precision: 2,
+              step: 0.01,
+              formatter: (value) => `${value}%`,
+              parser: (value) => value ? parseFloat(value.replace('%', '')) : 0,
+            }}
+          />
+          <ProFormDigit
             name="amount"
-            label="定投固定金额(美金)"
-            // rules={[
-            //   ({ getFieldValue }) => ({
-            //     validator(_, value) {
-            //       const rate = getFieldValue('rate');
-            //       if ((value === undefined || value === null || value === 0) &&
-            //           (rate === undefined || rate === null || rate === 0)) {
-            //         return Promise.reject(new Error('定投比例和固定金额不能同时为空'));
-            //       }
-            //       return Promise.resolve();
-            //     },
-            //   }),
-            // ]}
-          >
-            <ProFormDigit
-              name="amount"
-              noStyle
-              min={0}
-              precision={2}
-              placeholder="请输入定投固定金额"
-            />
-          </Form.Item>
-          <ProFormSwitch
-            name="enable"
-            label="是否启用"
-            checkedChildren="启用"
-            unCheckedChildren="禁用"
-            initialValue={true}
+            label="固定定投金额(美金)"
+            placeholder="请输入固定定投金额"
+            min={0}
+            fieldProps={{
+              precision: 2,
+              step: 0.01,
+            }}
+          />
+          <ProFormDigit
+            name="sellPercentage"
+            label="盈利卖出比例(%)"
+            placeholder="请输入盈利卖出比例，0为不卖出"
+            min={0}
+            max={1000}
+            initialValue={0}
+            fieldProps={{
+              precision: 2,
+              step: 0.01,
+              formatter: (value) => value === 0 ? '不卖出' : `${value}%`,
+              parser: (value) => value === '不卖出' ? 0 : parseFloat(value!.replace('%', '')),
+            }}
+          />
+          <ProFormDigit
+            name="buyAfterSellPercentage"
+            label="回调买入比例(%)"
+            placeholder="请输入回调买入比例，0为不买入"
+            min={0}
+            max={100}
+            initialValue={0}
+            fieldProps={{
+              precision: 2,
+              step: 0.01,
+              formatter: (value) => value === 0 ? '不买入' : `${value}%`,
+              parser: (value) => value === '不买入' ? 0 : parseFloat(value!.replace('%', '')),
+            }}
           />
         </ProForm.Group>
       </ModalForm>
 
       {/* 创建定投表单 */}
       <ModalForm
-        title="创建新定投(每周五收盘前10分钟执行定投)"
+        title="创建新定投计划"
         width={500}
         open={createModalVisible}
         onOpenChange={setCreateModalVisible}
         onFinish={handleCreateDingtou}
         initialValues={{
-          allTimes: 144,
-          enable: true
-        }}
-        submitter={{
-          searchConfig: {
-            submitText: '确认',
-            resetText: '取消',
-          },
-          render: (props, defaultDoms) => {
-            return [
-              ...defaultDoms,
-            ];
-          },
+          rate: 0,
+          amount: 0,
+          sellPercentage: 0,
+          buyAfterSellPercentage: 0,
+          allTimes: 156
         }}
       >
         <ProForm.Group>
@@ -439,70 +430,59 @@ const DingtouList: React.FC = () => {
             label="计划定投期数"
             placeholder="请输入计划定投期数"
             min={1}
-            initialValue={144}
+            initialValue={156}
             rules={[{ required: true, message: '请输入计划定投期数' }]}
           />
-          <Form.Item
-            dependencies={['amount']}
+          <ProFormDigit
             name="rate"
-            label="定投比例"
-            // rules={[
-            //   ({ getFieldValue }) => ({
-            //     validator(_, value) {
-            //       const amount = getFieldValue('amount');
-            //       if ((value === undefined || value === null || value === 0) &&
-            //           (amount === undefined || amount === null || amount === 0)) {
-            //         return Promise.reject(new Error('定投比例和固定金额不能同时为空'));
-            //       }
-            //       return Promise.resolve();
-            //     },
-            //   }),
-            // ]}
-          >
-            <ProFormDigit
-              name="rate"
-              noStyle
-              min={0}
-              max={1}
-              step={0.01}
-              placeholder="请输入定投比例"
-              fieldProps={{
-                formatter: (value) => `${(value || 0) * 100}%`,
-                parser: (value) => (value ? parseFloat(value.replace('%', '')) / 100 : 0),
-              }}
-            />
-          </Form.Item>
-          <Form.Item
-            dependencies={['rate']}
+            label="每次定投比例(%)"
+            placeholder="请输入每次定投比例"
+            min={0}
+            max={100}
+            fieldProps={{
+              precision: 2,
+              step: 0.01,
+              formatter: (value) => `${value}%`,
+              parser: (value) => value ? parseFloat(value.replace('%', '')) : 0,
+            }}
+          />
+          <ProFormDigit
             name="amount"
-            label="定投固定金额(美金)"
-            // rules={[
-            //   ({ getFieldValue }) => ({
-            //     validator(_, value) {
-            //       const rate = getFieldValue('rate');
-            //       if ((value === undefined || value === null || value === 0) &&
-            //           (rate === undefined || rate === null || rate === 0)) {
-            //         return Promise.reject(new Error('定投比例和固定金额不能同时为空'));
-            //       }
-            //       return Promise.resolve();
-            //     },
-            //   }),
-            // ]}
-          >
-            <ProFormDigit
-              name="amount"
-              noStyle
-              min={0}
-              precision={2}
-              placeholder="请输入定投固定金额(美金)"
-            />
-          </Form.Item>
-          <ProFormSwitch
-            name="enable"
-            label="是否启用"
-            checkedChildren="启用"
-            unCheckedChildren="禁用"
-            initialValue={true}
+            label="固定定投金额(美金)"
+            placeholder="请输入固定定投金额"
+            min={0}
+            fieldProps={{
+              precision: 2,
+              step: 0.01,
+            }}
+          />
+          <ProFormDigit
+            name="sellPercentage"
+            label="盈利卖出比例(%)"
+            placeholder="请输入盈利卖出比例，0为不卖出"
+            min={0}
+            max={1000}
+            initialValue={0}
+            fieldProps={{
+              precision: 2,
+              step: 0.01,
+              formatter: (value) => value === 0 ? '不卖出' : `${value}%`,
+              parser: (value) => value === '不卖出' ? 0 : parseFloat(value!.replace('%', '')),
+            }}
+          />
+          <ProFormDigit
+            name="buyAfterSellPercentage"
+            label="回调买入比例(%)"
+            placeholder="请输入回调买入比例，0为不买入"
+            min={0}
+            max={100}
+            initialValue={0}
+            fieldProps={{
+              precision: 2,
+              step: 0.01,
+              formatter: (value) => value === 0 ? '不买入' : `${value}%`,
+              parser: (value) => value === '不买入' ? 0 : parseFloat(value!.replace('%', '')),
+            }}
           />
         </ProForm.Group>
       </ModalForm>
