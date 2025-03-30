@@ -694,3 +694,29 @@ export async function queryStockPosition(params: { account: string }) {
     params,
   });
 }
+
+/** 获取账户收益列表 GET /api/accountInfo/profit */
+export async function fetchProfitList(
+  params: {
+    startTime?: string;
+    endTime?: string;
+    accounts?: string;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<{
+    success: boolean;
+    data: {
+      [key: string]: {
+        date: string;
+        profitPercentage: number;
+      }[];
+    };
+  }>('/api/accountInfo/profit', {
+    method: 'GET',
+    params: {
+      ...params,
+    },
+    ...(options || {}),
+  });
+}

@@ -138,7 +138,7 @@ const Login: React.FC = () => {
         localStorage.setItem('token', msg?.data);
         await fetchUserInfo();
         const urlParams = new URL(window.location.href).searchParams;
-        history.push(urlParams.get('redirect') || '/welcome');
+        history.push(urlParams.get('redirect') || '/Dashboard');
       } else {
         setUserLoginState(msg);
       }

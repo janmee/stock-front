@@ -22,11 +22,17 @@ export default [
       },
     ],
   },
+  // {
+  //   path: '/welcome',
+  //   name: 'welcome',
+  //   icon: 'smile',
+  //   component: './Welcome',
+  // },
   {
-    path: '/welcome',
-    name: 'welcome',
-    icon: 'smile',
-    component: './Welcome',
+    path: '/dashboard',
+    name: '数据大盘',
+    icon: 'DashboardOutlined',
+    component: './Dashboard',
   },
   // {
   //   path: '/admin',
@@ -94,13 +100,13 @@ export default [
   //   component: './ModelList',
   //   access: 'canAdmin',
   // },
-  // {
-  //   name: 'list.time-job',
-  //   icon: 'FieldTimeOutlined',
-  //   path: '/job',
-  //   component: './JobList',
-  //   access: 'canAdmin',
-  // },
+  {
+    name: 'list.time-job',
+    icon: 'FieldTimeOutlined',
+    path: '/job',
+    component: './JobList',
+    access: 'canAdmin',
+  },
   // {
   //   name: 'list.run-logs',
   //   icon: 'OrderedListOutlined',
@@ -124,7 +130,7 @@ export default [
   },
   {
     path: '/',
-    redirect: '/welcome',
+    redirect: '/Dashboard',
   },
   {
     path: '*',
