@@ -6,14 +6,24 @@ import {
   ProForm,
   ProFormText,
   ProFormDigit,
+  ProFormSelect,
   ProFormSwitch,
   ProFormDateTimePicker,
   ProTable,
 } from '@ant-design/pro-components';
 import {useIntl} from '@umijs/max';
 import {Button, Form, InputNumber, Modal, Switch, message} from 'antd';
-import React, {useRef, useState} from 'react';
+import React, {useRef, useState, useCallback} from 'react';
 import { Dingtou } from '@/models/dingtou';
+import { request } from 'umi';
+import { debounce } from 'lodash';
+
+const PAGE_SIZE = 500;
+
+interface AccountInfo {
+  account: string;
+  name: string;
+}
 
 const DingtouList: React.FC = () => {
   const actionRef = useRef<ActionType>();
@@ -23,10 +33,76 @@ const DingtouList: React.FC = () => {
   const [currentDingtou, setCurrentDingtou] = useState<Dingtou | undefined>(undefined);
   const [form] = Form.useForm();
 
+  const [accounts, setAccounts] = useState<AccountInfo[]>([]);
+  const [accountLoading, setAccountLoading] = useState(false);
+  const [accountPage, setAccountPage] = useState(1);
+  const [accountTotal, setAccountTotal] = useState(0);
+  const [searchName, setSearchName] = useState('');
+
   /**
    * 国际化配置
    */
   const intl = useIntl();
+
+  // 使用useCallback和debounce创建防抖的搜索函数
+  const debouncedSearch = useCallback(
+    debounce((value: string) => {
+      setSearchName(value);
+      setAccountPage(1);
+      fetchAccounts(1, value);
+    }, 500),
+    []
+  );
+
+  // 获取账户列表
+  const fetchAccounts = async (page: number = 1, name?: string) => {
+    try {
+      setAccountLoading(true);
+      const result = await request('/api/accountInfo/list', {
+        params: {
+          current: page,
+          pageSize: PAGE_SIZE,
+          name: name,
+        },
+      });
+      if (result.success) {
+        if (page === 1) {
+          setAccounts(result.data || []);
+        } else {
+          setAccounts((prev) => [...prev, ...(result.data || [])]);
+        }
+        setAccountTotal(result.total || 0);
+      }
+    } catch (error) {
+      message.error('获取账户列表失败');
+    } finally {
+      setAccountLoading(false);
+    }
+  };
+
+  // 处理账户搜索
+  const handleAccountSearch = (value: string) => {
+    debouncedSearch(value);
+  };
+
+  // 处理账户下拉框滚动
+  const handleAccountPopupScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { target } = e;
+    const div = target as HTMLDivElement;
+    if (div.scrollHeight - div.scrollTop - div.clientHeight < 50) {
+      const nextPage = accountPage + 1;
+      const totalPages = Math.ceil(accountTotal / PAGE_SIZE);
+      if (nextPage <= totalPages && !accountLoading) {
+        setAccountPage(nextPage);
+        fetchAccounts(nextPage, searchName);
+      }
+    }
+  };
+
+  // 初始化时获取账户列表
+  React.useEffect(() => {
+    fetchAccounts(1);
+  }, []);
 
   // 处理启用/禁用定投
   const handleToggleStatus = async (id: number, enable: boolean) => {
@@ -73,7 +149,6 @@ const DingtouList: React.FC = () => {
           }
         } catch (error) {
           message.error('删除请求失败');
-          console.error('删除错误:', error);
         }
       }
     });
@@ -299,7 +374,7 @@ const DingtouList: React.FC = () => {
         request={fetchDingtouList}
         columns={columns}
         polling={undefined}
-        revalidateOnFocus={true}
+        revalidateOnFocus={false}
         debounceTime={0}
         options={{
           reload: true,
@@ -324,11 +399,25 @@ const DingtouList: React.FC = () => {
         form={form}
       >
         <ProForm.Group>
-          <ProFormText
+          <ProFormSelect
             name="account"
             label="交易账号"
-            placeholder="请输入交易账号"
-            rules={[{ required: true, message: '请输入交易账号' }]}
+            placeholder="请选择交易账号"
+            rules={[{ required: true, message: '请选择交易账号' }]}
+            showSearch
+            options={accounts.map(item => ({
+              label: `${item.name} (${item.account})`,
+              value: item.account,
+            }))}
+            fieldProps={{
+              loading: accountLoading,
+              onPopupScroll: handleAccountPopupScroll,
+              onSearch: handleAccountSearch,
+              filterOption: false,
+              showSearch: true,
+              defaultActiveFirstOption: false,
+              notFoundContent: accountLoading ? '加载中...' : '暂无数据',
+            }}
           />
           <ProFormText
             name="code"
@@ -413,11 +502,25 @@ const DingtouList: React.FC = () => {
         }}
       >
         <ProForm.Group>
-          <ProFormText
+          <ProFormSelect
             name="account"
             label="交易账号"
-            placeholder="请输入交易账号"
-            rules={[{ required: true, message: '请输入交易账号' }]}
+            placeholder="请选择交易账号"
+            rules={[{ required: true, message: '请选择交易账号' }]}
+            showSearch
+            options={accounts.map(item => ({
+              label: `${item.name} (${item.account})`,
+              value: item.account,
+            }))}
+            fieldProps={{
+              loading: accountLoading,
+              onPopupScroll: handleAccountPopupScroll,
+              onSearch: handleAccountSearch,
+              filterOption: false,
+              showSearch: true,
+              defaultActiveFirstOption: false,
+              notFoundContent: accountLoading ? '加载中...' : '暂无数据',
+            }}
           />
           <ProFormText
             name="code"
