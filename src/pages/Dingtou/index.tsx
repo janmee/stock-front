@@ -273,8 +273,8 @@ const DingtouList: React.FC = () => {
         <p style={{ marginBottom: 8, fontWeight: 'bold' }}>每一期定投时间为每周五收盘前10分钟，单次定投金额, 计算方式优先级如下：</p>
         <p style={{ marginBottom: 8, paddingLeft: 16 }}>1. 如果设置了每次定投比例，按总资金比例计算，如果计算结果大于设置的固定定投金额，使用计算结果，否则使用设置的固定定投金额。</p>
         <p style={{ marginBottom: 8, paddingLeft: 16 }}>2. 如果没有设置定投比例，只设置了固定定投金额，直接使用定投金额。</p>
-        <p style={{ paddingLeft: 16 }}>3. 如果都没设置，使用默认的计算方式，单次金额 = 总资金 * 最大使用资金占比 ➗ 剩余定投期数 ➗ 定投股票数</p>
-        <p style={{ paddingLeft: 16 }}>4. 如果（计算的定投金额 + 股票市值）&gt;（总资产 * 最大使用资金占比），则跳过本次定投</p>
+        <p style={{ paddingLeft: 16 }}>3. 如果都没设置，使用默认的计算方式，单个股票定投金额 = 初始资金 * 最大使用资金占比 ➗ 总定投期数 ➗ 定投股票数</p>
+        <p style={{ paddingLeft: 16 }}>4. 如果（计算的定投金额 + 股票市值）&gt;（初始资金 * 最大使用资金占比），则跳过本次定投</p>
         <p style={{ paddingLeft: 16 }}>5. 如果最终计算的金额少于当前股价，默认只买1股</p>
       </div>
       <ProTable
