@@ -62,4 +62,6 @@ export default {
   'menu.list.dingtou': '定投管理',
   'menu.trade': '实时交易',
   'menu.list.trade': '实时交易',
+  'menu.backtest': '策略回测',
+  'menu.list.backtest': '策略回测',
 };

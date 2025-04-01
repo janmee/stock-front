@@ -129,6 +129,13 @@ export default [
     access: 'canAdmin',
   },
   {
+    name: 'list.backtest',
+    icon: 'FundOutlined',
+    path: '/backtest',
+    component: './Backtest',
+    access: 'canAdmin',
+  },
+  {
     path: '/',
     redirect: '/Dashboard',
   },

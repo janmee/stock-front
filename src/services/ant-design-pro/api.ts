@@ -714,3 +714,71 @@ export async function fetchProfitList(
     ...(options || {}),
   });
 }
+
+/** 执行单一策略回测 GET /api/backtest/run */
+export async function runBacktest(params: {
+  stockCode: string;
+  indexCode?: string;
+  initialCapital?: number;
+  investAmount?: number;
+  maxInvestRatio?: number;
+  strategies: string[];
+  startDate: string;
+  endDate: string;
+  sellProfitPercentage?: number;
+  buybackDropPercentage?: number;
+}) {
+  // 将strategies数组转换为逗号分隔的字符串
+  const { strategies, ...otherParams } = params;
+  const strategiesStr = strategies.join(',');
+  
+  return request('/api/backtest/run', {
+    method: 'GET',
+    params: {
+      ...otherParams,
+      strategies: strategiesStr,
+    },
+  });
+}
+
+/** 执行参数优化回测 GET /api/backtest/optimize */
+export async function optimizeBacktest(params: {
+  stockCode: string;
+  indexCode?: string;
+  initialCapital?: number;
+  investAmount?: number;
+  maxInvestRatio?: number;
+  strategies: string[];
+  startDate: string;
+  endDate: string;
+  sellProfitRangeStart?: number;
+  sellProfitRangeEnd?: number;
+  sellProfitStep?: number;
+  buybackRangeStart?: number;
+  buybackRangeEnd?: number;
+  buybackStep?: number;
+}) {
+  // 将strategies数组转换为逗号分隔的字符串
+  const { strategies, ...otherParams } = params;
+  const strategiesStr = strategies.join(',');
+  
+  return request('/api/backtest/optimize', {
+    method: 'GET',
+    params: {
+      ...otherParams,
+      strategies: strategiesStr,
+    },
+  });
+}
+
+/** 比较不同策略 GET /api/backtest/compare */
+export async function compareBacktestStrategies(params: {
+  stockCode: string;
+  indexCode?: string;
+  initialCapital?: number;
+}) {
+  return request('/api/backtest/compare', {
+    method: 'GET',
+    params,
+  });
+}
