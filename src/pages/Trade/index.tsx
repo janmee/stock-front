@@ -114,8 +114,8 @@ const Trade: React.FC = () => {
 
   const orderColumns: ProColumns[] = [
     {
-      title: '牛牛号',
-      dataIndex: 'account',
+      title: '账号名称',
+      dataIndex: 'accountName',
       valueType: 'textarea',
       sorter: true,
     },

@@ -62,10 +62,11 @@ const TableList: React.FC = () => {
 
   const columns: ProColumns[] = [
     {
-      title: '账号',
-      dataIndex: 'account',
+      title: '账号名称',
+      dataIndex: 'accountName',
       valueType: 'textarea',
       sorter: true,
+      hideInSearch: false,
     },
     {
       title: '股票代码',
