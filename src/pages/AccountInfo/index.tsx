@@ -222,30 +222,27 @@ const TableList: React.FC = () => {
       sorter: true,
     },
     {
+      title: '是否连接OpenD',
+      dataIndex: 'connected',
+      valueType: 'text',
+      hideInSearch: true,
+      render: (_, record) => {
+        // 这里假设record中有connected字段表示连接状态
+        const isConnected = record.connected === true;
+        return (
+          <span style={{ color: isConnected ? '#52c41a' : '#ff4d4f' }}>
+            {isConnected ? '已连接' : '未连接'}
+          </span>
+        );
+      }
+    },
+    {
       title: '资金账户ID',
       dataIndex: 'accId',
       valueType: 'text',
       hideInSearch: true,
     },
-    // {
-    //   title: '主机地址',
-    //   dataIndex: 'host',
-    //   valueType: 'text',
-    //   hideInSearch: true,
-    // },
-    // {
-    //   title: '端口',
-    //   dataIndex: 'port',
-    //   valueType: 'text',
-    //   hideInSearch: true,
-    // },
-    {
-      title: '交易密码',
-      dataIndex: 'tradePassword',
-      valueType: 'password',
-      hideInSearch: true,
-      hideInTable: true,
-    },
+
     {
       title: '可用资金',
       dataIndex: 'availableAmount',
@@ -318,44 +315,26 @@ const TableList: React.FC = () => {
         '4': { text: '危险', status: 'Error' },
       },
     },
-    // {
-    //   title: '主账户',
-    //   dataIndex: 'master',
-    //   valueType: 'text',
-    //   hideInSearch: true,
-    //   render: (_, record) => (
-    //     <span>{record.master ? '是' : '否'}</span>
-    //   ),
-    // },
-    // {
-    //   title: '跟单账户',
-    //   dataIndex: 'follow',
-    //   valueType: 'text',
-    //   hideInSearch: true,
-    //   render: (_, record) => (
-    //     <span>{record.follow || '-'}</span>
-    //   ),
-    // },
-    {
-      title: '状态',
-      dataIndex: 'enable',
-      valueEnum: {
-        true: {
-          text: '已启用',
-          status: 'Success',
-        },
-        false: {
-          text: '已禁用',
-          status: 'Error',
-        },
-      },
-    },
     {
       title: '创建时间',
       dataIndex: 'createTime',
       valueType: 'dateTime',
       hideInSearch: true,
       sorter: true,
+    },
+    {
+      title: '状态',
+      dataIndex: 'enable',
+      valueType: 'switch',
+      hideInSearch: true,
+      render: (_, record) => (
+        <Switch
+          checked={record.enable}
+          onChange={(checked) => handleToggleStatus(record.id, checked)}
+          checkedChildren="启用"
+          unCheckedChildren="禁用"
+        />
+      )
     },
     {
       title: '操作',
@@ -369,23 +348,16 @@ const TableList: React.FC = () => {
         >
           编辑
         </Button>,
-        <Switch
-          key="toggle"
-          checked={record.enable}
-          onChange={(checked) => handleToggleStatus(record.id, checked)}
-          checkedChildren="启用"
-          unCheckedChildren="禁用"
-        />,
-        <Button
-          key="generateConfig"
-          type="link"
-          onClick={() => handleGenerateConfig(record.account)}
-        >
-          生成配置
-        </Button>,
+        // <Button
+        //   key="generateConfig"
+        //   type="link"
+        //   onClick={() => handleGenerateConfig(record.account)}
+        // >
+        //   生成配置
+        // </Button>,
         <Button
           key="startOpenD"
-          type="primary"
+          type="link"
           onClick={() => handleStartOpenD(record.account)}
         >
           启动OpenD
@@ -480,13 +452,6 @@ const TableList: React.FC = () => {
             rules={[{ required: true, message: '请输入账户别名' }]}
           />
           <ProFormText
-            name="accId"
-            label="资金账户ID(默认自动获取)"
-            placeholder="请输入资金账户ID"
-            tooltip="资金账户ID为可选字段"
-            rules={[{ required: false }]}
-          />
-          <ProFormText
             name="host"
             label="主机地址"
             placeholder="请输入主机地址"
@@ -561,6 +526,13 @@ const TableList: React.FC = () => {
               />
             )}
           </Form.Item>
+          <ProFormText
+            name="accId"
+            label="资金账户ID(默认自动获取)"
+            placeholder="请输入资金账户ID"
+            tooltip="资金账户ID为可选字段"
+            rules={[{ required: false }]}
+          />
         </ProForm.Group>
       </ModalForm>
 
@@ -590,13 +562,6 @@ const TableList: React.FC = () => {
             label="账户别名"
             placeholder="请输入账户别名"
             rules={[{ required: true, message: '请输入账户别名' }]}
-          />
-          <ProFormText
-            name="accId"
-            label="资金账户ID(默认自动获取)"
-            placeholder="请输入资金账户ID"
-            tooltip="资金账户ID为可选字段"
-            rules={[{ required: false }]}
           />
           <ProFormText
             name="host"
@@ -673,6 +638,13 @@ const TableList: React.FC = () => {
               />
             )}
           </Form.Item>
+          <ProFormText
+            name="accId"
+            label="资金账户ID(默认自动获取)"
+            placeholder="请输入资金账户ID"
+            tooltip="资金账户ID为可选字段"
+            rules={[{ required: false }]}
+          />
         </ProForm.Group>
       </ModalForm>
     </PageContainer>
