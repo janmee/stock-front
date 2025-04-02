@@ -3,7 +3,7 @@ import { PageContainer } from '@ant-design/pro-components';
 import { Card, Form, Input, Button, DatePicker, InputNumber, Select, Radio, Tabs, Spin, message } from 'antd';
 import { runBacktest, optimizeBacktest, compareBacktestStrategies } from '@/services/ant-design-pro/api';
 import { Line, Column } from '@ant-design/plots';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 const { TabPane } = Tabs;
 const { RangePicker } = DatePicker;
@@ -152,7 +152,7 @@ const BacktestPage: React.FC = () => {
     
     // 所有交易的日期排序
     const allTransactions = [...buyTransactions, ...sellTransactions]
-      .sort((a, b) => moment(a.date).valueOf() - moment(b.date).valueOf());
+      .sort((a, b) => dayjs(a.date).valueOf() - dayjs(b.date).valueOf());
     
     // 累计交易金额数据（用于资金曲线）
     const cumulativeData = [];
@@ -168,13 +168,13 @@ const BacktestPage: React.FC = () => {
       }
       
       cumulativeData.push({
-        date: moment(tx.date).format('YYYY-MM-DD'),
+        date: dayjs(tx.date).format('YYYY-MM-DD'),
         type: '累计投入',
         value: cumulativeInvested,
       });
       
       cumulativeData.push({
-        date: moment(tx.date).format('YYYY-MM-DD'),
+        date: dayjs(tx.date).format('YYYY-MM-DD'),
         type: '账户价值',
         value: cumulativeValue,
       });
@@ -247,10 +247,51 @@ const BacktestPage: React.FC = () => {
               },
             }}
             tooltip={{
-              formatter: (datum) => {
-                return { name: datum.type, value: `$${Number(datum.value).toFixed(2)}` };
+              formatter: (datum) => ({
+                name: datum.type,
+                value: `$${Number(datum.value).toFixed(2)}`,
+              }),
+            }}
+          />
+        </Card>
+
+        <Card title="收益率对比" style={{ marginBottom: 16 }}>
+          <Line
+            data={[
+              ...(backtestResult.dailyReturns || []).map((item: any) => ({
+                date: dayjs(item.date).format('YYYY-MM-DD'),
+                type: '策略收益率',
+                value: item.returnRate,
+              })),
+              ...(backtestResult.indexDailyReturns || []).map((item: any) => ({
+                date: dayjs(item.date).format('YYYY-MM-DD'),
+                type: '指数涨跌幅',
+                value: item.returnRate,
+              })),
+            ]}
+            xField="date"
+            yField="value"
+            seriesField="type"
+            yAxis={{
+              label: {
+                formatter: (v) => `${Number(v).toFixed(2)}%`,
               },
             }}
+            tooltip={{
+              formatter: (datum) => ({
+                name: datum.type,
+                value: `${Number(datum.value).toFixed(2)}%`,
+              }),
+            }}
+            legend={{
+              position: 'top',
+            }}
+            smooth={true}
+            point={{
+              size: 2,
+              shape: 'circle',
+            }}
+            color={['#52c41a', '#1890ff']}
           />
         </Card>
 
@@ -259,7 +300,7 @@ const BacktestPage: React.FC = () => {
             <Card>
               <Column
                 data={buyTransactions.map((tx: Transaction) => ({
-                  date: moment(tx.date).format('YYYY-MM-DD'),
+                  date: dayjs(tx.date).format('YYYY-MM-DD'),
                   amount: tx.amount,
                   strategy: tx.strategy,
                 }))}
@@ -283,7 +324,7 @@ const BacktestPage: React.FC = () => {
             <Card>
               <Column
                 data={sellTransactions.map((tx: Transaction) => ({
-                  date: moment(tx.date).format('YYYY-MM-DD'),
+                  date: dayjs(tx.date).format('YYYY-MM-DD'),
                   amount: tx.amount,
                   strategy: tx.strategy,
                 }))}
@@ -374,7 +415,7 @@ const BacktestPage: React.FC = () => {
         <Form.Item
           name="initialCapital"
           label="初始资金(美元)"
-          initialValue={10000}
+          initialValue={100000}
           rules={[{ required: true, message: '请输入初始资金' }]}
         >
           <InputNumber min={1000} style={{ width: '100%' }} />
@@ -402,7 +443,7 @@ const BacktestPage: React.FC = () => {
         <Form.Item
           name="maxInvestRatio"
           label="最大使用资金占比"
-          initialValue={0.8}
+          initialValue={1}
           rules={[{ required: true, message: '请输入最大使用资金占比' }]}
         >
           <InputNumber min={0.1} max={1} step={0.1} style={{ width: '100%' }} />
@@ -431,7 +472,16 @@ const BacktestPage: React.FC = () => {
           label="回测时间范围"
           rules={[{ required: true, message: '请选择回测时间范围' }]}
         >
-          <RangePicker style={{ width: '100%' }} />
+          <RangePicker 
+            style={{ width: '100%' }} 
+            disabledDate={(current) => current && current < dayjs('2015-04-01')}
+            ranges={{
+              '近1年': [dayjs().subtract(1, 'year'), dayjs()],
+              '近3年': [dayjs().subtract(3, 'year'), dayjs()],
+              '近5年': [dayjs().subtract(5, 'year'), dayjs()],
+              '2015年至今': [dayjs('2015-04-01'), dayjs()]
+            }}
+          />
         </Form.Item>
 
         {backtestMode === 'single' && (
@@ -525,7 +575,8 @@ const BacktestPage: React.FC = () => {
         <p style={{ marginBottom: 8, paddingLeft: 16 }}>2. 大盘下跌定投：周一到周四，大盘指数下跌1.8%时买入</p>
         <p style={{ marginBottom: 8, paddingLeft: 16 }}>3. 连续下跌定投：周一到周四连续下跌时，周四收盘买入</p>
         <p style={{ marginBottom: 8, paddingLeft: 16 }}>4. 可以设置盈利多少卖出以及回调多少买回的策略进行回测</p>
-        <p style={{ paddingLeft: 16 }}>5. 最优参数搜索功能可尝试不同的卖出及回调比例，找出最佳组合</p>
+        <p style={{ marginBottom: 8, paddingLeft: 16 }}>5. 最优参数搜索功能可尝试不同的卖出及回调比例，找出最佳组合</p>
+        <p style={{ paddingLeft: 16 }}>6. 回测数据可用时间范围：2015年4月1日至今</p>
       </div>
 
       <Card style={{ marginBottom: 24 }}>

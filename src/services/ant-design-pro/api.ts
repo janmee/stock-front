@@ -782,3 +782,23 @@ export async function compareBacktestStrategies(params: {
     params,
   });
 }
+
+// 启动OpenD
+export async function startOpenD(params: {
+  account: string;
+}) {
+  return request<API.ApiResponse>('/api/accountInfo/startOpenD', {
+    method: 'POST',
+    data: params,
+  });
+}
+
+/** 生成账户配置文件 POST /api/accountInfo/generateConfig */
+export async function generateAccountConfig(params: {
+  account: string;
+}) {
+  return request<API.ApiResponse>('/api/accountInfo/generateConfig', {
+    method: 'POST',
+    data: params,
+  });
+}

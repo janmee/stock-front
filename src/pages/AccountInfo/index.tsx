@@ -1,4 +1,4 @@
-import {createAccountInfo, deleteAccountInfo, listAccountInfo, updateAccountInfo, updateAccountStatus} from '@/services/ant-design-pro/api';
+import {createAccountInfo, deleteAccountInfo, listAccountInfo, updateAccountInfo, updateAccountStatus, generateAccountConfig, startOpenD} from '@/services/ant-design-pro/api';
 import type {ActionType, ProColumns} from '@ant-design/pro-components';
 import {
   ModalForm,
@@ -12,6 +12,7 @@ import {
 import {useIntl} from '@umijs/max';
 import {Button, Form, Modal, Switch, message} from 'antd';
 import React, {useRef, useState} from 'react';
+import { md5 } from '@/utils/crypto';
 
 const TableList: React.FC = () => {
   const actionRef = useRef<ActionType>();
@@ -83,6 +84,8 @@ const TableList: React.FC = () => {
     form.setFieldsValue({
       ...record,
       overPercent: record.overPercent * 100, // 将小数转换为百分比显示
+      tradePassword: '', // 清空交易密码字段
+      loginPassword: '', // 清空登录密码字段
     });  // 设置表单值
     setEditModalVisible(true);  // 打开模态框
   };
@@ -92,10 +95,26 @@ const TableList: React.FC = () => {
     if (!currentAccount) return false;
     
     try {
+      // 如果有登录密码或交易密码，进行MD5加密
+      const formValues = { ...values };
+      
+      // 如果密码为空字符串，则从提交数据中删除该字段（不更新密码）
+      if (!formValues.loginPassword) {
+        delete formValues.loginPassword;
+      } else {
+        formValues.loginPassword = md5(formValues.loginPassword);
+      }
+      
+      if (!formValues.tradePassword) {
+        delete formValues.tradePassword;
+      } else {
+        formValues.tradePassword = md5(formValues.tradePassword);
+      }
+      
       const response = await updateAccountInfo({
         id: currentAccount.id,
-        ...values,
-        overPercent: values.overPercent / 100, // 将百分比转换为小数
+        ...formValues,
+        overPercent: formValues.overPercent / 100, // 将百分比转换为小数
       });
       
       if (response.success) {
@@ -120,9 +139,18 @@ const TableList: React.FC = () => {
   // 处理创建账户
   const handleCreateAccount = async (values: any) => {
     try {
+      // 登录密码和交易密码MD5加密
+      const formValues = { ...values };
+      if (formValues.loginPassword) {
+        formValues.loginPassword = md5(formValues.loginPassword);
+      }
+      if (formValues.tradePassword) {
+        formValues.tradePassword = md5(formValues.tradePassword);
+      }
+      
       const response = await createAccountInfo({
-        ...values,
-        overPercent: values.overPercent / 100, // 将百分比转换为小数
+        ...formValues,
+        overPercent: formValues.overPercent / 100, // 将百分比转换为小数
       });
       
       if (response.success) {
@@ -144,6 +172,42 @@ const TableList: React.FC = () => {
     }
   };
 
+  // 处理生成配置
+  const handleGenerateConfig = async (account: string) => {
+    try {
+      const response = await generateAccountConfig({
+        account
+      });
+      
+      if (response.success) {
+        message.success('配置文件生成成功');
+      } else {
+        message.error(response.message || '生成配置失败');
+      }
+    } catch (error) {
+      message.error('生成配置请求失败');
+      console.error('生成配置错误:', error);
+    }
+  };
+
+  // 处理启动OpenD
+  const handleStartOpenD = async (account: string) => {
+    try {
+      const response = await startOpenD({
+        account
+      });
+      
+      if (response.success) {
+        message.success('OpenD已启动成功');
+      } else {
+        message.error(response.message || '启动OpenD失败');
+      }
+    } catch (error) {
+      message.error('启动OpenD请求失败');
+      console.error('启动OpenD错误:', error);
+    }
+  };
+
   const columns: ProColumns[] = [
     {
       title: '牛牛号',
@@ -156,6 +220,12 @@ const TableList: React.FC = () => {
       dataIndex: 'name',
       valueType: 'text',
       sorter: true,
+    },
+    {
+      title: '资金账户ID',
+      dataIndex: 'accId',
+      valueType: 'text',
+      hideInSearch: true,
     },
     // {
     //   title: '主机地址',
@@ -307,6 +377,20 @@ const TableList: React.FC = () => {
           unCheckedChildren="禁用"
         />,
         <Button
+          key="generateConfig"
+          type="link"
+          onClick={() => handleGenerateConfig(record.account)}
+        >
+          生成配置
+        </Button>,
+        <Button
+          key="startOpenD"
+          type="primary"
+          onClick={() => handleStartOpenD(record.account)}
+        >
+          启动OpenD
+        </Button>,
+        <Button
           key="delete"
           type="primary"
           danger
@@ -396,6 +480,13 @@ const TableList: React.FC = () => {
             rules={[{ required: true, message: '请输入账户别名' }]}
           />
           <ProFormText
+            name="accId"
+            label="资金账户ID(默认自动获取)"
+            placeholder="请输入资金账户ID"
+            tooltip="资金账户ID为可选字段"
+            rules={[{ required: false }]}
+          />
+          <ProFormText
             name="host"
             label="主机地址"
             placeholder="请输入主机地址"
@@ -412,8 +503,22 @@ const TableList: React.FC = () => {
           <ProFormText.Password
             name="tradePassword"
             label="交易密码"
-            placeholder="请输入交易密码"
-            rules={[{ required: true, message: '请输入交易密码' }]}
+            placeholder="请输入交易密码（将进行MD5加密）"
+            rules={[{ required: false, message: '请输入交易密码' }]}
+            fieldProps={{
+              autoComplete: 'new-password',
+            }}
+            tooltip="不填写则不会更新交易密码"
+          />
+          <ProFormText.Password
+            name="loginPassword"
+            label="登录密码"
+            placeholder="请输入登录密码（将进行MD5加密）"
+            rules={[{ required: false, message: '请输入登录密码' }]}
+            fieldProps={{
+              autoComplete: 'new-password',
+            }}
+            tooltip="不填写则不会更新登录密码"
           />
           <ProFormDigit
             name="overPercent"
@@ -487,6 +592,13 @@ const TableList: React.FC = () => {
             rules={[{ required: true, message: '请输入账户别名' }]}
           />
           <ProFormText
+            name="accId"
+            label="资金账户ID(默认自动获取)"
+            placeholder="请输入资金账户ID"
+            tooltip="资金账户ID为可选字段"
+            rules={[{ required: false }]}
+          />
+          <ProFormText
             name="host"
             label="主机地址"
             placeholder="请输入主机地址"
@@ -504,8 +616,20 @@ const TableList: React.FC = () => {
           <ProFormText.Password
             name="tradePassword"
             label="交易密码"
-            placeholder="请输入交易密码"
+            placeholder="请输入交易密码（将进行MD5加密）"
             rules={[{ required: true, message: '请输入交易密码' }]}
+            fieldProps={{
+              autoComplete: 'new-password',
+            }}
+          />
+          <ProFormText.Password
+            name="loginPassword"
+            label="登录密码"
+            placeholder="请输入登录密码（将进行MD5加密）"
+            rules={[{ required: true, message: '请输入登录密码' }]}
+            fieldProps={{
+              autoComplete: 'new-password',
+            }}
           />
           <ProFormDigit
             name="overPercent"
