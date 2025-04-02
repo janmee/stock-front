@@ -4,6 +4,7 @@ import { Card, Form, Input, Button, DatePicker, InputNumber, Select, Radio, Tabs
 import { runBacktest, optimizeBacktest, compareBacktestStrategies } from '@/services/ant-design-pro/api';
 import { Line, Column } from '@ant-design/plots';
 import dayjs from 'dayjs';
+import { request } from '@umijs/max';
 
 const { TabPane } = Tabs;
 const { RangePicker } = DatePicker;
@@ -24,6 +25,12 @@ interface Transaction {
   amount: number;
   type: 'BUY' | 'SELL';
   strategy: string;
+  buyPrice?: number;
+  profitRate?: number;
+  holdingDays?: number;
+  isBuyback?: boolean;
+  relatedTransactionDate?: string | Date; 
+  relatedTransactionPrice?: number;
 }
 
 const BacktestPage: React.FC = () => {
@@ -39,11 +46,31 @@ const BacktestPage: React.FC = () => {
     try {
       const [startDate, endDate] = values.dateRange;
       
+      // 计算默认定投金额（如果用户未指定）
+      let investAmount = values.investAmount;
+      if (!investAmount) {
+        // 计算开始日期和结束日期之间的总周数
+        const start = dayjs(startDate);
+        const end = dayjs(endDate);
+        const totalWeeks = Math.ceil(end.diff(start, 'week', true));
+        
+        // 计算默认定投金额
+        investAmount = Math.round((values.initialCapital * values.maxInvestRatio) / totalWeeks);
+        message.info(`自动计算每次定投金额为: $${investAmount}`);
+      }
+      
+      // // 增加最小投资金额检查（至少能买一股，假设平均价格为50美元）
+      // const minInvestForOneShare = 50;
+      // if (investAmount < minInvestForOneShare) {
+      //   investAmount = minInvestForOneShare;
+      //   message.info(`已调整定投金额至最小值 $${minInvestForOneShare}（至少可买一股）`);
+      // }
+      
       const response = await runBacktest({
         stockCode: values.stockCode,
         indexCode: values.indexCode || 'NDAQ',
         initialCapital: values.initialCapital,
-        investAmount: values.investAmount,
+        investAmount: investAmount,
         maxInvestRatio: values.maxInvestRatio,
         strategies: values.strategies,
         startDate: startDate.format('YYYY-MM-DD'),
@@ -72,11 +99,31 @@ const BacktestPage: React.FC = () => {
     try {
       const [startDate, endDate] = values.dateRange;
       
+      // 计算默认定投金额（如果用户未指定）
+      let investAmount = values.investAmount;
+      if (!investAmount) {
+        // 计算开始日期和结束日期之间的总周数
+        const start = dayjs(startDate);
+        const end = dayjs(endDate);
+        const totalWeeks = Math.ceil(end.diff(start, 'week', true));
+        
+        // 计算默认定投金额
+        investAmount = Math.round((values.initialCapital * values.maxInvestRatio) / totalWeeks);
+        message.info(`自动计算每次定投金额为: $${investAmount}`);
+      }
+      
+      // 增加最小投资金额检查（至少能买一股，假设平均价格为50美元）
+      const minInvestForOneShare = 50;
+      if (investAmount < minInvestForOneShare) {
+        investAmount = minInvestForOneShare;
+        message.info(`已调整定投金额至最小值 $${minInvestForOneShare}（至少可买一股）`);
+      }
+      
       const response = await optimizeBacktest({
         stockCode: values.stockCode,
         indexCode: values.indexCode || 'NDAQ',
         initialCapital: values.initialCapital,
-        investAmount: values.investAmount,
+        investAmount: investAmount,
         maxInvestRatio: values.maxInvestRatio,
         strategies: values.strategies,
         startDate: startDate.format('YYYY-MM-DD'),
@@ -128,17 +175,51 @@ const BacktestPage: React.FC = () => {
   };
 
   // 处理表单提交
-  const handleSubmit = (values: any) => {
-    switch (backtestMode) {
-      case 'single':
-        handleSingleBacktest(values);
-        break;
-      case 'optimize':
-        handleOptimizeBacktest(values);
-        break;
-      case 'compare':
-        handleCompareBacktest(values);
-        break;
+  const handleSubmit = async (values: any) => {
+    try {
+      setLoading(true);
+      
+      // 计算默认定投金额（如果用户未指定）
+      let investAmount = values.investAmount;
+      if (!investAmount) {
+        // 计算开始日期和结束日期之间的总周数
+        const start = dayjs(values.dateRange[0]);
+        const end = dayjs(values.dateRange[1]);
+        const totalWeeks = Math.ceil(end.diff(start, 'week', true));
+        
+        // 计算默认定投金额
+        investAmount = Math.round((values.initialCapital * values.maxInvestRatio) / totalWeeks);
+        message.info(`自动计算每次定投金额为: $${investAmount}`);
+      }
+
+      const params = {
+        stockCode: values.stockCode,
+        indexCode: values.indexCode || 'NDAQ',
+        initialCapital: values.initialCapital || 100000,
+        investAmount: investAmount,
+        maxInvestRatio: values.maxInvestRatio || 0.8,
+        strategies: values.strategies.join(','),
+        startDate: values.dateRange[0].format('YYYY-MM-DD'),
+        endDate: values.dateRange[1].format('YYYY-MM-DD'),
+        sellProfitPercentage: values.sellProfitPercentage || 20.0,
+        buybackDropPercentage: values.buybackDropPercentage || 10.0,
+        maxTimesPerWeek: values.strategies.includes('INDEX_DROP') ? (values.maxTimesPerWeek || 2) : undefined
+      };
+
+      const response = await request('/api/backtest/run', {
+        method: 'GET',
+        params: params,
+      });
+      if (response.success) {
+        setBacktestResult(response.data);
+      } else {
+        message.error(response.message || '回测失败');
+      }
+    } catch (error) {
+      console.error('回测出错:', error);
+      message.error('回测失败，请检查参数后重试');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -146,39 +227,28 @@ const BacktestPage: React.FC = () => {
   const renderBacktestResult = () => {
     if (!backtestResult) return null;
 
-    // 转换交易记录为图表数据
+    // 转换每日资金数据为图表数据
+    const cumulativeData = (backtestResult.dailyBalances || []).flatMap((daily: any) => [
+      {
+        date: dayjs(daily.date).format('YYYY-MM-DD'),
+        type: '累计投入',
+        value: daily.cumulativeInvestment,
+      },
+      {
+        date: dayjs(daily.date).format('YYYY-MM-DD'),
+        type: '账户现金',
+        value: daily.cashBalance,
+      },
+      {
+        date: dayjs(daily.date).format('YYYY-MM-DD'),
+        type: '资产总值',
+        value: daily.totalValue,
+      },
+    ]);
+
+    // 获取买入和卖出记录
     const buyTransactions = backtestResult.buyTransactions || [];
     const sellTransactions = backtestResult.sellTransactions || [];
-    
-    // 所有交易的日期排序
-    const allTransactions = [...buyTransactions, ...sellTransactions]
-      .sort((a, b) => dayjs(a.date).valueOf() - dayjs(b.date).valueOf());
-    
-    // 累计交易金额数据（用于资金曲线）
-    const cumulativeData = [];
-    let cumulativeInvested = 0;
-    let cumulativeValue = backtestResult.initialCapital || 10000;
-    
-    for (const tx of allTransactions) {
-      if (tx.type === 'BUY') {
-        cumulativeInvested += tx.amount;
-        cumulativeValue -= tx.amount;
-      } else if (tx.type === 'SELL') {
-        cumulativeValue += tx.amount;
-      }
-      
-      cumulativeData.push({
-        date: dayjs(tx.date).format('YYYY-MM-DD'),
-        type: '累计投入',
-        value: cumulativeInvested,
-      });
-      
-      cumulativeData.push({
-        date: dayjs(tx.date).format('YYYY-MM-DD'),
-        type: '账户价值',
-        value: cumulativeValue,
-      });
-    }
 
     return (
       <div>
@@ -232,6 +302,38 @@ const BacktestPage: React.FC = () => {
                 {backtestResult.holdingDays}
               </div>
             </div>
+            {backtestResult.stockDailyReturns && backtestResult.stockDailyReturns.length > 0 && (
+              <>
+                <div style={{ flex: '1 1 200px', padding: '0 16px', margin: '8px 0' }}>
+                  <h4>股票自身涨跌幅</h4>
+                  <div style={{ fontSize: 24, color: backtestResult.stockDailyReturns[backtestResult.stockDailyReturns.length - 1].returnRate >= 0 ? '#52c41a' : '#f5222d' }}>
+                    {backtestResult.stockDailyReturns[backtestResult.stockDailyReturns.length - 1].returnRate.toFixed(2)}%
+                  </div>
+                </div>
+                <div style={{ flex: '1 1 200px', padding: '0 16px', margin: '8px 0' }}>
+                  <h4>相对股票超额收益</h4>
+                  <div style={{ fontSize: 24, color: (backtestResult.returnRate - backtestResult.stockDailyReturns[backtestResult.stockDailyReturns.length - 1].returnRate) >= 0 ? '#52c41a' : '#f5222d' }}>
+                    {(backtestResult.returnRate - backtestResult.stockDailyReturns[backtestResult.stockDailyReturns.length - 1].returnRate).toFixed(2)}%
+                  </div>
+                </div>
+              </>
+            )}
+            {backtestResult.indexDailyReturns && backtestResult.indexDailyReturns.length > 0 && (
+              <>
+                <div style={{ flex: '1 1 200px', padding: '0 16px', margin: '8px 0' }}>
+                  <h4>指数涨跌幅</h4>
+                  <div style={{ fontSize: 24, color: backtestResult.indexDailyReturns[backtestResult.indexDailyReturns.length - 1].returnRate >= 0 ? '#52c41a' : '#f5222d' }}>
+                    {backtestResult.indexDailyReturns[backtestResult.indexDailyReturns.length - 1].returnRate.toFixed(2)}%
+                  </div>
+                </div>
+                <div style={{ flex: '1 1 200px', padding: '0 16px', margin: '8px 0' }}>
+                  <h4>相对指数超额收益</h4>
+                  <div style={{ fontSize: 24, color: (backtestResult.returnRate - backtestResult.indexDailyReturns[backtestResult.indexDailyReturns.length - 1].returnRate) >= 0 ? '#52c41a' : '#f5222d' }}>
+                    {(backtestResult.returnRate - backtestResult.indexDailyReturns[backtestResult.indexDailyReturns.length - 1].returnRate).toFixed(2)}%
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </Card>
 
@@ -252,6 +354,11 @@ const BacktestPage: React.FC = () => {
                 value: `$${Number(datum.value).toFixed(2)}`,
               }),
             }}
+            legend={{
+              position: 'top',
+            }}
+            smooth={true}
+            color={['#1890ff', '#52c41a', '#fa8c16']}  // 蓝色表示累计投入，绿色表示账户现金，橙色表示资产总值
           />
         </Card>
 
@@ -266,6 +373,11 @@ const BacktestPage: React.FC = () => {
               ...(backtestResult.indexDailyReturns || []).map((item: any) => ({
                 date: dayjs(item.date).format('YYYY-MM-DD'),
                 type: '指数涨跌幅',
+                value: item.returnRate,
+              })),
+              ...(backtestResult.stockDailyReturns || []).map((item: any) => ({
+                date: dayjs(item.date).format('YYYY-MM-DD'),
+                type: '股票涨跌幅',
                 value: item.returnRate,
               })),
             ]}
@@ -291,7 +403,7 @@ const BacktestPage: React.FC = () => {
               size: 2,
               shape: 'circle',
             }}
-            color={['#52c41a', '#1890ff']}
+            color={['#52c41a', '#1890ff', '#fa8c16']}
           />
         </Card>
 
@@ -318,6 +430,45 @@ const BacktestPage: React.FC = () => {
                   },
                 }}
               />
+              
+              <div style={{ marginTop: 24 }}>
+                <h4>买入交易详情</h4>
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 10 }}>
+                  <thead>
+                    <tr style={{ background: '#f0f0f0', textAlign: 'left' }}>
+                      <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>日期</th>
+                      <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>价格</th>
+                      <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>数量</th>
+                      <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>金额</th>
+                      <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>策略</th>
+                      <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>类型</th>
+                      <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>关联信息</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {buyTransactions.map((tx: Transaction, index: number) => (
+                      <tr key={`buy-${index}`} style={{ borderBottom: '1px solid #ddd' }}>
+                        <td style={{ padding: '10px' }}>{dayjs(tx.date).format('YYYY-MM-DD')}</td>
+                        <td style={{ padding: '10px' }}>${tx.price.toFixed(2)}</td>
+                        <td style={{ padding: '10px' }}>{tx.quantity}</td>
+                        <td style={{ padding: '10px' }}>${tx.amount.toFixed(2)}</td>
+                        <td style={{ padding: '10px' }}>{tx.strategy}</td>
+                        <td style={{ padding: '10px' }}>
+                          {tx.isBuyback ? '回调买入' : '定投买入'}
+                        </td>
+                        <td style={{ padding: '10px' }}>
+                          {tx.relatedTransactionDate && tx.relatedTransactionPrice ? (
+                            <span>
+                              关联卖出: {dayjs(tx.relatedTransactionDate).format('YYYY-MM-DD')} 
+                              价格: ${tx.relatedTransactionPrice.toFixed(2)}
+                            </span>
+                          ) : '普通定投'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </Card>
           </TabPane>
           <TabPane tab="卖出记录" key="sell">
@@ -342,6 +493,47 @@ const BacktestPage: React.FC = () => {
                   },
                 }}
               />
+              
+              <div style={{ marginTop: 24 }}>
+                <h4>卖出交易详情</h4>
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 10 }}>
+                  <thead>
+                    <tr style={{ background: '#f0f0f0', textAlign: 'left' }}>
+                      <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>日期</th>
+                      <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>价格</th>
+                      <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>数量</th>
+                      <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>金额</th>
+                      <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>策略</th>
+                      <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>盈利率</th>
+                      <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>持仓天数</th>
+                      <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>关联信息</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sellTransactions.map((tx: Transaction, index: number) => (
+                      <tr key={`sell-${index}`} style={{ borderBottom: '1px solid #ddd' }}>
+                        <td style={{ padding: '10px' }}>{dayjs(tx.date).format('YYYY-MM-DD')}</td>
+                        <td style={{ padding: '10px' }}>${tx.price.toFixed(2)}</td>
+                        <td style={{ padding: '10px' }}>{tx.quantity}</td>
+                        <td style={{ padding: '10px' }}>${tx.amount.toFixed(2)}</td>
+                        <td style={{ padding: '10px' }}>{tx.strategy}</td>
+                        <td style={{ padding: '10px', color: (tx.profitRate || 0) >= 0 ? '#52c41a' : '#f5222d' }}>
+                          {tx.profitRate?.toFixed(2)}%
+                        </td>
+                        <td style={{ padding: '10px' }}>{tx.holdingDays} 天</td>
+                        <td style={{ padding: '10px' }}>
+                          {tx.relatedTransactionDate && tx.relatedTransactionPrice ? (
+                            <span>
+                              关联买入: {dayjs(tx.relatedTransactionDate).format('YYYY-MM-DD')} 
+                              价格: ${tx.relatedTransactionPrice.toFixed(2)}
+                            </span>
+                          ) : '未知'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </Card>
           </TabPane>
         </Tabs>
@@ -420,24 +612,17 @@ const BacktestPage: React.FC = () => {
         >
           <InputNumber min={1000} style={{ width: '100%' }} />
         </Form.Item>
-      </>
-    );
-
-    if (backtestMode === 'compare') {
-      return commonFields;
-    }
-
-    return (
-      <>
-        {commonFields}
 
         <Form.Item
           name="investAmount"
           label="每次定投金额(美元)"
-          initialValue={200}
-          rules={[{ required: true, message: '请输入每次定投金额' }]}
+          rules={[{ required: false, message: '请输入每次定投金额' }]}
         >
-          <InputNumber min={10} style={{ width: '100%' }} />
+          <InputNumber 
+            min={10} 
+            style={{ width: '100%' }} 
+            placeholder="留空则自动计算：初始金额*最大使用资金占比/总周数"
+          />
         </Form.Item>
 
         <Form.Item
@@ -450,21 +635,48 @@ const BacktestPage: React.FC = () => {
         </Form.Item>
 
         <Form.Item
+          label="策略选择"
           name="strategies"
-          label="定投策略"
-          rules={[{ required: true, message: '请选择定投策略' }]}
+          rules={[{ required: true, message: '请选择至少一个策略' }]}
         >
           <Select
             mode="multiple"
-            placeholder="选择一个或多个定投策略"
-            style={{ width: '100%' }}
-          >
-            {strategies.map((strategy) => (
-              <Option key={strategy.value} value={strategy.value}>
-                {strategy.label}
-              </Option>
-            ))}
-          </Select>
+            placeholder="请选择定投策略"
+            options={[
+              { label: '每周定投', value: 'WEEKLY' },
+              { label: '大盘下跌定投', value: 'INDEX_DROP' },
+              { label: '连续下跌定投', value: 'CONSECUTIVE_DROP' },
+            ]}
+          />
+        </Form.Item>
+
+        <Form.Item
+          noStyle
+          shouldUpdate={(prevValues, currentValues) =>
+            prevValues?.strategies !== currentValues?.strategies
+          }
+        >
+          {({ getFieldValue }) => {
+            const strategies = getFieldValue('strategies') || [];
+            return strategies.includes('INDEX_DROP') ? (
+              <Form.Item
+                label="大盘下跌定投每周最大次数"
+                name="maxTimesPerWeek"
+                initialValue={1}
+                rules={[{ required: true, message: '请选择每周最大执行次数' }]}
+              >
+                <Select
+                  placeholder="请选择每周最大执行次数"
+                  options={[
+                    { label: '每周1次', value: 1 },
+                    { label: '每周2次', value: 2 },
+                    { label: '每周3次', value: 3 },
+                    { label: '每周4次', value: 4 },
+                  ]}
+                />
+              </Form.Item>
+            ) : null;
+          }}
         </Form.Item>
 
         <Form.Item
@@ -489,7 +701,7 @@ const BacktestPage: React.FC = () => {
             <Form.Item
               name="sellProfitPercentage"
               label="卖出盈利比例(%)"
-              initialValue={20}
+              initialValue={20.0}
               rules={[{ required: true, message: '请输入卖出盈利比例' }]}
             >
               <InputNumber min={0} style={{ width: '100%' }} />
@@ -498,7 +710,7 @@ const BacktestPage: React.FC = () => {
             <Form.Item
               name="buybackDropPercentage"
               label="回调买入比例(%)"
-              initialValue={10}
+              initialValue={10.0}
               rules={[{ required: true, message: '请输入回调买入比例' }]}
             >
               <InputNumber min={0} style={{ width: '100%' }} />
@@ -563,6 +775,16 @@ const BacktestPage: React.FC = () => {
             </Form.Item>
           </>
         )}
+      </>
+    );
+
+    if (backtestMode === 'compare') {
+      return commonFields;
+    }
+
+    return (
+      <>
+        {commonFields}
       </>
     );
   };
