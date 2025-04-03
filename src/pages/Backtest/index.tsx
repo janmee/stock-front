@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
-import { Card, Form, Input, Button, DatePicker, InputNumber, Select, Radio, Tabs, Spin, message } from 'antd';
+import { Card, Form, Input, Button, DatePicker, InputNumber, Select, Radio, Tabs, Spin, message, Space } from 'antd';
 import { runBacktest, optimizeBacktest, compareBacktestStrategies } from '@/services/ant-design-pro/api';
-import { Line, Column } from '@ant-design/plots';
-import dayjs from 'dayjs';
+import { Line, Column, Heatmap } from '@ant-design/plots';
+import dayjs, { Dayjs } from 'dayjs';
 import { request } from '@umijs/max';
+import * as XLSX from 'xlsx';
 
 const { TabPane } = Tabs;
 const { RangePicker } = DatePicker;
@@ -33,17 +34,68 @@ interface Transaction {
   relatedTransactionPrice?: number;
 }
 
+interface BacktestFormValues {
+  stockCode: string;
+  indexCode?: string;
+  initialCapital: number;
+  investAmount?: number;
+  maxInvestRatio: number;
+  strategies: string[];
+  dateRange: [Dayjs, Dayjs];
+  sellProfitPercentage: number;
+  buybackDropPercentage: number;
+  maxTimesPerWeek?: number;
+  sellProfitRanges?: string;
+  buybackRanges?: string;
+  sellProfitRangeStart?: number;
+  sellProfitRangeEnd?: number;
+  sellProfitStep?: number;
+  buybackRangeStart?: number;
+  buybackRangeEnd?: number;
+  buybackStep?: number;
+}
+
+// 优化结果接口
+interface OptimizationResult {
+  sellProfitPercentage: number;
+  buybackDropPercentage: number;
+  annualizedReturn: number;
+  returnRate: number;
+  maxDrawdown: number;
+  sharpeRatio: number;
+  transactionCount: number;
+  finalValue: number;
+  stockReturnRate: number;
+  excessStockReturn: number;
+  indexReturnRate: number;
+  excessIndexReturn: number;
+}
+
+// 热力图数据接口
+interface HeatMapData {
+  sellProfit: string;
+  buybackDrop: string;
+  value: number;
+}
+
 const BacktestPage: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [backtestMode, setBacktestMode] = useState<'single' | 'optimize' | 'compare'>('single');
   const [backtestResult, setBacktestResult] = useState<any>(null);
   const [compareResults, setCompareResults] = useState<any>(null);
+  const [optimizationResults, setOptimizationResults] = useState<any>(null);
+  const formRef = useRef<any>(null);
 
   // 执行单一策略回测
   const handleSingleBacktest = async (values: any) => {
     setLoading(true);
     try {
+      // 清除之前的结果
+      setBacktestResult(null);
+      setOptimizationResults(null);
+      setCompareResults(null);
+
       const [startDate, endDate] = values.dateRange;
       
       // 计算默认定投金额（如果用户未指定）
@@ -93,58 +145,83 @@ const BacktestPage: React.FC = () => {
     }
   };
 
-  // 执行参数优化回测
-  const handleOptimizeBacktest = async (values: any) => {
+  // 处理参数优化
+  const handleOptimize = async (values: BacktestFormValues) => {
     setLoading(true);
     try {
-      const [startDate, endDate] = values.dateRange;
-      
+      // 清除之前的结果
+      setBacktestResult(null);
+      setOptimizationResults(null);
+      setCompareResults(null);
+
       // 计算默认定投金额（如果用户未指定）
       let investAmount = values.investAmount;
       if (!investAmount) {
         // 计算开始日期和结束日期之间的总周数
-        const start = dayjs(startDate);
-        const end = dayjs(endDate);
+        const start = dayjs(values.dateRange[0]);
+        const end = dayjs(values.dateRange[1]);
         const totalWeeks = Math.ceil(end.diff(start, 'week', true));
         
         // 计算默认定投金额
         investAmount = Math.round((values.initialCapital * values.maxInvestRatio) / totalWeeks);
         message.info(`自动计算每次定投金额为: $${investAmount}`);
       }
+
+      // 生成参数范围
+      const generateRange = (start: number, end: number, step: number) => {
+        const range = [];
+        for (let value = start; value <= end; value += step) {
+          range.push(value);
+        }
+        return range;
+      };
+
+      // 生成卖出盈利比例范围和回调买入比例范围
+      let sellProfitRanges = generateRange(
+        values.sellProfitRangeStart || 10,
+        values.sellProfitRangeEnd || 50,
+        values.sellProfitStep || 5
+      ).join(',');
+      //添加一个500%
+      sellProfitRanges = sellProfitRanges + ',9999';
+
+      let buybackRanges = generateRange(
+        values.buybackRangeStart || 5,
+        values.buybackRangeEnd || 15,
+        values.buybackStep || 2.5
+      ).join(',');
+      //添加一个1000%
+      buybackRanges = buybackRanges + ',9999';
       
-      // 增加最小投资金额检查（至少能买一股，假设平均价格为50美元）
-      const minInvestForOneShare = 50;
-      if (investAmount < minInvestForOneShare) {
-        investAmount = minInvestForOneShare;
-        message.info(`已调整定投金额至最小值 $${minInvestForOneShare}（至少可买一股）`);
-      }
-      
-      const response = await optimizeBacktest({
+
+      const params = {
         stockCode: values.stockCode,
         indexCode: values.indexCode || 'NDAQ',
         initialCapital: values.initialCapital,
         investAmount: investAmount,
         maxInvestRatio: values.maxInvestRatio,
-        strategies: values.strategies,
-        startDate: startDate.format('YYYY-MM-DD'),
-        endDate: endDate.format('YYYY-MM-DD'),
-        sellProfitRangeStart: values.sellProfitRangeStart,
-        sellProfitRangeEnd: values.sellProfitRangeEnd,
-        sellProfitStep: values.sellProfitStep,
-        buybackRangeStart: values.buybackRangeStart,
-        buybackRangeEnd: values.buybackRangeEnd,
-        buybackStep: values.buybackStep,
+        strategies: values.strategies.join(','),
+        startDate: values.dateRange[0].format('YYYY-MM-DD'),
+        endDate: values.dateRange[1].format('YYYY-MM-DD'),
+        sellProfitRanges: sellProfitRanges,
+        buybackRanges: buybackRanges,
+        maxTimesPerWeek: values.maxTimesPerWeek || 2,
+      };
+
+      const response = await request('/api/backtest/optimize', {
+        method: 'GET',
+        params: params,
       });
       
       if (response.success) {
-        setBacktestResult(response.data);
-        message.success('参数优化成功');
+        setOptimizationResults(response.data);
+        message.success('参数优化完成');
       } else {
-        message.error(response.errorMessage || '参数优化失败');
+        message.error(response.message || '参数优化失败');
       }
     } catch (error) {
       console.error('参数优化出错:', error);
-      message.error('参数优化出错');
+      message.error('参数优化失败，请检查参数后重试');
     } finally {
       setLoading(false);
     }
@@ -154,6 +231,11 @@ const BacktestPage: React.FC = () => {
   const handleCompareBacktest = async (values: any) => {
     setLoading(true);
     try {
+      // 清除之前的结果
+      setBacktestResult(null);
+      setOptimizationResults(null);
+      setCompareResults(null);
+
       const response = await compareBacktestStrategies({
         stockCode: values.stockCode,
         indexCode: values.indexCode || 'NDAQ',
@@ -179,6 +261,11 @@ const BacktestPage: React.FC = () => {
     try {
       setLoading(true);
       
+      // 清除之前的结果
+      setBacktestResult(null);
+      setOptimizationResults(null);
+      setCompareResults(null);
+
       // 计算默认定投金额（如果用户未指定）
       let investAmount = values.investAmount;
       if (!investAmount) {
@@ -584,9 +671,215 @@ const BacktestPage: React.FC = () => {
     );
   };
 
+  // 渲染优化结果
+  const renderOptimizationResults = () => {
+    if (!optimizationResults || optimizationResults.length === 0) return null;
+
+    // 按年化收益率排序
+    const sortedResults = [...optimizationResults].sort((a: OptimizationResult, b: OptimizationResult) => 
+      b.annualizedReturn - a.annualizedReturn
+    );
+
+    // 添加导出 Excel 函数
+    const exportToExcel = () => {
+      try {
+        // 获取当前表单数据
+        const formValues = formRef.current?.getFieldsValue();
+        const startDate = formValues?.dateRange[0].format('YYYYMMDD');
+        const endDate = formValues?.dateRange[1].format('YYYYMMDD');
+        const stockCode = formValues?.stockCode;
+
+        // 准备 Excel 数据
+        const excelData = sortedResults.map(result => ({
+          '卖出盈利比例(%)': result.sellProfitPercentage === 9999 ? '不卖出' : result.sellProfitPercentage.toFixed(1),
+          '回调买入比例(%)': result.buybackDropPercentage === 9999 ? '不买入' : result.buybackDropPercentage.toFixed(1),
+          '年化收益率(%)': result.annualizedReturn.toFixed(2),
+          '收益率(%)': result.returnRate.toFixed(2),
+          '最大回撤(%)': result.maxDrawdown.toFixed(2),
+          '夏普比率': result.sharpeRatio.toFixed(2),
+          '交易次数': result.transactionCount,
+          '最终价值($)': result.finalValue.toFixed(2),
+          '股票涨跌幅(%)': result.stockReturnRate.toFixed(2),
+          '相对股票超额收益(%)': result.excessStockReturn.toFixed(2),
+          '指数涨跌幅(%)': result.indexReturnRate.toFixed(2),
+          '相对指数超额收益(%)': result.excessIndexReturn.toFixed(2),
+        }));
+
+        // 创建工作簿
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(excelData);
+
+        // 设置列宽
+        const colWidths = [
+          { wch: 15 }, // 卖出盈利比例
+          { wch: 15 }, // 回调买入比例
+          { wch: 15 }, // 年化收益率
+          { wch: 12 }, // 收益率
+          { wch: 12 }, // 最大回撤
+          { wch: 10 }, // 夏普比率
+          { wch: 10 }, // 交易次数
+          { wch: 15 }, // 最终价值
+          { wch: 15 }, // 股票涨跌幅
+          { wch: 20 }, // 相对股票超额收益
+          { wch: 15 }, // 指数涨跌幅
+          { wch: 20 }, // 相对指数超额收益
+        ];
+        ws['!cols'] = colWidths;
+
+        // 添加工作表到工作簿
+        XLSX.utils.book_append_sheet(wb, ws, '参数优化结果');
+
+        // 生成文件名
+        const fileName = `${stockCode}_${startDate}_${endDate}_回测数据.xlsx`;
+
+        // 保存文件
+        XLSX.writeFile(wb, fileName);
+        message.success('导出成功！');
+      } catch (error) {
+        console.error('导出失败:', error);
+        message.error('导出失败，请重试');
+      }
+    };
+
+    return (
+      <div>
+        <Card 
+          title="参数优化结果" 
+          style={{ marginBottom: 16 }}
+          extra={
+            <Button type="primary" onClick={exportToExcel}>
+              导出Excel
+            </Button>
+          }
+        >
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#f0f0f0', textAlign: 'left' }}>
+                <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>卖出盈利比例(%)</th>
+                <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>回调买入比例(%)</th>
+                <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>年化收益率(%)</th>
+                <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>收益率(%)</th>
+                <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>最大回撤(%)</th>
+                <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>夏普比率</th>
+                <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>交易次数</th>
+                <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>最终价值($)</th>
+                <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>股票涨跌幅(%)</th>
+                <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>相对股票超额收益(%)</th>
+                <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>指数涨跌幅(%)</th>
+                <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>相对指数超额收益(%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedResults.map((result: OptimizationResult, index: number) => (
+                <tr 
+                  key={index} 
+                  style={{ 
+                    borderBottom: '1px solid #ddd',
+                    background: index === 0 ? '#f6ffed' : 'inherit' // 最优结果高亮显示
+                  }}
+                >
+                  <td style={{ padding: '10px' }}>
+                    {result.sellProfitPercentage === 9999 ? '不卖出' : result.sellProfitPercentage.toFixed(1)}
+                  </td>
+                  <td style={{ padding: '10px' }}>
+                    {result.buybackDropPercentage === 9999 ? '不买入' : result.buybackDropPercentage.toFixed(1)}
+                  </td>
+                  <td style={{ padding: '10px', color: result.annualizedReturn >= 0 ? '#52c41a' : '#f5222d' }}>
+                    {result.annualizedReturn.toFixed(2)}
+                  </td>
+                  <td style={{ padding: '10px', color: result.returnRate >= 0 ? '#52c41a' : '#f5222d' }}>
+                    {result.returnRate.toFixed(2)}
+                  </td>
+                  <td style={{ padding: '10px', color: '#f5222d' }}>
+                    {result.maxDrawdown.toFixed(2)}
+                  </td>
+                  <td style={{ padding: '10px' }}>{result.sharpeRatio.toFixed(2)}</td>
+                  <td style={{ padding: '10px' }}>{result.transactionCount}</td>
+                  <td style={{ padding: '10px' }}>{result.finalValue.toFixed(2)}</td>
+                  <td style={{ padding: '10px', color: result.stockReturnRate >= 0 ? '#52c41a' : '#f5222d' }}>
+                    {result.stockReturnRate.toFixed(2)}
+                  </td>
+                  <td style={{ padding: '10px', color: result.excessStockReturn >= 0 ? '#52c41a' : '#f5222d' }}>
+                    {result.excessStockReturn.toFixed(2)}
+                  </td>
+                  <td style={{ padding: '10px', color: result.indexReturnRate >= 0 ? '#52c41a' : '#f5222d' }}>
+                    {result.indexReturnRate.toFixed(2)}
+                  </td>
+                  <td style={{ padding: '10px', color: result.excessIndexReturn >= 0 ? '#52c41a' : '#f5222d' }}>
+                    {result.excessIndexReturn.toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+
+        <Card title="参数优化热力图" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: '20px' }}>
+            {/* 年化收益率热力图 */}
+            <div style={{ flex: 1 }}>
+              <h4>年化收益率热力图</h4>
+              <Heatmap
+                data={optimizationResults.map((result: OptimizationResult): HeatMapData => ({
+                  sellProfit: result.sellProfitPercentage === 9999 ? '不卖出' : result.sellProfitPercentage.toFixed(1),
+                  buybackDrop: result.buybackDropPercentage === 9999 ? '不买入' : result.buybackDropPercentage.toFixed(1),
+                  value: result.annualizedReturn
+                }))}
+                xField="sellProfit"
+                yField="buybackDrop"
+                colorField="value"
+                color={['#f7acbc', '#ffffff', '#52c41a']}
+                label={{
+                  formatter: (data) => `${(data as any).value.toFixed(1)}%`,
+                  style: {
+                    fontSize: 10,
+                  },
+                }}
+                meta={{
+                  value: {
+                    min: Math.min(...optimizationResults.map((r: OptimizationResult) => r.annualizedReturn)),
+                    max: Math.max(...optimizationResults.map((r: OptimizationResult) => r.annualizedReturn)),
+                  },
+                }}
+              />
+            </div>
+
+            {/* 最大回撤热力图 */}
+            <div style={{ flex: 1 }}>
+              <h4>最大回撤热力图</h4>
+              <Heatmap
+                data={optimizationResults.map((result: OptimizationResult): HeatMapData => ({
+                  sellProfit: result.sellProfitPercentage === 9999 ? '不卖出' : result.sellProfitPercentage.toFixed(1),
+                  buybackDrop: result.buybackDropPercentage === 9999 ? '不买入' : result.buybackDropPercentage.toFixed(1),
+                  value: result.maxDrawdown
+                }))}
+                xField="sellProfit"
+                yField="buybackDrop"
+                colorField="value"
+                color={['#52c41a', '#ffffff', '#f7acbc']}
+                label={{
+                  formatter: (data) => `${(data as any).value.toFixed(1)}%`,
+                  style: {
+                    fontSize: 10,
+                  },
+                }}
+                meta={{
+                  value: {
+                    min: Math.min(...optimizationResults.map((r: OptimizationResult) => r.maxDrawdown)),
+                    max: Math.max(...optimizationResults.map((r: OptimizationResult) => r.maxDrawdown)),
+                  },
+                }}
+              />
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  };
+
   // 渲染表单字段
   const renderFormFields = () => {
-    const commonFields = (
+    return (
       <>
         <Form.Item
           name="stockCode"
@@ -599,9 +892,9 @@ const BacktestPage: React.FC = () => {
         <Form.Item
           name="indexCode"
           label="指数代码"
-          initialValue="NDAQ"
+          initialValue="QQQ"
         >
-          <Input placeholder="输入指数代码，默认为NDAQ" />
+          <Input placeholder="输入指数代码，默认为QQQ" />
         </Form.Item>
 
         <Form.Item
@@ -688,20 +981,56 @@ const BacktestPage: React.FC = () => {
             style={{ width: '100%' }} 
             disabledDate={(current) => current && current < dayjs('2015-04-01')}
             ranges={{
-              '近1年': [dayjs().subtract(1, 'year'), dayjs()],
-              '近3年': [dayjs().subtract(3, 'year'), dayjs()],
-              '近5年': [dayjs().subtract(5, 'year'), dayjs()],
-              '2015年至今': [dayjs('2015-04-01'), dayjs()]
+              '近1年': [
+                dayjs().subtract(1, 'year').startOf('year'),
+                dayjs().subtract(1, 'year').endOf('year')
+              ],
+              '近3年': [
+                dayjs().subtract(3, 'year').startOf('year'),
+                dayjs().subtract(1, 'year').endOf('year')
+              ],
+              '近5年': [
+                dayjs().subtract(5, 'year').startOf('year'),
+                dayjs().subtract(1, 'year').endOf('year')
+              ],
+              '2021-2023': [
+                dayjs('2021-01-01'),
+                dayjs('2023-12-31')
+              ],
+              '2020-2022': [
+                dayjs('2020-01-01'),
+                dayjs('2022-12-31')
+              ],
+              '2019-2021': [
+                dayjs('2019-01-01'),
+                dayjs('2021-12-31')
+              ],
+              '2018-2020': [
+                dayjs('2018-01-01'),
+                dayjs('2020-12-31')
+              ],
+              '2017-2019': [
+                dayjs('2017-01-01'),
+                dayjs('2019-12-31')
+              ],
+              '2016-2018': [
+                dayjs('2016-01-01'),
+                dayjs('2018-12-31')
+              ],
+              '2015-2017': [
+                dayjs('2015-04-01'),
+                dayjs('2017-12-31')
+              ]
             }}
           />
         </Form.Item>
 
-        {backtestMode === 'single' && (
+        {backtestMode === 'single' ? (
           <>
             <Form.Item
               name="sellProfitPercentage"
               label="卖出盈利比例(%)"
-              initialValue={20.0}
+              initialValue={20}
               rules={[{ required: true, message: '请输入卖出盈利比例' }]}
             >
               <InputNumber min={0} style={{ width: '100%' }} />
@@ -710,15 +1039,13 @@ const BacktestPage: React.FC = () => {
             <Form.Item
               name="buybackDropPercentage"
               label="回调买入比例(%)"
-              initialValue={10.0}
+              initialValue={10}
               rules={[{ required: true, message: '请输入回调买入比例' }]}
             >
               <InputNumber min={0} style={{ width: '100%' }} />
             </Form.Item>
           </>
-        )}
-
-        {backtestMode === 'optimize' && (
+        ) : backtestMode === 'optimize' ? (
           <>
             <Form.Item
               name="sellProfitRangeStart"
@@ -759,7 +1086,7 @@ const BacktestPage: React.FC = () => {
             <Form.Item
               name="buybackRangeEnd"
               label="回调买入比例结束值(%)"
-              initialValue={20}
+              initialValue={15}
               rules={[{ required: true, message: '请输入回调买入比例结束值' }]}
             >
               <InputNumber min={0} style={{ width: '100%' }} />
@@ -774,18 +1101,39 @@ const BacktestPage: React.FC = () => {
               <InputNumber min={0.5} style={{ width: '100%' }} />
             </Form.Item>
           </>
-        )}
+        ) : null}
       </>
     );
+  };
 
-    if (backtestMode === 'compare') {
-      return commonFields;
-    }
-
+  // 渲染表单按钮
+  const renderFormButtons = () => {
     return (
-      <>
-        {commonFields}
-      </>
+      <Form.Item>
+        <Space>
+          {backtestMode === 'single' && (
+            <Button type="primary" htmlType="submit" loading={loading}>
+              执行回测
+            </Button>
+          )}
+          {backtestMode === 'optimize' && (
+            <Button 
+              type="primary"
+              onClick={() => {
+                const form = formRef.current;
+                if (form) {
+                  form.validateFields().then((values: BacktestFormValues) => {
+                    handleOptimize(values);
+                  });
+                }
+              }}
+              loading={loading}
+            >
+              最优参数回测
+            </Button>
+          )}
+        </Space>
+      </Form.Item>
     );
   };
 
@@ -797,39 +1145,40 @@ const BacktestPage: React.FC = () => {
         <p style={{ marginBottom: 8, paddingLeft: 16 }}>2. 大盘下跌定投：周一到周四，大盘指数下跌1.8%时买入</p>
         <p style={{ marginBottom: 8, paddingLeft: 16 }}>3. 连续下跌定投：周一到周四连续下跌时，周四收盘买入</p>
         <p style={{ marginBottom: 8, paddingLeft: 16 }}>4. 可以设置盈利多少卖出以及回调多少买回的策略进行回测</p>
-        <p style={{ marginBottom: 8, paddingLeft: 16 }}>5. 最优参数搜索功能可尝试不同的卖出及回调比例，找出最佳组合</p>
+        <p style={{ marginBottom: 8, paddingLeft: 16 }}>5. 最优参数回测功能可尝试不同的卖出及回调比例，找出最佳组合</p>
         <p style={{ paddingLeft: 16 }}>6. 回测数据可用时间范围：2015年4月1日至今</p>
       </div>
 
       <Card style={{ marginBottom: 24 }}>
         <Radio.Group
           value={backtestMode}
-          onChange={(e) => setBacktestMode(e.target.value)}
+          onChange={(e) => {
+            setBacktestMode(e.target.value);
+          }}
           style={{ marginBottom: 16 }}
         >
           <Radio.Button value="single">单一策略回测</Radio.Button>
-          <Radio.Button value="optimize">最优参数搜索</Radio.Button>
-          <Radio.Button value="compare">策略比较</Radio.Button>
+          <Radio.Button value="optimize">最优参数回测</Radio.Button>
+          {/* <Radio.Button value="compare">策略比较</Radio.Button> */}
         </Radio.Group>
 
         <Form
-          form={form}
+          ref={formRef}
           layout="vertical"
           onFinish={handleSubmit}
         >
           {renderFormFields()}
-
-          <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading}>
-              {backtestMode === 'single' ? '执行回测' : 
-                backtestMode === 'optimize' ? '参数优化' : '比较策略'}
-            </Button>
-          </Form.Item>
+          {renderFormButtons()}
         </Form>
       </Card>
 
       <Spin spinning={loading}>
-        {backtestMode === 'compare' ? renderCompareResults() : renderBacktestResult()}
+        {backtestMode === 'compare' ? renderCompareResults() : (
+          <>
+            {renderBacktestResult()}
+            {renderOptimizationResults()}
+          </>
+        )}
       </Spin>
     </PageContainer>
   );
