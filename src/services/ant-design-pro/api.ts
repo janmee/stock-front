@@ -802,3 +802,19 @@ export async function generateAccountConfig(params: {
     data: params,
   });
 }
+
+/** 运行实时策略回归测试 */
+export async function runRealtimeRegression(
+  stockCode: string,
+  sellProfitPercentage: number,
+  options?: { [key: string]: any },
+) {
+  return request<any>('/api/backtest/realtime-regression', {
+    method: 'GET',
+    params: {
+      stockCode,
+      sellProfitPercentage,
+    },
+    ...(options || {}),
+  });
+}

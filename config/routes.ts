@@ -136,6 +136,13 @@ export default [
     access: 'canAdmin',
   },
   {
+    name: 'list.realtime-regression',
+    icon: 'LineChartOutlined',
+    path: '/realtime-regression',
+    component: './RealtimeRegression',
+    access: 'canAdmin',
+  },
+  {
     path: '/',
     redirect: '/Dashboard',
   },
