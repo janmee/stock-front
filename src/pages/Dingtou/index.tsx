@@ -242,6 +242,39 @@ const DingtouList: React.FC = () => {
       sorter: true,
     },
     {
+      title: '定投日',
+      dataIndex: 'weekDay',
+      valueType: 'select',
+      hideInSearch: true,
+      renderText: (val: number | null) => {
+        const weekDayMap: { [key: number]: string } = {
+          1: '周一',
+          2: '周二',
+          3: '周三',
+          4: '周四',
+          5: '周五',
+          6: '周六',
+          7: '周日',
+        };
+        if (val === null || val === undefined) {
+          return weekDayMap[5]; // 默认显示周五
+        }
+        return weekDayMap[val] || '未知';
+      },
+    },
+    {
+      title: '定投间隔周数',
+      dataIndex: 'weekInterval',
+      valueType: 'digit',
+      hideInSearch: true,
+      renderText: (val: number | null) => {
+        if (val === null || val === undefined) {
+          return '1';
+        }
+        return `${val}`;
+      },
+    },
+    {
       title: '上次定投时间',
       dataIndex: 'lastTime',
       valueType: 'dateTime',
@@ -345,7 +378,9 @@ const DingtouList: React.FC = () => {
   return (
     <PageContainer>
       <div style={{ marginBottom: 16, padding: '16px 24px', background: '#f5f5f5', borderRadius: '4px' }}>
-        <p style={{ marginBottom: 8, fontWeight: 'bold' }}>每一期定投时间为每周五收盘前10分钟，单次定投金额, 计算方式优先级如下：</p>
+        <p style={{ marginBottom: 8, fontWeight: 'bold' }}>定投说明：</p>
+        <p style={{ marginBottom: 8 }}>1. 定投时间：可以选择每周的某一天（周一到周日）进行定投，并设置间隔周数。例如：选择周五，间隔2周，表示每隔2周的周五进行定投。</p>
+        <p style={{ marginBottom: 8, fontWeight: 'bold' }}>单次定投金额计算方式优先级如下：</p>
         <p style={{ marginBottom: 8, paddingLeft: 16 }}>1. 如果设置了每次定投比例，按总资金比例计算，如果计算结果大于设置的固定定投金额，使用计算结果，否则使用设置的固定定投金额。</p>
         <p style={{ marginBottom: 8, paddingLeft: 16 }}>2. 如果没有设置定投比例，只设置了固定定投金额，直接使用定投金额。</p>
         <p style={{ paddingLeft: 16 }}>3. 如果都没设置，使用默认的计算方式，单个股票定投金额 = 初始资金 * 最大使用资金占比 ➗ 总定投期数 ➗ 定投股票数</p>
@@ -425,6 +460,32 @@ const DingtouList: React.FC = () => {
             placeholder="请输入股票代码"
             rules={[{ required: true, message: '请输入股票代码' }]}
           />
+          <ProFormSelect
+            name="weekDay"
+            label="定投日"
+            placeholder="请选择定投日"
+            rules={[{ required: true, message: '请选择定投日' }]}
+            initialValue={5}
+            options={[
+              { label: '周一', value: 1 },
+              { label: '周二', value: 2 },
+              { label: '周三', value: 3 },
+              { label: '周四', value: 4 },
+              { label: '周五', value: 5 },
+              { label: '周六', value: 6 },
+              { label: '周日', value: 7 },
+            ]}
+          />
+          <ProFormDigit
+            name="weekInterval"
+            label="定投间隔周数"
+            placeholder="请输入定投间隔周数"
+            rules={[{ required: true, message: '请输入定投间隔周数' }]}
+            min={1}
+            initialValue={1}
+            fieldProps={{ precision: 0 }}
+            tooltip="每隔多少周定投一次，1表示每周定投"
+          />
           <ProFormDigit
             name="allTimes"
             label="计划定投期数"
@@ -483,6 +544,12 @@ const DingtouList: React.FC = () => {
               parser: (value) => value === '不买入' ? 0 : parseFloat(value!.replace('%', '')),
             }}
           />
+          <ProFormSwitch
+            name="buyOnIndexDown"
+            label="大盘下跌买入"
+            tooltip="开启后，当大盘下跌1.8%或连续下跌四天时会触发定投"
+            initialValue={true}
+          />
         </ProForm.Group>
       </ModalForm>
 
@@ -498,7 +565,10 @@ const DingtouList: React.FC = () => {
           amount: 0,
           sellPercentage: 0,
           buyAfterSellPercentage: 0,
-          allTimes: 156
+          allTimes: 156,
+          weekDay: 5,
+          weekInterval: 1,
+          buyOnIndexDown: true
         }}
       >
         <ProForm.Group>
@@ -528,12 +598,37 @@ const DingtouList: React.FC = () => {
             placeholder="请输入股票代码"
             rules={[{ required: true, message: '请输入股票代码' }]}
           />
+          <ProFormSelect
+            name="weekDay"
+            label="定投日"
+            placeholder="请选择定投日"
+            rules={[{ required: true, message: '请选择定投日' }]}
+            initialValue={5}
+            options={[
+              { label: '周一', value: 1 },
+              { label: '周二', value: 2 },
+              { label: '周三', value: 3 },
+              { label: '周四', value: 4 },
+              { label: '周五', value: 5 },
+              { label: '周六', value: 6 },
+              { label: '周日', value: 7 },
+            ]}
+          />
+          <ProFormDigit
+            name="weekInterval"
+            label="定投间隔周数"
+            placeholder="请输入定投间隔周数"
+            rules={[{ required: true, message: '请输入定投间隔周数' }]}
+            min={1}
+            initialValue={1}
+            fieldProps={{ precision: 0 }}
+            tooltip="每隔多少周定投一次，1表示每周定投"
+          />
           <ProFormDigit
             name="allTimes"
             label="计划定投期数"
             placeholder="请输入计划定投期数"
             min={1}
-            initialValue={156}
             rules={[{ required: true, message: '请输入计划定投期数' }]}
           />
           <ProFormDigit
@@ -586,6 +681,12 @@ const DingtouList: React.FC = () => {
               formatter: (value) => value === 0 ? '不买入' : `${value}%`,
               parser: (value) => value === '不买入' ? 0 : parseFloat(value!.replace('%', '')),
             }}
+          />
+          <ProFormSwitch
+            name="buyOnIndexDown"
+            label="大盘下跌买入"
+            tooltip="开启后，当大盘下跌1.8%或连续下跌四天时会触发定投"
+            initialValue={true}
           />
         </ProForm.Group>
       </ModalForm>

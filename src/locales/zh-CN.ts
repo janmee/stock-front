@@ -50,4 +50,12 @@ export default {
   'list.realtime-regression.performance.total-profit': '总收益',
   'list.realtime-regression.performance.avg-profit': '平均收益',
   'list.realtime-regression.performance.avg-holding-time': '平均持仓时间',
+  'menu.dingtou': '定投管理',
+  'dingtou.form.code': '股票代码',
+  'dingtou.form.weekDay': '定投日',
+  'dingtou.form.weekDay.tooltip': '选择每周哪一天进行定投',
+  'dingtou.form.weekInterval': '定投间隔周数',
+  'dingtou.form.weekInterval.tooltip': '每隔多少周定投一次，1表示每周定投',
+  'dingtou.form.buyOnIndexDown': '指数下跌时买入',
+  'dingtou.form.buyOnIndexDown.tooltip': '开启后，只在指数下跌时进行定投',
 };

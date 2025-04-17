@@ -64,4 +64,5 @@ export default {
   'menu.list.trade': '实时交易',
   'menu.backtest': '策略回测',
   'menu.list.backtest': '策略回测',
+  'menu.list.realtime-regression': '实时回归测试',
 };
