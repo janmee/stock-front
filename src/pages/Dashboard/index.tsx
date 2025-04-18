@@ -115,7 +115,9 @@ const DashboardList: React.FC = () => {
   const transformData = () => {
     const data: any[] = [];
     Object.entries(profitData).forEach(([account, profits]) => {
-      profits.forEach((profit) => {
+      // 按日期排序
+      const sortedProfits = [...profits].sort((a, b) => dayjs(a.date).valueOf() - dayjs(b.date).valueOf());
+      sortedProfits.forEach((profit) => {
         data.push({
           account,
           date: profit.date,
@@ -132,9 +134,11 @@ const DashboardList: React.FC = () => {
     yField: 'profitPercentage',
     seriesField: 'account',
     xAxis: {
+      type: 'time',
       label: {
         formatter: (text) => dayjs(text).format('MM-DD'),
       },
+      tickCount: 10,
     },
     yAxis: {
       label: {
@@ -154,6 +158,7 @@ const DashboardList: React.FC = () => {
       position: 'top' as const,
     },
     smooth: true,
+    connectNulls: true,
     animation: {
       appear: {
         animation: 'path-in',

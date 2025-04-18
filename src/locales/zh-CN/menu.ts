@@ -65,4 +65,6 @@ export default {
   'menu.backtest': '策略回测',
   'menu.list.backtest': '策略回测',
   'menu.list.realtime-regression': '实时回归测试',
+  'pages.searchTable.jobTimeZone': '时区',
+  'pages.modalForm.message.timeZone': '请选择时区',
 };
