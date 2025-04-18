@@ -97,6 +97,22 @@ const UpdateForm: React.FC<UpdateFormProps> = (props) => {
                                />
                              ),
                            }]}/>
+        <ProFormSelect
+          width="md"
+          name="timeZone"
+          label="时区"
+          initialValue="Asia/Shanghai"
+          options={[
+            { label: '北京时区 (CST)', value: 'Asia/Shanghai' },
+            { label: '美东时区 (EDT/EST)', value: 'America/New_York' },
+          ]}
+          rules={[
+            {
+              required: true,
+              message: '请选择时区',
+            },
+          ]}
+        />
         <ProFormText width="md" name="cron"
                      label={intl.formatMessage({
                        id: 'pages.searchTable.jobCronExpression',

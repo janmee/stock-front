@@ -14,6 +14,7 @@ import {
   ProFormDigit,
   ProFormText,
   ProFormTextArea,
+  ProFormSelect,
   ProTable,
 } from '@ant-design/pro-components';
 import {FormattedMessage, useIntl} from '@umijs/max';
@@ -204,6 +205,16 @@ const TableList: React.FC = () => {
       dataIndex: 'description',
       valueType: 'textarea',
       hideInSearch: true,
+    },
+    {
+      title: <FormattedMessage id="pages.searchTable.jobTimeZone" defaultMessage="Time Zone"/>,
+      dataIndex: 'timeZone',
+      valueType: 'select',
+      hideInSearch: true,
+      valueEnum: {
+        'Asia/Shanghai': { text: '北京时区 (CST)' },
+        'America/New_York': { text: '美东时区 (EDT/EST)' },
+      },
     },
     {
       title: <FormattedMessage id="pages.searchTable.jobCronExpression" defaultMessage="Description"/>,
@@ -406,6 +417,22 @@ const TableList: React.FC = () => {
                              required: true,
                              message: '任务全类名为必填项',
                            }]}/>
+        <ProFormSelect
+          width="md"
+          name="timeZone"
+          label="时区"
+          initialValue="Asia/Shanghai"
+          options={[
+            { label: '北京时区 (CST)', value: 'Asia/Shanghai' },
+            { label: '美东时区 (EDT/EST)', value: 'America/New_York' },
+          ]}
+          rules={[
+            {
+              required: true,
+              message: '请选择时区',
+            },
+          ]}
+        />
         <ProFormText width="md" name="cron"
                      label={intl.formatMessage({
                        id: 'pages.searchTable.jobCronExpression',

@@ -10,6 +10,13 @@ interface ErrorResponse {
   error?: string;
 }
 
+interface DailyResult {
+  date: string;
+  buyPoints?: { time: string; price: number }[];
+  sellPoints?: { time: string; price: number }[];
+  minuteData?: any[];
+}
+
 const RealtimeRegression: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -26,12 +33,85 @@ const RealtimeRegression: React.FC = () => {
         {}
       );
       if (response.success) {
-        setRegressionData(response.data);
+        // 计算正确的成功率
+        const dailyResults = (response.data.dailyResults || []) as DailyResult[];
+        const tradingDays = dailyResults.filter((day: DailyResult) => day.buyPoints && day.buyPoints.length > 0).length;
+        const successDays = dailyResults.filter((day: DailyResult) => 
+          day.buyPoints && 
+          day.buyPoints.length > 0 && 
+          day.sellPoints && 
+          day.sellPoints.length > 0
+        ).length;
+        
+        const successRate = tradingDays > 0 ? (successDays / tradingDays * 100) : 0;
+
+        // 计算平均持仓时间（分钟）
+        let totalHoldingTime = 0;
+        let completedTradeCount = 0;
+        
+        dailyResults.forEach((day: DailyResult) => {
+          console.log('Processing day:', day.date);
+          console.log('Buy points:', day.buyPoints);
+          console.log('Sell points:', day.sellPoints);
+          
+          if (day.buyPoints && day.buyPoints.length > 0 && day.sellPoints && day.sellPoints.length > 0) {
+            const buyTimeStr = day.buyPoints[0].time;
+            const sellTimeStr = day.sellPoints[0].time;
+            
+            // 检查时间格式
+            console.log('Raw buy time:', buyTimeStr);
+            console.log('Raw sell time:', sellTimeStr);
+            
+            // 尝试解析时间戳格式
+            let buyDateTime, sellDateTime;
+            
+            if (buyTimeStr.length > 5) { // 如果是时间戳格式
+              buyDateTime = moment(buyTimeStr);
+              sellDateTime = moment(sellTimeStr);
+            } else { // 如果是 HH:mm 格式
+              buyDateTime = moment(day.date + ' ' + buyTimeStr, 'YYYY-MM-DD HH:mm');
+              sellDateTime = moment(day.date + ' ' + sellTimeStr, 'YYYY-MM-DD HH:mm');
+            }
+            
+            console.log('Parsed buy time:', buyDateTime.format('YYYY-MM-DD HH:mm:ss'));
+            console.log('Parsed sell time:', sellDateTime.format('YYYY-MM-DD HH:mm:ss'));
+            
+            if (buyDateTime.isValid() && sellDateTime.isValid()) {
+              const holdingTime = sellDateTime.diff(buyDateTime, 'minutes');
+              console.log('Calculated holding time:', holdingTime);
+              
+              if (holdingTime > 0) {
+                totalHoldingTime += holdingTime;
+                completedTradeCount++;
+                console.log('Added to total. Current total:', totalHoldingTime);
+                console.log('Trade count:', completedTradeCount);
+              } else {
+                console.log('Invalid holding time (<=0):', holdingTime);
+              }
+            } else {
+              console.log('Invalid datetime parsing');
+            }
+          }
+        });
+
+        console.log('Final total holding time:', totalHoldingTime);
+        console.log('Final completed trades:', completedTradeCount);
+        
+        const avgHoldingTime = completedTradeCount > 0 ? Math.round(totalHoldingTime / completedTradeCount) : 0;
+        console.log('Final average holding time:', avgHoldingTime);
+        
+        setRegressionData({
+          ...response.data,
+          totalTradingDays: tradingDays,
+          successDays: successDays,
+          successRate: successRate,
+          avgHoldingTime: avgHoldingTime
+        });
         
         // 默认选择第一天
-        if (response.data.dailyResults && response.data.dailyResults.length > 0) {
-          setSelectedDate(response.data.dailyResults[0].date);
-          updateChartData(response.data.dailyResults[0]);
+        if (dailyResults && dailyResults.length > 0) {
+          setSelectedDate(dailyResults[0].date);
+          updateChartData(dailyResults[0]);
         }
         
         message.success('回归测试完成');
@@ -76,7 +156,7 @@ const RealtimeRegression: React.FC = () => {
     }
     
     // 添加买入点
-    if (dailyResult.buyPoints) {
+    if (dailyResult.buyPoints && dailyResult.buyPoints.length > 0) {
       dailyResult.buyPoints.forEach((point: any) => {
         data.push({
           time: moment(point.time).format('HH:mm'),
@@ -84,10 +164,13 @@ const RealtimeRegression: React.FC = () => {
           type: '买入点',
         });
       });
+      // 更新表格中的买入状态
+      dailyResult.hasBuyPoint = true;
+      dailyResult.buyTime = moment(dailyResult.buyPoints[0].time).format('HH:mm');
     }
     
     // 添加卖出点
-    if (dailyResult.sellPoints) {
+    if (dailyResult.sellPoints && dailyResult.sellPoints.length > 0) {
       dailyResult.sellPoints.forEach((point: any) => {
         data.push({
           time: moment(point.time).format('HH:mm'),
@@ -95,6 +178,9 @@ const RealtimeRegression: React.FC = () => {
           type: '卖出点',
         });
       });
+      // 更新表格中的卖出状态
+      dailyResult.hasSoldSameDay = true;
+      dailyResult.sellTime = moment(dailyResult.sellPoints[0].time).format('HH:mm');
     }
     
     setChartData(data);
@@ -107,28 +193,83 @@ const RealtimeRegression: React.FC = () => {
       key: 'date',
     },
     {
-      title: '满足条件',
-      dataIndex: 'meetsCriteria',
-      key: 'meetsCriteria',
-      render: (text: boolean) => (text ? '是' : '否'),
+      title: '是否有买入点',
+      dataIndex: 'hasBuyPoint',
+      key: 'hasBuyPoint',
+      render: (text: boolean, record: any) => {
+        const hasBuyPoints = record.buyPoints && record.buyPoints.length > 0;
+        return hasBuyPoints ? '是' : '否';
+      },
     },
     {
-      title: '买入点数量',
-      dataIndex: 'buyPoints',
-      key: 'buyPoints',
-      render: (buyPoints: any[]) => buyPoints.length,
+      title: '买入时间',
+      dataIndex: 'buyTime',
+      key: 'buyTime',
+      render: (text: string, record: any) => {
+        if (record.buyPoints && record.buyPoints.length > 0) {
+          return moment(record.buyPoints[0].time).format('HH:mm');
+        }
+        return '-';
+      },
     },
     {
-      title: '卖出点数量',
-      dataIndex: 'sellPoints',
-      key: 'sellPoints',
-      render: (sellPoints: any[]) => sellPoints.length,
+      title: '是否当天卖出',
+      dataIndex: 'hasSoldSameDay',
+      key: 'hasSoldSameDay',
+      render: (text: boolean, record: any) => {
+        if (!record.buyPoints || record.buyPoints.length === 0) return '-';
+        const hasSellPoints = record.sellPoints && record.sellPoints.length > 0;
+        return hasSellPoints ? '是' : '否';
+      },
     },
     {
-      title: '是否成功',
+      title: '卖出时间',
+      dataIndex: 'sellTime',
+      key: 'sellTime',
+      render: (text: string, record: any) => {
+        if (record.sellPoints && record.sellPoints.length > 0) {
+          return moment(record.sellPoints[0].time).format('HH:mm');
+        }
+        return '-';
+      },
+    },
+    {
+      title: '持仓时间',
+      dataIndex: 'holdingTime',
+      key: 'holdingTime',
+      render: (text: string, record: any) => {
+        if (record.buyPoints && record.buyPoints.length > 0 && record.sellPoints && record.sellPoints.length > 0) {
+          const buyTimeStr = record.buyPoints[0].time;
+          const sellTimeStr = record.sellPoints[0].time;
+          
+          let buyDateTime, sellDateTime;
+          if (buyTimeStr.length > 5) {
+            buyDateTime = moment(buyTimeStr);
+            sellDateTime = moment(sellTimeStr);
+          } else {
+            buyDateTime = moment(record.date + ' ' + buyTimeStr, 'YYYY-MM-DD HH:mm');
+            sellDateTime = moment(record.date + ' ' + sellTimeStr, 'YYYY-MM-DD HH:mm');
+          }
+          
+          if (buyDateTime.isValid() && sellDateTime.isValid()) {
+            const holdingTime = sellDateTime.diff(buyDateTime, 'minutes');
+            if (holdingTime > 0) {
+              return `${holdingTime} 分钟`;
+            }
+          }
+        }
+        return '-';
+      },
+    },
+    {
+      title: '交易结果',
       dataIndex: 'success',
       key: 'success',
-      render: (text: boolean) => (text ? '是' : '否'),
+      render: (text: boolean, record: any) => {
+        if (!record.buyPoints || record.buyPoints.length === 0) return '-';
+        const hasSellPoints = record.sellPoints && record.sellPoints.length > 0;
+        return hasSellPoints ? '成功' : '失败';
+      },
     },
     {
       title: '操作',
@@ -203,7 +344,7 @@ const RealtimeRegression: React.FC = () => {
 
   return (
     <div>
-      <Card title="实时策略回归测试">
+      <Card title="分时平均线策略回归测试">
         <Form
           form={form}
           onFinish={onFinish}
@@ -236,15 +377,15 @@ const RealtimeRegression: React.FC = () => {
               <Col span={6}>
                 <Card>
                   <Statistic
-                    title="测试天数"
-                    value={regressionData.totalDays}
+                    title="有买入点的天数"
+                    value={regressionData.totalTradingDays}
                   />
                 </Card>
               </Col>
               <Col span={6}>
                 <Card>
                   <Statistic
-                    title="成功天数"
+                    title="当天完成交易天数"
                     value={regressionData.successDays}
                   />
                 </Card>
@@ -252,7 +393,7 @@ const RealtimeRegression: React.FC = () => {
               <Col span={6}>
                 <Card>
                   <Statistic
-                    title="成功率"
+                    title="当天交易成功率"
                     value={regressionData.successRate}
                     precision={2}
                     suffix="%"
@@ -262,8 +403,9 @@ const RealtimeRegression: React.FC = () => {
               <Col span={6}>
                 <Card>
                   <Statistic
-                    title="总买入点"
-                    value={regressionData.totalBuyPoints}
+                    title="平均持仓时间"
+                    value={regressionData.avgHoldingTime}
+                    suffix="分钟"
                   />
                 </Card>
               </Col>
