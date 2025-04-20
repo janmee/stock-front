@@ -126,6 +126,13 @@ const Trade: React.FC = () => {
       sorter: true,
     },
     {
+      title: '订单来源',
+      dataIndex: 'systemType',
+      valueType: 'textarea',
+      sorter: true,
+      hideInSearch: true,
+    },
+    {
       title: '买入方向',
       dataIndex: 'trdSide',
       valueType: 'textarea',
@@ -430,7 +437,7 @@ const Trade: React.FC = () => {
         pagination={{
           defaultPageSize: 100,
           showSizeChanger: true,
-          pageSizeOptions: ['10', '20', '50', '100'],
+          pageSizeOptions: ['100', '200', '500'],
         }}
         rowSelection={{
           selectedRowKeys,

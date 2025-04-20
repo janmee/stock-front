@@ -45,6 +45,8 @@ const RealtimeRegression: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedStockCode, setSelectedStockCode] = useState<string>('');
   const [chartData, setChartData] = useState<any[]>([]);
+  const [indexChartData, setIndexChartData] = useState<any[]>([]);
+  const [allIndexData, setAllIndexData] = useState<any>(null);
   const [isMarketCapRegression, setIsMarketCapRegression] = useState(false);
 
   const onFinish = async (values: any) => {
@@ -89,6 +91,43 @@ const RealtimeRegression: React.FC = () => {
         const stockResults = (response.data.stockResults || []) as StockResult[];
         const totalStocks = response.data.totalStocks || 0;
         const successStocks = response.data.successStocks || 0;
+        
+        // 保存所有日期的指数数据
+        setAllIndexData(response.data.indexData || {});
+        
+        // 如果有日期数据，默认显示第一天的指数数据
+        const dates = Object.keys(response.data.indexData || {});
+        if (dates.length > 0) {
+          const firstDate = dates[0];
+          updateIndexChartData(firstDate, response.data.indexData[firstDate]);
+        }
+        
+        // 处理指数数据
+        const newIndexChartData: any[] = [];
+        
+        // 处理纳斯达克指数数据
+        if (response.data.indexData?.nasdaq) {
+          response.data.indexData.nasdaq.forEach((item: any) => {
+            newIndexChartData.push({
+              time: moment(item.timestamp).format('HH:mm'),
+              value: item.change,
+              type: '纳斯达克指数'
+            });
+          });
+        }
+        
+        // 处理标普500指数数据
+        if (response.data.indexData?.spx) {
+          response.data.indexData.spx.forEach((item: any) => {
+            newIndexChartData.push({
+              time: moment(item.timestamp).format('HH:mm'),
+              value: item.change,
+              type: '标普500指数'
+            });
+          });
+        }
+        
+        setIndexChartData(newIndexChartData);
         
         // 将每只股票的回归测试结果转换为表格需要的格式
         const dailyResults = stockResults.map((result: StockResult) => {
@@ -157,9 +196,18 @@ const RealtimeRegression: React.FC = () => {
       ).length;
       
       const successRate = tradingDays > 0 ? (successDays / tradingDays * 100) : 0;
-
-      // 使用后端返回的平均持仓时间
       const avgHoldingTime = response.data.avgHoldingTime || 0;
+      
+      // 保存所有日期的指数数据
+      setAllIndexData(response.data.indexData || {});
+      
+      // 如果有日期数据，默认显示第一天的指数数据
+      if (dailyResults && dailyResults.length > 0) {
+        const firstDate = dailyResults[0].date;
+        if (response.data.indexData && response.data.indexData[firstDate]) {
+          updateIndexChartData(firstDate, response.data.indexData[firstDate]);
+        }
+      }
       
       setRegressionData({
         ...response.data,
@@ -244,6 +292,48 @@ const RealtimeRegression: React.FC = () => {
     }
     
     setChartData(data);
+  };
+
+  // 更新指数图表数据
+  const updateIndexChartData = (date: string, dailyIndexData: any) => {
+    const newIndexChartData: any[] = [];
+    
+    // 处理纳斯达克指数数据
+    if (dailyIndexData?.nasdaq) {
+      dailyIndexData.nasdaq.forEach((item: any) => {
+        newIndexChartData.push({
+          time: moment(item.timestamp).format('HH:mm'),
+          value: item.change,
+          type: '纳斯达克指数'
+        });
+      });
+    }
+    
+    // 处理标普500指数数据
+    if (dailyIndexData?.spx) {
+      dailyIndexData.spx.forEach((item: any) => {
+        newIndexChartData.push({
+          time: moment(item.timestamp).format('HH:mm'),
+          value: item.change,
+          type: '标普500指数'
+        });
+      });
+    }
+    
+    setIndexChartData(newIndexChartData);
+  };
+
+  // 修改查看详情按钮的点击处理函数
+  const handleDetailClick = (record: any, date: string) => {
+    setSelectedStockCode(record.stockCode || '');
+    setSelectedDate(date);
+    if (record.details?.[0]) {
+      updateChartData(record.details[0]);
+    }
+    // 更新指数数据
+    if (allIndexData && allIndexData[date]) {
+      updateIndexChartData(date, allIndexData[date]);
+    }
   };
 
   // 单股回归的表格列配置
@@ -376,13 +466,7 @@ const RealtimeRegression: React.FC = () => {
       title: '操作',
       key: 'action',
       render: (_: any, record: any) => (
-        <Button type="link" onClick={() => {
-          setSelectedStockCode(record.stockCode || '');
-          setSelectedDate(record.date);
-          if (record.details?.[0]) {
-            updateChartData(record.details[0]);
-          }
-        }}>
+        <Button type="link" onClick={() => handleDetailClick(record, record.date)}>
           查看详情
         </Button>
       ),
@@ -470,9 +554,12 @@ const RealtimeRegression: React.FC = () => {
           const parentRecord = regressionData.dailyResults.find(
             (r: any) => r.details?.some((d: any) => d.date === detailRecord.date)
           );
-          setSelectedStockCode(parentRecord?.stockCode || '');
-          setSelectedDate(detailRecord.date);
-          updateChartData(detailRecord);
+          handleDetailClick(parentRecord, detailRecord.date);
+          setSelectedStockCode(detailRecord.stockCode);
+          updateChartData({
+            ...detailRecord,
+            stockCode: detailRecord.stockCode
+          });
         }}>
           查看详情
         </Button>
@@ -562,7 +649,8 @@ const RealtimeRegression: React.FC = () => {
   // 修改价格走势图标题的显示逻辑
   const getChartTitle = () => {
     if (!selectedDate || !chartData || chartData.length === 0) return '';
-    return `${chartData[0].stockCode} - ${selectedDate} 价格走势图`;
+    const stockCode = selectedStockCode || chartData[0].stockCode;
+    return `${stockCode} - ${selectedDate} 价格走势图`;
   };
 
   return (
@@ -658,6 +746,7 @@ const RealtimeRegression: React.FC = () => {
               
             </Row>
 
+
             <Card title={isMarketCapRegression ? "股票测试结果" : "每日测试结果"} style={{ marginTop: 16 }}>
               <Table
                 columns={isMarketCapRegression ? marketCapColumns : singleStockColumns}
@@ -673,6 +762,66 @@ const RealtimeRegression: React.FC = () => {
             {selectedDate && (
               <Card title={getChartTitle()} style={{ marginTop: 16 }}>
                 <Line {...config} />
+              </Card>
+            )}
+
+            {indexChartData.length > 0 && selectedDate && (
+              <Card title={`${selectedDate} 指数涨跌幅走势图`} style={{ marginTop: 16 }}>
+                <Line
+                  data={indexChartData}
+                  xField="time"
+                  yField="value"
+                  seriesField="type"
+                  yAxis={{
+                    title: {
+                      text: '涨跌幅(%)',
+                    },
+                    label: {
+                      formatter: (v: string) => `${Number(v).toFixed(2)}%`,
+                    },
+                  }}
+                  xAxis={{
+                    title: {
+                      text: '时间',
+                    },
+                  }}
+                  tooltip={{
+                    showMarkers: true,
+                    shared: true,
+                    showCrosshairs: true,
+                    crosshairs: {
+                      type: 'xy',
+                    },
+                    formatter: (datum: any) => {
+                      return {
+                        name: datum.type,
+                        value: `${datum.value.toFixed(2)}%`,
+                      };
+                    },
+                  }}
+                  legend={{
+                    position: 'top',
+                  }}
+                  smooth={true}
+                  point={{
+                    size: 2,
+                    style: {
+                      opacity: 0.5,
+                    },
+                  }}
+                  color={['#1890ff', '#52c41a']}
+                  annotations={[
+                    {
+                      type: 'line',
+                      start: ['min', 0],
+                      end: ['max', 0],
+                      style: {
+                        stroke: '#888',
+                        lineDash: [4, 4],
+                      },
+                    },
+                  ]}
+                />
               </Card>
             )}
           </>
