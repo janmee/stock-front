@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Card, Form, Input, Button, Table, Statistic, Row, Col, message, Spin } from 'antd';
+import { Card, Form, Input, Button, Table, Statistic, Row, Col, message, Spin, Tabs } from 'antd';
 import { Line } from '@ant-design/charts';
-import { runRealtimeRegression } from '@/services/ant-design-pro/api';
+import { runRealtimeRegression, runMarketCapRegression } from '@/services/ant-design-pro/api';
 import moment from 'moment';
 import type { AxiosError } from 'axios';
 
@@ -10,147 +10,207 @@ interface ErrorResponse {
   error?: string;
 }
 
-interface DailyResult {
+interface DailyData {
   date: string;
   buyPoints?: { time: string; price: number }[];
   sellPoints?: { time: string; price: number }[];
   minuteData?: any[];
 }
 
+interface StockResult {
+  stockCode: string;
+  dailyResults: DailyData[];
+  totalBuyPoints?: number;
+  totalSellPoints?: number;
+}
+
+interface DailyResult {
+  date: string;
+  stockCode?: string;
+  buyPoints?: { time: string; price: number }[];
+  sellPoints?: { time: string; price: number }[];
+  minuteData?: any[];
+  success?: boolean;
+  successRate?: number;
+  details?: DailyResult[];
+}
+
+const { TabPane } = Tabs;
+
 const RealtimeRegression: React.FC = () => {
   const [form] = Form.useForm();
+  const [marketCapForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [regressionData, setRegressionData] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [selectedStockCode, setSelectedStockCode] = useState<string>('');
   const [chartData, setChartData] = useState<any[]>([]);
+  const [isMarketCapRegression, setIsMarketCapRegression] = useState(false);
 
   const onFinish = async (values: any) => {
     try {
       setLoading(true);
+      setIsMarketCapRegression(false);
       const response = await runRealtimeRegression(
         values.stockCode,
         parseFloat(values.sellProfitPercentage),
         {}
       );
-      if (response.success) {
-        // 计算正确的成功率
-        const dailyResults = (response.data.dailyResults || []) as DailyResult[];
-        const tradingDays = dailyResults.filter((day: DailyResult) => day.buyPoints && day.buyPoints.length > 0).length;
-        const successDays = dailyResults.filter((day: DailyResult) => 
-          day.buyPoints && 
-          day.buyPoints.length > 0 && 
-          day.sellPoints && 
-          day.sellPoints.length > 0
-        ).length;
-        
-        const successRate = tradingDays > 0 ? (successDays / tradingDays * 100) : 0;
-
-        // 计算平均持仓时间（分钟）
-        let totalHoldingTime = 0;
-        let completedTradeCount = 0;
-        
-        dailyResults.forEach((day: DailyResult) => {
-          console.log('Processing day:', day.date);
-          console.log('Buy points:', day.buyPoints);
-          console.log('Sell points:', day.sellPoints);
-          
-          if (day.buyPoints && day.buyPoints.length > 0 && day.sellPoints && day.sellPoints.length > 0) {
-            const buyTimeStr = day.buyPoints[0].time;
-            const sellTimeStr = day.sellPoints[0].time;
-            
-            // 检查时间格式
-            console.log('Raw buy time:', buyTimeStr);
-            console.log('Raw sell time:', sellTimeStr);
-            
-            // 尝试解析时间戳格式
-            let buyDateTime, sellDateTime;
-            
-            if (buyTimeStr.length > 5) { // 如果是时间戳格式
-              buyDateTime = moment(buyTimeStr);
-              sellDateTime = moment(sellTimeStr);
-            } else { // 如果是 HH:mm 格式
-              buyDateTime = moment(day.date + ' ' + buyTimeStr, 'YYYY-MM-DD HH:mm');
-              sellDateTime = moment(day.date + ' ' + sellTimeStr, 'YYYY-MM-DD HH:mm');
-            }
-            
-            console.log('Parsed buy time:', buyDateTime.format('YYYY-MM-DD HH:mm:ss'));
-            console.log('Parsed sell time:', sellDateTime.format('YYYY-MM-DD HH:mm:ss'));
-            
-            if (buyDateTime.isValid() && sellDateTime.isValid()) {
-              const holdingTime = sellDateTime.diff(buyDateTime, 'minutes');
-              console.log('Calculated holding time:', holdingTime);
-              
-              if (holdingTime > 0) {
-                totalHoldingTime += holdingTime;
-                completedTradeCount++;
-                console.log('Added to total. Current total:', totalHoldingTime);
-                console.log('Trade count:', completedTradeCount);
-              } else {
-                console.log('Invalid holding time (<=0):', holdingTime);
-              }
-            } else {
-              console.log('Invalid datetime parsing');
-            }
-          }
-        });
-
-        console.log('Final total holding time:', totalHoldingTime);
-        console.log('Final completed trades:', completedTradeCount);
-        
-        const avgHoldingTime = completedTradeCount > 0 ? Math.round(totalHoldingTime / completedTradeCount) : 0;
-        console.log('Final average holding time:', avgHoldingTime);
-        
-        setRegressionData({
-          ...response.data,
-          totalTradingDays: tradingDays,
-          successDays: successDays,
-          successRate: successRate,
-          avgHoldingTime: avgHoldingTime
-        });
-        
-        // 默认选择第一天
-        if (dailyResults && dailyResults.length > 0) {
-          setSelectedDate(dailyResults[0].date);
-          updateChartData(dailyResults[0]);
-        }
-        
-        message.success('回归测试完成');
-      } else {
-        message.error(response.errorMessage || '回归测试失败');
-      }
+      handleRegressionResponse(response);
     } catch (error) {
-      const err = error as AxiosError<ErrorResponse>;
-      message.error(
-        err.response?.data?.message || 
-        err.response?.data?.error || 
-        err.message || 
-        '回归测试失败'
-      );
+      handleError(error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const onMarketCapFinish = async (values: any) => {
+    try {
+      setLoading(true);
+      setIsMarketCapRegression(true);
+      const response = await runMarketCapRegression(
+        parseFloat(values.marketCap),
+        parseFloat(values.sellProfitPercentage),
+        {}
+      );
+      handleRegressionResponse(response);
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegressionResponse = (response: any) => {
+    if (response.success) {
+      // 检查是否是市值筛选回归测试的响应
+      if (response.data.stockResults) {
+        // 处理市值筛选回归测试的响应
+        const stockResults = (response.data.stockResults || []) as StockResult[];
+        const totalStocks = response.data.totalStocks || 0;
+        const successStocks = response.data.successStocks || 0;
+        
+        // 将每只股票的回归测试结果转换为表格需要的格式
+        const dailyResults = stockResults.map((result: StockResult) => {
+          const stockDailyResults = result.dailyResults || [];
+          const stockCode = result.stockCode;
+          
+          // 计算每只股票的成功率
+          const buyDays = stockDailyResults.filter((day: DailyData) => day.buyPoints && day.buyPoints.length > 0).length;
+          const successDays = stockDailyResults.filter((day: DailyData) => 
+            day.buyPoints && day.buyPoints.length > 0 && 
+            day.sellPoints && day.sellPoints.length > 0
+          ).length;
+          const successRate = buyDays > 0 ? (successDays / buyDays * 100) : 0;
+          
+          return {
+            date: stockCode,
+            stockCode: stockCode,
+            hasBuyPoint: buyDays > 0,
+            hasSoldSameDay: successDays > 0,
+            success: successDays > 0,
+            successRate: successRate,
+            details: stockDailyResults.map((day: DailyData) => ({
+              date: day.date,
+              stockCode: stockCode,
+              buyPoints: day.buyPoints || [],
+              sellPoints: day.sellPoints || [],
+              minuteData: day.minuteData || []
+            }))
+          };
+        });
+        
+        // 重新计算总体平均成功率
+        const validStocks = stockResults.filter((result: StockResult) => 
+          result.dailyResults.some((day: DailyData) => day.buyPoints && day.buyPoints.length > 0)
+        ).length;
+        const totalSuccessRate = stockResults.reduce((sum: number, result: StockResult) => {
+          const buyDays = result.dailyResults.filter((day: DailyData) => day.buyPoints && day.buyPoints.length > 0).length;
+          const successDays = result.dailyResults.filter((day: DailyData) => 
+            day.buyPoints && day.buyPoints.length > 0 && 
+            day.sellPoints && day.sellPoints.length > 0
+          ).length;
+          return sum + (buyDays > 0 ? (successDays / buyDays * 100) : 0);
+        }, 0);
+        const newAvgSuccessRate = validStocks > 0 ? totalSuccessRate / validStocks : 0;
+        
+        setRegressionData({
+          totalTradingDays: totalStocks,
+          successDays: successStocks,
+          successRate: newAvgSuccessRate,
+          avgHoldingTime: 0,
+          dailyResults: dailyResults
+        });
+        
+        message.success('市值筛选回归测试完成');
+        return;
+      }
+      
+      // 处理单只股票回归测试的响应
+      const dailyResults = (response.data.dailyResults || []) as DailyResult[];
+      const tradingDays = dailyResults.filter((day: DailyResult) => day.buyPoints && day.buyPoints.length > 0).length;
+      const successDays = dailyResults.filter((day: DailyResult) => 
+        day.buyPoints && 
+        day.buyPoints.length > 0 && 
+        day.sellPoints && 
+        day.sellPoints.length > 0
+      ).length;
+      
+      const successRate = tradingDays > 0 ? (successDays / tradingDays * 100) : 0;
+
+      // 使用后端返回的平均持仓时间
+      const avgHoldingTime = response.data.avgHoldingTime || 0;
+      
+      setRegressionData({
+        ...response.data,
+        totalTradingDays: tradingDays,
+        successDays: successDays,
+        successRate: successRate,
+        avgHoldingTime: avgHoldingTime
+      });
+      
+      if (dailyResults && dailyResults.length > 0) {
+        setSelectedDate(dailyResults[0].date);
+        updateChartData(dailyResults[0]);
+      }
+      
+      message.success('回归测试完成');
+    } else {
+      message.error(response.errorMessage || '回归测试失败');
+    }
+  };
+
+  const handleError = (error: any) => {
+    const err = error as AxiosError<ErrorResponse>;
+    message.error(
+      err.response?.data?.message || 
+      err.response?.data?.error || 
+      err.message || 
+      '回归测试失败'
+    );
   };
 
   const updateChartData = (dailyResult: any) => {
     if (!dailyResult) return;
     
     const data: any[] = [];
+    const stockCode = dailyResult.stockCode;
     
     // 添加分钟数据
     if (dailyResult.minuteData) {
       dailyResult.minuteData.forEach((item: any) => {
-        // 添加当前价格数据
         data.push({
           time: moment(item.timestamp).format('HH:mm'),
           value: item.current,
           type: '当前价',
+          stockCode: stockCode
         });
         
-        // 添加均价数据
         data.push({
           time: moment(item.timestamp).format('HH:mm'),
           value: item.avgPrice,
           type: '均价',
+          stockCode: stockCode
         });
       });
     }
@@ -162,9 +222,9 @@ const RealtimeRegression: React.FC = () => {
           time: moment(point.time).format('HH:mm'),
           value: point.price,
           type: '买入点',
+          stockCode: stockCode
         });
       });
-      // 更新表格中的买入状态
       dailyResult.hasBuyPoint = true;
       dailyResult.buyTime = moment(dailyResult.buyPoints[0].time).format('HH:mm');
     }
@@ -176,9 +236,9 @@ const RealtimeRegression: React.FC = () => {
           time: moment(point.time).format('HH:mm'),
           value: point.price,
           type: '卖出点',
+          stockCode: stockCode
         });
       });
-      // 更新表格中的卖出状态
       dailyResult.hasSoldSameDay = true;
       dailyResult.sellTime = moment(dailyResult.sellPoints[0].time).format('HH:mm');
     }
@@ -186,7 +246,8 @@ const RealtimeRegression: React.FC = () => {
     setChartData(data);
   };
 
-  const columns = [
+  // 单股回归的表格列配置
+  const singleStockColumns = [
     {
       title: '日期',
       dataIndex: 'date',
@@ -239,26 +300,156 @@ const RealtimeRegression: React.FC = () => {
       key: 'holdingTime',
       render: (text: string, record: any) => {
         if (record.buyPoints && record.buyPoints.length > 0 && record.sellPoints && record.sellPoints.length > 0) {
-          const buyTimeStr = record.buyPoints[0].time;
-          const sellTimeStr = record.sellPoints[0].time;
-          
-          let buyDateTime, sellDateTime;
-          if (buyTimeStr.length > 5) {
-            buyDateTime = moment(buyTimeStr);
-            sellDateTime = moment(sellTimeStr);
-          } else {
-            buyDateTime = moment(record.date + ' ' + buyTimeStr, 'YYYY-MM-DD HH:mm');
-            sellDateTime = moment(record.date + ' ' + sellTimeStr, 'YYYY-MM-DD HH:mm');
-          }
-          
-          if (buyDateTime.isValid() && sellDateTime.isValid()) {
-            const holdingTime = sellDateTime.diff(buyDateTime, 'minutes');
-            if (holdingTime > 0) {
-              return `${holdingTime} 分钟`;
-            }
-          }
+          const buyTime = new Date(record.buyPoints[0].time).getTime();
+          const sellTime = new Date(record.sellPoints[0].time).getTime();
+          const holdingTime = Math.floor((sellTime - buyTime) / (60 * 1000)); // 转换为分钟
+          return holdingTime > 0 ? `${holdingTime} 分钟` : '-';
         }
         return '-';
+      },
+    },
+    {
+      title: '交易结果',
+      dataIndex: 'success',
+      key: 'success',
+      render: (text: boolean, record: any) => {
+        if (!record.hasBuyPoint) return '-';
+        return text ? '成功' : '失败';
+      },
+    },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_: any, record: any) => (
+        <Button type="link" onClick={() => {
+          setSelectedStockCode(form.getFieldValue('stockCode'));
+          setSelectedDate(record.date);
+          updateChartData(record);
+        }}>
+          查看详情
+        </Button>
+      ),
+    },
+  ];
+
+  // 市值筛选回归的表格列配置
+  const marketCapColumns = [
+    {
+      title: '股票代码',
+      dataIndex: 'date',
+      key: 'date',
+    },
+    {
+      title: '是否有买入点',
+      dataIndex: 'hasBuyPoint',
+      key: 'hasBuyPoint',
+      render: (text: boolean) => text ? '是' : '否',
+    },
+    {
+      title: '是否当天卖出',
+      dataIndex: 'hasSoldSameDay',
+      key: 'hasSoldSameDay',
+      render: (text: boolean, record: any) => {
+        if (!record.hasBuyPoint) return '-';
+        return text ? '是' : '否';
+      },
+    },
+    {
+      title: '成功率',
+      dataIndex: 'successRate',
+      key: 'successRate',
+      render: (text: number, record: any) => {
+        if (!record.hasBuyPoint) return '-';
+        return `${text.toFixed(2)}%`;
+      },
+    },
+    {
+      title: '交易结果',
+      dataIndex: 'success',
+      key: 'success',
+      render: (text: boolean, record: any) => {
+        if (!record.hasBuyPoint) return '-';
+        return text ? '成功' : '失败';
+      },
+    },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_: any, record: any) => (
+        <Button type="link" onClick={() => {
+          setSelectedStockCode(record.stockCode || '');
+          setSelectedDate(record.date);
+          if (record.details?.[0]) {
+            updateChartData(record.details[0]);
+          }
+        }}>
+          查看详情
+        </Button>
+      ),
+    },
+  ];
+
+  // 展开行的表格列配置
+  const expandedRowColumns = [
+    {
+      title: '日期',
+      dataIndex: 'date',
+      key: 'date',
+    },
+    {
+      title: '股票代码',
+      dataIndex: 'stockCode',
+      key: 'stockCode',
+    },
+    {
+      title: '是否有买入点',
+      dataIndex: 'hasBuyPoint',
+      key: 'hasBuyPoint',
+      render: (text: boolean, record: any) => {
+        const hasBuyPoints = record.buyPoints && record.buyPoints.length > 0;
+        return hasBuyPoints ? '是' : '否';
+      },
+    },
+    {
+      title: '买入时间',
+      dataIndex: 'buyTime',
+      key: 'buyTime',
+      render: (text: string, record: any) => {
+        if (!record.buyPoints || record.buyPoints.length === 0) return '-';
+        return moment(record.buyPoints[0].time).format('HH:mm');
+      },
+    },
+    {
+      title: '是否当天卖出',
+      dataIndex: 'hasSoldSameDay',
+      key: 'hasSoldSameDay',
+      render: (text: boolean, record: any) => {
+        if (!record.buyPoints || record.buyPoints.length === 0) return '-';
+        const hasSellPoints = record.sellPoints && record.sellPoints.length > 0;
+        return hasSellPoints ? '是' : '否';
+      },
+    },
+    {
+      title: '卖出时间',
+      dataIndex: 'sellTime',
+      key: 'sellTime',
+      render: (text: string, record: any) => {
+        if (!record.buyPoints || record.buyPoints.length === 0) return '-';
+        if (!record.sellPoints || record.sellPoints.length === 0) return '-';
+        return moment(record.sellPoints[0].time).format('HH:mm');
+      },
+    },
+    {
+      title: '持仓时间',
+      dataIndex: 'holdingTime',
+      key: 'holdingTime',
+      render: (text: string, record: any) => {
+        if (!record.buyPoints || record.buyPoints.length === 0) return '-';
+        if (!record.sellPoints || record.sellPoints.length === 0) return '-';
+        const buyTime = new Date(record.buyPoints[0].time).getTime();
+        const sellTime = new Date(record.sellPoints[0].time).getTime();
+        const holdingTime = Math.floor((sellTime - buyTime) / (60 * 1000)); // 转换为分钟
+        return holdingTime > 0 ? `${holdingTime} 分钟` : '-';
       },
     },
     {
@@ -274,16 +465,35 @@ const RealtimeRegression: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: any) => (
+      render: (_: any, detailRecord: any) => (
         <Button type="link" onClick={() => {
-          setSelectedDate(record.date);
-          updateChartData(record);
+          const parentRecord = regressionData.dailyResults.find(
+            (r: any) => r.details?.some((d: any) => d.date === detailRecord.date)
+          );
+          setSelectedStockCode(parentRecord?.stockCode || '');
+          setSelectedDate(detailRecord.date);
+          updateChartData(detailRecord);
         }}>
           查看详情
         </Button>
       ),
     },
   ];
+
+  // 展开行渲染函数
+  const expandedRowRender = (record: any) => {
+    return (
+      <Table
+        columns={expandedRowColumns}
+        dataSource={record.details.map((detail: any) => ({
+          ...detail,
+          stockCode: record.stockCode
+        }))}
+        pagination={false}
+        rowKey="date"
+      />
+    );
+  };
 
   const config = {
     data: chartData,
@@ -294,8 +504,8 @@ const RealtimeRegression: React.FC = () => {
       title: {
         text: '价格',
       },
-      min: (min: number) => min * 0.995, // 设置y轴最小值略小于数据最小值
-      max: (max: number) => max * 1.005, // 设置y轴最大值略大于数据最大值
+      min: (min: number) => min * 0.995,
+      max: (max: number) => max * 1.005,
     },
     xAxis: {
       title: {
@@ -320,56 +530,101 @@ const RealtimeRegression: React.FC = () => {
       position: 'top' as const,
     },
     point: {
+      size: (datum: any) => {
+        if (datum.type === '买入点') return 1000;
+        if (datum.type === '卖出点') return 1000;
+        return 2;
+      },
       shape: (datum: any) => {
         if (datum.type === '买入点') return 'diamond';
         if (datum.type === '卖出点') return 'square';
         return 'circle';
       },
-      size: (datum: any) => {
-        if (datum.type === '买入点' || datum.type === '卖出点') return 8;
-        return 2;
-      },
       style: (datum: any) => {
         if (datum.type === '买入点') {
-          return { fill: '#52c41a', stroke: '#52c41a' };
+          return {
+            fill: '#f5222d',
+            stroke: '#f5222d'
+          };
         }
         if (datum.type === '卖出点') {
-          return { fill: '#f5222d', stroke: '#f5222d' };
+          return {
+            fill: '#52c41a',
+            stroke: '#52c41a'
+          };
         }
         return { opacity: 0.5 };
       },
     },
-    color: ['#1890ff', '#faad14', '#52c41a', '#f5222d'],
+    color: ['#1890ff', '#faad14', '#f5222d', '#52c41a'],
+  };
+
+  // 修改价格走势图标题的显示逻辑
+  const getChartTitle = () => {
+    if (!selectedDate || !chartData || chartData.length === 0) return '';
+    return `${chartData[0].stockCode} - ${selectedDate} 价格走势图`;
   };
 
   return (
     <div>
       <Card title="分时平均线策略回归测试">
-        <Form
-          form={form}
-          onFinish={onFinish}
-          layout="inline"
-        >
-          <Form.Item
-            name="stockCode"
-            label="股票代码"
-            rules={[{ required: true, message: '请输入股票代码' }]}
-          >
-            <Input placeholder="例如: AAPL" />
-          </Form.Item>
-          <Form.Item
-            name="sellProfitPercentage"
-            label="卖出盈利比例(%)"
-            initialValue={1.5}
-          >
-            <Input type="number" step={0.1} />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading}>
-              开始回归测试
-            </Button>
-          </Form.Item>
-        </Form>
+        <Tabs defaultActiveKey="1">
+          <TabPane tab="单股回归" key="1">
+            <Form
+              form={form}
+              onFinish={onFinish}
+              layout="inline"
+            >
+              <Form.Item
+                name="stockCode"
+                label="股票代码"
+                rules={[{ required: true, message: '请输入股票代码' }]}
+              >
+                <Input placeholder="例如: AAPL" />
+              </Form.Item>
+              <Form.Item
+                name="sellProfitPercentage"
+                label="卖出盈利比例(%)"
+                initialValue={1.5}
+              >
+                <Input type="number" step={0.1} />
+              </Form.Item>
+              <Form.Item>
+                <Button type="primary" htmlType="submit" loading={loading}>
+                  开始回归测试
+                </Button>
+              </Form.Item>
+            </Form>
+          </TabPane>
+          <TabPane tab="市值筛选回归" key="2">
+            <Form
+              form={marketCapForm}
+              onFinish={onMarketCapFinish}
+              layout="inline"
+            >
+              <Form.Item
+                name="marketCap"
+                label="最小市值(亿)"
+                rules={[{ required: true, message: '请输入最小市值' }]}
+                initialValue={10000}
+              >
+                <Input type="number" step={1} />
+              </Form.Item>
+              <Form.Item
+                name="sellProfitPercentage"
+                label="卖出盈利比例(%)"
+                initialValue={1.5}
+              >
+                <Input type="number" step={0.1} />
+              </Form.Item>
+              <Form.Item>
+                <Button type="primary" htmlType="submit" loading={loading}>
+                  开始市值筛选回归
+                </Button>
+              </Form.Item>
+            </Form>
+          </TabPane>
+        </Tabs>
 
         {regressionData && (
           <>
@@ -377,7 +632,7 @@ const RealtimeRegression: React.FC = () => {
               <Col span={6}>
                 <Card>
                   <Statistic
-                    title="有买入点的天数"
+                    title={isMarketCapRegression ? "测试股票总数" : "有买入点的天数"}
                     value={regressionData.totalTradingDays}
                   />
                 </Card>
@@ -385,7 +640,7 @@ const RealtimeRegression: React.FC = () => {
               <Col span={6}>
                 <Card>
                   <Statistic
-                    title="当天完成交易天数"
+                    title={isMarketCapRegression ? "成功股票数" : "当天完成交易天数"}
                     value={regressionData.successDays}
                   />
                 </Card>
@@ -393,34 +648,30 @@ const RealtimeRegression: React.FC = () => {
               <Col span={6}>
                 <Card>
                   <Statistic
-                    title="当天交易成功率"
+                    title={isMarketCapRegression ? "平均成功率" : "当天交易成功率"}
                     value={regressionData.successRate}
                     precision={2}
                     suffix="%"
                   />
                 </Card>
               </Col>
-              <Col span={6}>
-                <Card>
-                  <Statistic
-                    title="平均持仓时间"
-                    value={regressionData.avgHoldingTime}
-                    suffix="分钟"
-                  />
-                </Card>
-              </Col>
+              
             </Row>
 
-            <Card title="每日测试结果" style={{ marginTop: 16 }}>
+            <Card title={isMarketCapRegression ? "股票测试结果" : "每日测试结果"} style={{ marginTop: 16 }}>
               <Table
-                columns={columns}
+                columns={isMarketCapRegression ? marketCapColumns : singleStockColumns}
                 dataSource={regressionData.dailyResults}
                 rowKey="date"
+                expandable={isMarketCapRegression ? {
+                  expandedRowRender: expandedRowRender,
+                  expandRowByClick: true
+                } : undefined}
               />
             </Card>
 
             {selectedDate && (
-              <Card title={`${selectedDate} 价格走势图`} style={{ marginTop: 16 }}>
+              <Card title={getChartTitle()} style={{ marginTop: 16 }}>
                 <Line {...config} />
               </Card>
             )}

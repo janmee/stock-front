@@ -172,4 +172,11 @@ declare namespace API {
     errorMessage?: string;
     message?: string;
   };
+
+  type RegressionResult = {
+    /** 回归测试结果 */
+    result: string;
+    /** 回归测试详情 */
+    details: string;
+  };
 }

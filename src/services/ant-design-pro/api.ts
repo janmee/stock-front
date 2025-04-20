@@ -818,3 +818,19 @@ export async function runRealtimeRegression(
     ...(options || {}),
   });
 }
+
+/** 执行市值筛选回归测试 POST /api/backtest/market-cap-regression */
+export async function runMarketCapRegression(
+  marketCap: number,
+  sellProfitPercentage: number,
+  options?: { [key: string]: any }
+) {
+  return request<API.Response<API.RegressionResult>>('/api/backtest/market-cap-regression', {
+    method: 'GET',
+    params: {
+      marketCap,
+      sellProfitPercentage,
+    },
+    ...(options || {}),
+  });
+}
