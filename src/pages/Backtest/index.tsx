@@ -67,6 +67,8 @@ interface BacktestFormValues {
   pyramidMaxLevels?: number;
   riseReduceRanges?: string;
   riseReduceRatios?: string;
+  indexDropRanges?: string;
+  indexDropInvestRatios?: string;
 }
 
 // 优化结果接口
@@ -179,6 +181,8 @@ const BacktestPage: React.FC = () => {
         pyramidInvestRatios: values.strategies.includes('PYRAMID') ? values.pyramidInvestRatios : '',
         riseReduceRanges: values.strategies.includes('RISE_REDUCE') ? values.riseReduceRanges : '',
         riseReduceRatios: values.strategies.includes('RISE_REDUCE') ? values.riseReduceRatios : '',
+        indexDropRanges: values.strategies.includes('INDEX_DROP') ? values.indexDropRanges : '',
+        indexDropInvestRatios: values.strategies.includes('INDEX_DROP') ? values.indexDropInvestRatios : '',
       };
 
       // 调用 runBacktest API
@@ -265,6 +269,8 @@ const BacktestPage: React.FC = () => {
           pyramidInvestRatios: values.strategies.includes('PYRAMID') ? values.pyramidInvestRatios : '',
           riseReduceRanges: values.strategies.includes('RISE_REDUCE') ? values.riseReduceRanges : '',
           riseReduceRatios: values.strategies.includes('RISE_REDUCE') ? values.riseReduceRatios : '',
+          indexDropRanges: values.strategies.includes('INDEX_DROP') ? values.indexDropRanges : '',
+          indexDropInvestRatios: values.strategies.includes('INDEX_DROP') ? values.indexDropInvestRatios : '',
         };
         const response = await request<{ success: boolean; data: OptimizationResult[]; message?: string }>('/api/backtest/optimize', {
           method: 'GET',
@@ -1067,22 +1073,50 @@ const BacktestPage: React.FC = () => {
             return (
               <>
                 {strategies.includes('INDEX_DROP') ? (
-                  <Form.Item
-                    label="大盘下跌定投每周最大次数"
-                    name="maxTimesPerWeek"
-                    initialValue={1}
-                    rules={[{ required: true, message: '请选择每周最大执行次数' }]}
-                  >
-                    <Select
-                      placeholder="请选择每周最大执行次数"
-                      options={[
-                        { label: '每周1次', value: 1 },
-                        { label: '每周2次', value: 2 },
-                        { label: '每周3次', value: 3 },
-                        { label: '每周4次', value: 4 },
-                      ]}
-                    />
-                  </Form.Item>
+                  <>
+                    <Form.Item
+                      label="大盘下跌定投每周最大次数"
+                      name="maxTimesPerWeek"
+                      initialValue={1}
+                      rules={[{ required: true, message: '请选择每周最大执行次数' }]}
+                    >
+                      <Select
+                        placeholder="请选择每周最大执行次数"
+                        options={[
+                          { label: '每周1次', value: 1 },
+                          { label: '每周2次', value: 2 },
+                          { label: '每周3次', value: 3 },
+                          { label: '每周4次', value: 4 },
+                        ]}
+                      />
+                    </Form.Item>
+                    
+                    <Form.Item>
+                      <Alert
+                        message="大盘下跌定投说明"
+                        description="大盘下跌定投策略可以设置不同的下跌幅度阈值和对应的投资比例。例如：当大盘下跌2.5%时，投入初始资金的1.5%；下跌5%时，投入初始资金的3%等。如果不设置投资比例，将使用固定的定投金额。"
+                        type="info"
+                        showIcon
+                      />
+                    </Form.Item>
+
+                    <Form.Item
+                      name="indexDropRanges"
+                      label="大盘下跌分档设置(%)"
+                      initialValue="1.8"
+                      tooltip="设置多个下跌幅度阈值，用逗号分隔。例如：1,2.5,5,7.5,10表示设置5个分档，分别在下跌1%,2.5%,5%,7.5%,10%时触发不同投资比例"
+                    >
+                      <Input placeholder="例如：1,2.5,5,7.5,10" />
+                    </Form.Item>
+
+                    <Form.Item
+                      name="indexDropInvestRatios"
+                      label="大盘下跌投资比例设置(%)"
+                      tooltip="设置各档位的投资比例，与下跌分档一一对应，用逗号分隔。例如：0.5,1.5,3,5,8表示在5个分档分别投入初始资金的0.5%,1.5%,3%,5%,8%。留空则使用固定定投金额。"
+                    >
+                      <Input placeholder="例如：0.5,1.5,3,5,8（留空则使用固定定投金额）" />
+                    </Form.Item>
+                  </>
                 ) : null}
                 
                 {strategies.includes('PYRAMID') ? (
@@ -1199,6 +1233,10 @@ const BacktestPage: React.FC = () => {
                           '近5年': [
                             dayjs().subtract(5, 'year').startOf('year'),
                             dayjs().subtract(1, 'year').endOf('year')
+                          ],
+                          '特朗普建国(20170120-20210120)': [
+                            dayjs('2017-01-20'),
+                            dayjs('2021-01-20')
                           ],
                           '2021-2023': [
                             dayjs('2021-01-01'),
