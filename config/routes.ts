@@ -143,6 +143,12 @@ export default [
     access: 'canAdmin',
   },
   {
+    path: '/Earnings',
+    name: '财报数据',
+    icon: 'LineChartOutlined',
+    component: './Earnings',
+  },
+  {
     path: '/',
     redirect: '/Dashboard',
   },
