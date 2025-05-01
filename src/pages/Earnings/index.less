@@ -76,6 +76,89 @@
   }
 }
 
+/* 移动端适配样式 */
+.mobileCollapse {
+  width: 100%;
+  
+  :global(.ant-collapse-content-box) {
+    padding: 12px !important;
+  }
+}
+
+.mobilePanel {
+  margin-bottom: 8px;
+  
+  :global(.ant-collapse-header) {
+    padding: 10px 16px !important;
+  }
+}
+
+.mobilePanelHeader {
+  display: flex;
+  flex-direction: column;
+}
+
+.mobileCardContent {
+  padding: 0;
+}
+
+.mobileSection {
+  margin-bottom: 16px;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.mobileSectionTitle {
+  font-weight: bold;
+  margin-bottom: 8px;
+  font-size: 14px;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 6px;
+}
+
+.mobileSectionContent {
+  padding: 0 4px;
+}
+
+.infoItem {
+  margin-bottom: 8px;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.historyItem {
+  margin-bottom: 16px;
+  padding: 8px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.historyHeader {
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+
+.historyDetails {
+  padding-left: 8px;
+}
+
+.historyDetail {
+  margin-bottom: 4px;
+  word-break: break-word;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
 /* 按中国股市习惯，涨为红色、跌为绿色 */
 .positive {
   color: #f5222d !important; /* 红色 */
