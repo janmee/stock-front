@@ -33,6 +33,8 @@ export default [
     name: '数据大盘',
     icon: 'DashboardOutlined',
     component: './Dashboard',
+    access: 'canAdmin',
+    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
   },
   // {
   //   path: '/admin',
@@ -78,6 +80,7 @@ export default [
     path: '/trade',
     component: './Trade',
     access: 'canAdmin',
+    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
   },
   {
     name: 'list.order-info',
@@ -85,6 +88,7 @@ export default [
     path: '/order',
     component: './OrderInfo',
     access: 'canAdmin',
+    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
   },
   {
     name: 'list.account-info',
@@ -92,6 +96,7 @@ export default [
     path: '/account',
     component: './AccountInfo',
     access: 'canAdmin',
+    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
   },
   // {
   //   name: 'list.model',
@@ -106,6 +111,7 @@ export default [
     path: '/job',
     component: './JobList',
     access: 'canAdmin',
+    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
   },
   // {
   //   name: 'list.run-logs',
@@ -127,6 +133,7 @@ export default [
     path: '/dingtou',
     component: './Dingtou',
     access: 'canAdmin',
+    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
   },
   {
     name: 'list.backtest',
@@ -134,6 +141,7 @@ export default [
     path: '/backtest',
     component: './Backtest',
     access: 'canAdmin',
+    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
   },
   {
     name: 'list.realtime-regression',
@@ -141,16 +149,25 @@ export default [
     path: '/realtime-regression',
     component: './RealtimeRegression',
     access: 'canAdmin',
+    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
   },
   {
     path: '/Earnings',
     name: '财报数据',
     icon: 'LineChartOutlined',
     component: './Earnings',
+    access: 'canGuest',
   },
   {
     path: '/',
-    redirect: '/Dashboard',
+    redirect: ({ initialState }: any) => {
+      // 根据用户角色决定重定向到哪个页面
+      const userAccess = initialState?.currentUser?.access;
+      if (userAccess === 'admin') {
+        return '/dashboard';
+      }
+      return '/Earnings';
+    },
   },
   {
     path: '*',

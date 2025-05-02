@@ -88,6 +88,23 @@ export const layout: RunTimeLayoutConfig = ({initialState, setInitialState}) => 
       // 如果没有登录，重定向到 login
       if (!initialState?.currentUser && location.pathname !== loginPath) {
         history.push(loginPath);
+        return;
+      }
+      
+      // 已登录，根据角色进行页面访问控制
+      if (initialState?.currentUser) {
+        const { access } = initialState.currentUser;
+        const path = location.pathname;
+        
+        // guest用户只能访问财报页面和登录页
+        if (access === 'guest') {
+          if (path !== '/Earnings' && 
+              path !== '/user/login' && 
+              path !== '/') {
+            console.log('Guest用户尝试访问未授权页面:', path);
+            history.push('/Earnings');
+          }
+        }
       }
     },
     layoutBgImgList: [

@@ -11,9 +11,10 @@ export async function currentUser(options?: { [key: string]: any }) {
     method: 'GET',
     ...(options || {}),
   });
-  if (msg.data) {
-    msg.data.access = 'admin'; // 临时设置所有用户为管理员权限
-  }
+  // 保留原始权限设置，不再强制设为admin
+  // if (msg.data) {
+  //   msg.data.access = 'admin'; // 临时设置所有用户为管理员权限
+  // }
   return msg;
 }
 
