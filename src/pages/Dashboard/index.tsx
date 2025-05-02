@@ -1,11 +1,17 @@
-import { PageContainer } from '@ant-design/pro-components';
-import { request } from 'umi';
 import React, { useState, useEffect } from 'react';
+import { Card, Row, Col, Statistic, Select, Spin, message, Divider, Tag, Space } from 'antd';
+import { 
+  ArrowUpOutlined, 
+  ArrowDownOutlined, 
+  ShoppingCartOutlined,
+  PercentageOutlined 
+} from '@ant-design/icons';
 import { Line } from '@ant-design/plots';
-import { Card, DatePicker, Select, Space, message } from 'antd';
 import type { LineConfig } from '@ant-design/plots';
+import { DatePicker } from 'antd';
 import type { RangePickerProps } from 'antd/es/date-picker';
-import type { SelectProps } from 'antd/es/select';
+import { request } from '@umijs/max';
+import { PageContainer } from '@ant-design/pro-layout';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 
@@ -25,6 +31,33 @@ interface AccountInfo {
   name: string;
 }
 
+interface TradingStats {
+  overallStats: {
+    totalBuyCount: number;
+    totalProfit: number;
+  };
+  dingtouStats: {
+    count: number;
+    profit: number;
+    successRate: number;
+  };
+  manualStats: {
+    count: number;
+    profit: number;
+    successRate: number;
+  };
+  avgStrategyStats: {
+    count: number;
+    profit: number;
+    successRate: number;
+  };
+  unrealizedProfits?: {
+    unrealizedProfit: number;
+    unrealizedProfitRate: number;
+    positionCount: number;
+  };
+}
+
 const PAGE_SIZE = 500;
 
 const DashboardList: React.FC = () => {
@@ -36,6 +69,8 @@ const DashboardList: React.FC = () => {
   const [accountPage, setAccountPage] = useState(1);
   const [accountTotal, setAccountTotal] = useState(0);
   const [searchName, setSearchName] = useState('');
+  const [tradingStats, setTradingStats] = useState<TradingStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   const fetchAccounts = async (page: number = 1, name?: string) => {
     try {
@@ -102,6 +137,25 @@ const DashboardList: React.FC = () => {
     }
   };
 
+  const fetchTradingStats = async (account?: string) => {
+    try {
+      setStatsLoading(true);
+      const result = await request('/api/accountInfo/tradingStats', {
+        params: {
+          account: account,
+        },
+      });
+      if (result.success) {
+        setTradingStats(result.data || null);
+      }
+    } catch (error) {
+      console.error('获取交易统计数据失败:', error);
+      message.error('获取交易统计数据失败');
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchAccounts(1);
     fetchData(); // 初始加载数据
@@ -110,6 +164,14 @@ const DashboardList: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [dateRange, selectedAccounts]);
+
+  useEffect(() => {
+    if (selectedAccounts.length === 1) {
+      fetchTradingStats(selectedAccounts[0]);
+    } else if (selectedAccounts.length === 0) {
+      fetchTradingStats(); // 获取所有账户统计
+    }
+  }, [selectedAccounts]);
 
   // 将数据转换为图表所需格式
   const transformData = () => {
@@ -180,17 +242,143 @@ const DashboardList: React.FC = () => {
     }
   };
 
+  // 渲染统计卡片
+  const renderStatsCard = () => {
+    if (!tradingStats) {
+      return <Spin tip="加载中..." />;
+    }
+    
+    return (
+      <Card title="交易数据统计" bordered={false} loading={statsLoading}>
+        <Row gutter={24}>
+          <Col span={8}>
+            <Card title="整体统计" bordered={false}>
+              <Statistic
+                title="总买入次数"
+                value={tradingStats.overallStats.totalBuyCount}
+                prefix={<ShoppingCartOutlined />}
+              />
+              <Divider />
+              <Statistic
+                title="总盈亏"
+                value={tradingStats.overallStats.totalProfit}
+                precision={2}
+                valueStyle={{ color: tradingStats.overallStats.totalProfit >= 0 ? '#3f8600' : '#cf1322' }}
+                prefix={tradingStats.overallStats.totalProfit >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+                suffix="$"
+              />
+              {tradingStats.unrealizedProfits && (
+                <>
+                  <Divider />
+                  <Statistic
+                    title={
+                      <span>
+                        未实现盈亏 <Tag color="blue">{tradingStats.unrealizedProfits.positionCount}个持仓</Tag>
+                      </span>
+                    }
+                    value={tradingStats.unrealizedProfits.unrealizedProfit}
+                    precision={2}
+                    valueStyle={{ 
+                      color: tradingStats.unrealizedProfits.unrealizedProfit >= 0 ? '#3f8600' : '#cf1322' 
+                    }}
+                    prefix={tradingStats.unrealizedProfits.unrealizedProfit >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+                    suffix={
+                      <span style={{ fontSize: '14px', marginLeft: '5px' }}>
+                        {tradingStats.unrealizedProfits.unrealizedProfitRate.toFixed(2)}%
+                      </span>
+                    }
+                  />
+                </>
+              )}
+            </Card>
+          </Col>
+          
+          <Col span={8}>
+            <Card title="策略交易统计" bordered={false}>
+              <Statistic
+                title="定投交易"
+                value={tradingStats.dingtouStats.count}
+                precision={0}
+                prefix={<ShoppingCartOutlined />}
+                suffix={
+                  <Space>
+                    <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.dingtouStats.profit >= 0 ? '#3f8600' : '#cf1322' }}>
+                      {tradingStats.dingtouStats.profit >= 0 ? '+' : ''}{tradingStats.dingtouStats.profit.toFixed(2)}$
+                    </span>
+                    <Tag color={tradingStats.dingtouStats.successRate > 50 ? 'green' : 'orange'}>
+                      成功率 {tradingStats.dingtouStats.successRate.toFixed(1)}%
+                    </Tag>
+                  </Space>
+                }
+              />
+              <Divider />
+              <Statistic
+                title="分时平均线策略交易"
+                value={tradingStats.avgStrategyStats.count}
+                precision={0}
+                prefix={<ShoppingCartOutlined />}
+                suffix={
+                  <Space>
+                    <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.avgStrategyStats.profit >= 0 ? '#3f8600' : '#cf1322' }}>
+                      {tradingStats.avgStrategyStats.profit >= 0 ? '+' : ''}{tradingStats.avgStrategyStats.profit.toFixed(2)}$
+                    </span>
+                    <Tag color={tradingStats.avgStrategyStats.successRate > 50 ? 'green' : 'orange'}>
+                      成功率 {tradingStats.avgStrategyStats.successRate.toFixed(1)}%
+                    </Tag>
+                  </Space>
+                }
+              />
+            </Card>
+          </Col>
+          
+          <Col span={8}>
+            <Card title="人工交易统计" bordered={false}>
+              <Statistic
+                title="交易次数"
+                value={tradingStats.manualStats.count}
+                precision={0}
+                prefix={<ShoppingCartOutlined />}
+              />
+              <Divider />
+              <Statistic
+                title="交易盈亏"
+                value={tradingStats.manualStats.profit}
+                precision={2}
+                valueStyle={{ color: tradingStats.manualStats.profit >= 0 ? '#3f8600' : '#cf1322' }}
+                prefix={tradingStats.manualStats.profit >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+                suffix="$"
+              />
+              <Divider />
+              <Statistic
+                title="成功率"
+                value={tradingStats.manualStats.successRate}
+                precision={1}
+                valueStyle={{ color: tradingStats.manualStats.successRate > 50 ? '#3f8600' : '#cf1322' }}
+                prefix={<PercentageOutlined />}
+                suffix="%"
+              />
+            </Card>
+          </Col>
+        </Row>
+      </Card>
+    );
+  };
+
   return (
     <PageContainer>
       <div style={{ marginBottom: 16, padding: '16px 24px', background: '#f5f5f5', borderRadius: '4px' }}>
         <p style={{ marginBottom: 8, fontWeight: 'bold' }}>数据说明：</p>
         <p style={{ marginBottom: 8, paddingLeft: 16 }}>1. 盈利比例 = (当前资金 - 初始资金) / 初始资金 * 100%</p>
         <p style={{ marginBottom: 8, paddingLeft: 16 }}>2. 当前资金包含现金和所有持仓股票的市值</p>
+        <p style={{ marginBottom: 8, paddingLeft: 16 }}>3. 交易统计数据包括已实现的盈亏和未实现的持仓盈亏</p>
       </div>
-
+      
+      {renderStatsCard()}
+      
       <Card 
         title="账户盈利趋势" 
         bordered={false}
+        style={{ marginTop: 16 }}
         extra={
           <Space>
             <Select
