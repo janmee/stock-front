@@ -9,6 +9,7 @@ import {errorConfig} from './requestErrorConfig';
 import {currentUser as queryCurrentUser} from './services/ant-design-pro/api';
 import React from 'react';
 import {AvatarDropdown, AvatarName} from './components/RightContent/AvatarDropdown';
+import {message} from 'antd';
 
 const isDev = process.env.NODE_ENV === 'development';
 const loginPath = '/user/login';
@@ -85,9 +86,22 @@ export const layout: RunTimeLayoutConfig = ({initialState, setInitialState}) => 
     // 添加页面变化监听，确保未登录时跳转到登录页
     onPageChange: (page) => {
       const { location } = history;
+      
+      // 检查本地是否存在token，如果不存在，且不在登录页面，则跳转到登录页
+      const token = localStorage.getItem('token');
+      if (!token && location.pathname !== loginPath) {
+        message.error('无token，请先登录');
+        // 记录当前页面，以便登录后返回
+        const currentPath = encodeURIComponent(location.pathname + location.search);
+        // 使用window.location强制跳转
+        window.location.href = `${loginPath}?redirect=${currentPath}`;
+        return;
+      }
+      
       // 如果没有登录，重定向到 login
       if (!initialState?.currentUser && location.pathname !== loginPath) {
-        history.push(loginPath);
+        // 使用window.location强制跳转
+        window.location.href = loginPath;
         return;
       }
       
@@ -102,7 +116,8 @@ export const layout: RunTimeLayoutConfig = ({initialState, setInitialState}) => 
               path !== '/user/login' && 
               path !== '/') {
             console.log('Guest用户尝试访问未授权页面:', path);
-            history.push('/Earnings');
+            // 使用window.location强制跳转
+            window.location.href = '/Earnings';
           }
         }
       }

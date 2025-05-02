@@ -138,7 +138,19 @@ const Login: React.FC = () => {
         localStorage.setItem('token', msg?.data);
         await fetchUserInfo();
         const urlParams = new URL(window.location.href).searchParams;
-        history.push(urlParams.get('redirect') || '/Dashboard');
+        // 如果有redirect参数，跳转到指定页面，否则根据用户角色跳转到对应页面
+        const redirectUrl = urlParams.get('redirect');
+        if (redirectUrl) {
+          history.push(decodeURIComponent(redirectUrl));
+        } else {
+          // 根据用户角色跳转到不同的默认页面
+          const userRole = initialState?.currentUser?.access;
+          if (userRole === 'guest') {
+            history.push('/Earnings');
+          } else {
+            history.push('/dashboard');
+          }
+        }
       } else {
         setUserLoginState(msg);
       }
