@@ -26,11 +26,7 @@ if (!currentProxy) {
   process.exit(1);
 }
 
-// 静态资源服务必须在API代理之前
-app.use(express.static(path.join(__dirname, 'dist')));
-
-
-// 设置API代理
+// 设置API代理 - 必须在静态资源服务之前
 Object.entries(currentProxy).forEach(([path, proxyOptions]) => {
   // 合并代理配置
   const options = Object.assign({}, proxyOptions, {
@@ -39,7 +35,7 @@ Object.entries(currentProxy).forEach(([path, proxyOptions]) => {
     secure: false,
     ws: true,
     xfwd: true,
-    timeout: 5000, // 设置超时时间为5秒
+    // timeout: 5000, // 设置超时时间为5秒
     // pathRewrite: { '^/api': '' }, // 移除/api前缀
     onError: (err, req, res) => {
       console.error('\n=== 代理错误 ===');
@@ -50,12 +46,10 @@ Object.entries(currentProxy).forEach(([path, proxyOptions]) => {
     
   });
   
-  
   // 使用正则表达式匹配路径
   const pathRegex = new RegExp('^' + path);
   app.use((req, res, next) => {
     if (pathRegex.test(req.url)) {
-      
       createProxyMiddleware(options)(req, res, next);
     } else {
       next();
@@ -63,10 +57,10 @@ Object.entries(currentProxy).forEach(([path, proxyOptions]) => {
   });
 });
 
-// 处理静态文件
+// 处理静态文件 - 只在这一处配置
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// 处理所有其他请求
+// 处理所有其他请求 - 确保React Router能正确处理前端路由
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });

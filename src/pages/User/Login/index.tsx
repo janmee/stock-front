@@ -218,6 +218,7 @@ const Login: React.FC = () => {
                   defaultMessage: '账户密码登录',
                 }),
               },
+              /*
               {
                 key: 'mobile',
                 label: intl.formatMessage({
@@ -225,6 +226,7 @@ const Login: React.FC = () => {
                   defaultMessage: '手机号登录',
                 }),
               },
+              */
             ]}
           />
 

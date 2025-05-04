@@ -27,12 +27,12 @@ module.exports = {
    * 在生产环境下使用的代理配置
    */
   pre: {
-    '/': {
+    '/api/': {  // 修改为只代理/api/路径下的请求
       // 生产环境API地址
       target: 'http://localhost:8080',
       changeOrigin: true,
       // 移除/api前缀
-     // pathRewrite: { '^/api': '/api' },
+      // pathRewrite: { '^/api': '/api' },
     },
   },
 };

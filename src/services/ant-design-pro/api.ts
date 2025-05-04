@@ -105,6 +105,8 @@ export async function listOrderInfo(
     pageSize?: number;
     name?: string;
     code?: string;
+    systemType?: string;
+    accountName?: string;
   },
   sort: object,
   options?: { [key: string]: any },

@@ -1,15 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PageContainer } from '@ant-design/pro-layout';
-import { Card, Table, Typography, Tag, Button, Spin, Tooltip, Row, Col, Statistic, Collapse, Space, Grid } from 'antd';
-import { DownOutlined, RightOutlined, InfoCircleOutlined, CalendarOutlined, DollarOutlined, LineChartOutlined } from '@ant-design/icons';
+import { Card, Table, Typography, Tag, Button, Spin, Tooltip, Row, Col, Statistic, Collapse, Space, Grid, InputNumber, Form, Select } from 'antd';
+import { DownOutlined, RightOutlined, InfoCircleOutlined, CalendarOutlined, DollarOutlined, LineChartOutlined, FilterOutlined, ReloadOutlined } from '@ant-design/icons';
 import { request } from 'umi';
 import useMediaQuery from 'react-responsive';
 import moment from 'moment';
+import 'moment/locale/zh-cn'; // 添加中文支持
 import styles from './index.less';
+
+// 设置 moment 为中文
+moment.locale('zh-cn');
 
 const { Title, Text, Paragraph } = Typography;
 const { useBreakpoint } = Grid;
 const { Panel } = Collapse;
+const { Option } = Select;
 
 interface PreviousReport {
   reportDate: string;
@@ -43,18 +48,56 @@ const EarningsCalendar: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [earningsData, setEarningsData] = useState<Record<string, EarningsData[]>>({});
   const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
+  const [previousTradingDayEarnings, setPreviousTradingDayEarnings] = useState<EarningsData[]>([]);
+  const [showPreviousDay, setShowPreviousDay] = useState<boolean>(true);
+  const [marketCapThreshold, setMarketCapThreshold] = useState<number>(500);
   
   // 使用响应式布局钩子
   const screens = useBreakpoint();
   const isMobile = !screens.md; // md断点以下视为移动设备
 
   // 获取财报数据
-  const fetchEarningsData = async () => {
+  const fetchEarningsData = async (threshold: number = 500) => {
     setLoading(true);
     try {
-      const result = await request('/api/earnings/calendar');
+      const result = await request('/api/earnings/calendar', {
+        params: {
+          marketCapThreshold: threshold
+        }
+      });
       if (result.success) {
         setEarningsData(result.data);
+        
+        // 查找是否有上一个交易日的数据 
+        // 服务端已经处理了上一个交易日的盘后财报数据并包含在返回数据中
+        // 前端只需将其提取出来单独显示
+        
+        // 找出最早的日期(应该是上一个交易日)
+        const dates = Object.keys(result.data).sort();
+        if (dates.length > 0) {
+          const earliestDate = dates[0];
+          
+          // 判断这个日期是否是当天之前的日期
+          const today = moment().format('YYYY-MM-DD');
+          if (moment(earliestDate).isBefore(today)) {
+            const previousDayData = result.data[earliestDate] || [];
+            
+            // 只筛选出盘后财报
+            const afterMarketData = previousDayData.filter((item: EarningsData) => {
+              return item.releasePeriod.includes('盘后') || 
+                     item.releasePeriod.includes('AMC') || 
+                     item.releasePeriod.includes('After Market Close');
+            });
+            
+            if (afterMarketData.length > 0) {
+              setPreviousTradingDayEarnings(afterMarketData);
+            } else {
+              setPreviousTradingDayEarnings([]);
+            }
+          } else {
+            setPreviousTradingDayEarnings([]);
+          }
+        }
       }
     } catch (error) {
       console.error('获取财报数据失败:', error);
@@ -64,8 +107,50 @@ const EarningsCalendar: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchEarningsData();
+    fetchEarningsData(marketCapThreshold);
   }, []);
+
+  // 处理市值筛选变更
+  const handleMarketCapThresholdChange = (value: number | null) => {
+    if (value !== null && value !== undefined) {
+      setMarketCapThreshold(value);
+    }
+  };
+
+  // 处理刷新数据
+  const handleRefresh = () => {
+    fetchEarningsData(marketCapThreshold);
+  };
+
+  // 市值筛选器控件
+  const renderMarketCapFilter = () => {
+    return (
+      <div className={styles.filterContainer} style={{ marginBottom: 16, display: 'flex', alignItems: 'center' }}>
+        <Form layout="inline">
+          <Form.Item label="市值筛选">
+            <InputNumber
+              min={10}
+              max={5000}
+              step={50}
+              value={marketCapThreshold}
+              onChange={handleMarketCapThresholdChange}
+              addonAfter="亿"
+              style={{ width: 150 }}
+            />
+          </Form.Item>
+          <Form.Item>
+            <Button 
+              icon={<ReloadOutlined />} 
+              onClick={handleRefresh}
+              type="primary"
+            >
+              刷新
+            </Button>
+          </Form.Item>
+        </Form>
+      </div>
+    );
+  };
 
   // 处理展开/收起行
   const handleExpand = (expanded: boolean, record: EarningsData) => {
@@ -133,9 +218,21 @@ const EarningsCalendar: React.FC = () => {
         dataIndex: 'reportDate',
         key: 'reportDate',
         render: (text: string, item: PreviousReport) => (
-          <span>
-            {text} ({item.releasePeriod})
-          </span>
+          <div>
+            <div>{text}</div>
+            <div style={{ color: '#888' }}>{moment(text).format('dddd')} ({item.releasePeriod})</div>
+          </div>
+        ),
+      },
+      {
+        title: '交易日期',
+        dataIndex: 'tradingDate',
+        key: 'tradingDate',
+        render: (text: string) => (
+          <div>
+            <div>{text}</div>
+            <div style={{ color: '#888' }}>{moment(text).format('dddd')}</div>
+          </div>
         ),
       },
       {
@@ -249,11 +346,14 @@ const EarningsCalendar: React.FC = () => {
           <div className={styles.reportDate}>
             <Text strong>财报日期：</Text>{record.reportDate}
           </div>
+          <div className={styles.reportDate} style={{ marginLeft: '70px'}}>
+            {moment(record.reportDate).format('dddd')}
+          </div>
           <div className={styles.releasePeriod}>
             <Text strong>发布时段：</Text>
             <Tag color={
-              record.releasePeriod.includes('盘前') || record.releasePeriod.includes('BMO') ? 'blue' : 
-              record.releasePeriod.includes('盘后') || record.releasePeriod.includes('AMC') ? 'purple' : 'green'
+              record.releasePeriod.includes('盘前') || record.releasePeriod.includes('BMO') ? 'green' : 
+              record.releasePeriod.includes('盘后') || record.releasePeriod.includes('AMC') ? 'red' : 'blue'
             }>
               {record.releasePeriod}
             </Tag>
@@ -352,32 +452,114 @@ const EarningsCalendar: React.FC = () => {
     },
   ];
 
-  // 移动端显示的卡片视图
-  const renderMobileView = () => {
-    return Object.keys(earningsData)
-      .sort()
-      .map((date) => {
-        const dayData = earningsData[date];
-        return (
+  // 桌面端表格视图
+  const renderDateGroup = () => {
+    return (
+      <>
+        {/* 桌面端上一个交易日财报数据 */}
+        {showPreviousDay && previousTradingDayEarnings.length > 0 && (
           <Card 
-            key={date} 
+            key="previous-day"
             title={
               <div className={styles.dateTitle}>
-                <span className={styles.date}>{date}</span>
-                <span className={styles.count}>({dayData.length}家公司)</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className={styles.date}>上一个交易日财报</div>
+                  <Button 
+                    type="text"
+                    onClick={() => setShowPreviousDay(false)}
+                    size="small"
+                  >
+                    隐藏
+                  </Button>
+                </div>
+                <div className={styles.count}>({previousTradingDayEarnings.length}家公司)</div>
+              </div>
+            }
+            className={styles.dateCard}
+            bordered={false}
+          >
+            <Table
+              columns={mainColumns}
+              dataSource={previousTradingDayEarnings}
+              rowKey={(record) => `prev-${record.stockSymbol}-${record.reportDate}`}
+              expandable={{
+                expandedRowRender,
+                expandedRowKeys,
+                onExpand: handleExpand,
+                expandIcon: () => null,
+              }}
+              pagination={false}
+              scroll={{ x: 'max-content' }}
+            />
+          </Card>
+        )}
+
+        {/* 按日期分组的财报数据 */}
+        {Object.keys(earningsData)
+          .sort() // 按日期升序排序
+          .map((date) => {
+            const dayData = earningsData[date];
+            // 获取周几信息
+            const weekdayName = moment(date).format('dddd');
+            
+            return (
+              <Card 
+                key={date} 
+                title={
+                  <div className={styles.dateTitle}>
+                    <div className={styles.date}>{date}</div>
+                    <div className={styles.weekday} style={{ fontSize: '14px', color: '#888' }}>{weekdayName}</div>
+                    <span className={styles.count}>({dayData.length}家公司)</span>
+                  </div>
+                }
+                className={styles.dateCard}
+                bordered={false}
+              >
+                <Table
+                  columns={mainColumns}
+                  dataSource={dayData}
+                  rowKey={(record) => `${record.stockSymbol}-${record.reportDate}`}
+                  expandable={{
+                    expandedRowRender,
+                    expandedRowKeys,
+                    onExpand: handleExpand,
+                    expandIcon: () => null, // 不显示默认展开图标，使用自定义按钮
+                  }}
+                  pagination={false}
+                  scroll={{ x: 'max-content' }}
+                />
+              </Card>
+            );
+          })}
+      </>
+    );
+  };
+
+  // 移动端显示的卡片视图
+  const renderMobileView = () => {
+        return (
+      <>
+        {/* 移动端上一个交易日财报数据 */}
+        {showPreviousDay && previousTradingDayEarnings.length > 0 && (
+          <Card 
+            key="previous-day"
+            title={
+              <div className={styles.dateTitle}>
+                <div className={styles.date}>上一个交易日财报</div>
+                <div className={styles.count}>({previousTradingDayEarnings.length}家公司)</div>
               </div>
             }
             className={styles.dateCard}
             bordered={false}
           >
             <Collapse accordion className={styles.mobileCollapse}>
-              {dayData.map((record) => {
+              {previousTradingDayEarnings.map((record) => {
                 const marketCap = formatMarketCap(record.marketCapInBillion);
                 const hasHistory = record.previousReports && record.previousReports.length > 0;
                 
                 return (
                   <Panel 
-                    key={`${record.stockSymbol}-${record.reportDate}`} 
+                    key={`prev-${record.stockSymbol}-${record.reportDate}`} 
                     header={
                       <div className={styles.mobilePanelHeader}>
                         <div className={styles.stockSymbol}>{record.stockSymbol}</div>
@@ -395,11 +577,14 @@ const EarningsCalendar: React.FC = () => {
                           <div className={styles.infoItem}>
                             <Text strong>日期：</Text>{record.reportDate}
                           </div>
+                          <div className={styles.infoItem} style={{ paddingLeft: '42px', color: '#888' }}>
+                            {moment(record.reportDate).format('dddd')}
+                          </div>
                           <div className={styles.infoItem}>
                             <Text strong>时段：</Text>
                             <Tag color={
-                              record.releasePeriod.includes('盘前') || record.releasePeriod.includes('BMO') ? 'blue' : 
-                              record.releasePeriod.includes('盘后') || record.releasePeriod.includes('AMC') ? 'purple' : 'green'
+                              record.releasePeriod.includes('盘前') || record.releasePeriod.includes('BMO') ? 'green' : 
+                              record.releasePeriod.includes('盘后') || record.releasePeriod.includes('AMC') ? 'red' : 'blue'
                             }>
                               {record.releasePeriod}
                             </Tag>
@@ -476,7 +661,10 @@ const EarningsCalendar: React.FC = () => {
                             {record.previousReports?.map((prevReport, index) => (
                               <div key={prevReport.reportDate} className={styles.historyItem}>
                                 <div className={styles.historyHeader}>
-                                  <Text strong>{`#${index + 1} ${prevReport.reportDate} (${prevReport.releasePeriod})`}</Text>
+                                  <Text strong>{`#${index + 1} ${prevReport.reportDate}`}</Text>
+                                  <div style={{ fontSize: '14px', color: '#888' }}>
+                                    {moment(prevReport.reportDate).format('dddd')} ({prevReport.releasePeriod})
+                                  </div>
                                 </div>
                                 <div className={styles.historyDetails}>
                                   <div className={styles.historyDetail}>
@@ -506,6 +694,13 @@ const EarningsCalendar: React.FC = () => {
                                     </Space>
                                   </div>
                                   <div className={styles.historyDetail}>
+                                    <Text>交易日期: </Text>
+                                    <div>
+                                      <div>{prevReport.tradingDate}</div>
+                                      <div style={{ color: '#888' }}>{moment(prevReport.tradingDate).format('dddd')}</div>
+                                    </div>
+                                  </div>
+                                  <div className={styles.historyDetail}>
                                     <Text>股价变动: </Text>
                                     <Space>
                                       <span className={getPercentClassName(prevReport.changePercent)}>
@@ -530,50 +725,216 @@ const EarningsCalendar: React.FC = () => {
               })}
             </Collapse>
           </Card>
-        );
-      });
-  };
-
-  // 桌面端表格视图
-  const renderDateGroup = () => {
-    return Object.keys(earningsData)
-      .sort() // 按日期升序排序
+        )}
+        
+        {/* 原有的按日期分组的财报数据 */}
+        {Object.keys(earningsData)
+          .sort()
       .map((date) => {
         const dayData = earningsData[date];
+            // 获取周几信息
+            const weekdayName = moment(date).format('dddd');
+            
         return (
           <Card 
             key={date} 
             title={
               <div className={styles.dateTitle}>
+                    <div>
                 <span className={styles.date}>{date}</span>
                 <span className={styles.count}>({dayData.length}家公司)</span>
+                    </div>
+                    <div className={styles.weekday} style={{ fontSize: '14px', color: '#888' }}>{weekdayName}</div>
               </div>
             }
             className={styles.dateCard}
             bordered={false}
           >
-            <Table
-              columns={mainColumns}
-              dataSource={dayData}
-              rowKey={(record) => `${record.stockSymbol}-${record.reportDate}`}
-              expandable={{
-                expandedRowRender,
-                expandedRowKeys,
-                onExpand: handleExpand,
-                expandIcon: () => null, // 不显示默认展开图标，使用自定义按钮
-              }}
-              pagination={false}
-              scroll={{ x: 'max-content' }}
-            />
+                <Collapse accordion className={styles.mobileCollapse}>
+                  {dayData.map((record) => {
+                    const marketCap = formatMarketCap(record.marketCapInBillion);
+                    const hasHistory = record.previousReports && record.previousReports.length > 0;
+                    
+                    return (
+                      <Panel 
+                        key={`${record.stockSymbol}-${record.reportDate}`} 
+                        header={
+                          <div className={styles.mobilePanelHeader}>
+                            <div className={styles.stockSymbol}>{record.stockSymbol}</div>
+                            {record.companyName && <div className={styles.companyName}>{record.companyName}</div>}
+                          </div>
+                        }
+                        className={styles.mobilePanel}
+                      >
+                        <div className={styles.mobileCardContent}>
+                          <div className={styles.mobileSection}>
+                            <div className={styles.mobileSectionTitle}>
+                              <CalendarOutlined /> 财报信息
+                            </div>
+                            <div className={styles.mobileSectionContent}>
+                              <div className={styles.infoItem}>
+                                <Text strong>日期：</Text>{record.reportDate}
+                              </div>
+                              <div className={styles.infoItem} style={{ paddingLeft: '42px', color: '#888' }}>
+                                {moment(record.reportDate).format('dddd')}
+                              </div>
+                              <div className={styles.infoItem}>
+                                <Text strong>时段：</Text>
+                                <Tag color={
+                                  record.releasePeriod.includes('盘前') || record.releasePeriod.includes('BMO') ? 'green' : 
+                                  record.releasePeriod.includes('盘后') || record.releasePeriod.includes('AMC') ? 'red' : 'blue'
+                                }>
+                                  {record.releasePeriod}
+                                </Tag>
+                              </div>
+                              <div className={styles.infoItem}>
+                                <Text strong>市值：</Text>
+                                <Text>{marketCap.value} {marketCap.suffix}</Text>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className={styles.mobileSection}>
+                            <div className={styles.mobileSectionTitle}>
+                              <DollarOutlined /> 财务预测
+                            </div>
+                            <div className={styles.mobileSectionContent}>
+                              <Row gutter={16}>
+                                <Col span={12}>
+                                  <div className={styles.infoItem}>
+                                    <Text strong>EPS：</Text>
+                                    <Text>{record.estimateEps ? formatNumber(record.estimateEps) : '-'}</Text>
+                                  </div>
+                                </Col>
+                                <Col span={12}>
+                                  <div className={styles.infoItem}>
+                                    <Text strong>收入(亿)：</Text>
+                                    <Text>{record.estimateRevenueInBillion ? formatNumber(record.estimateRevenueInBillion) : '-'}</Text>
+                                  </div>
+                                </Col>
+                              </Row>
+                            </div>
+                          </div>
+                          
+                          <div className={styles.mobileSection}>
+                            <div className={styles.mobileSectionTitle}>
+                              <LineChartOutlined /> 股价表现
+                            </div>
+                            <div className={styles.mobileSectionContent}>
+                              <Row gutter={16}>
+                                <Col span={8}>
+                                  <div className={styles.infoItem}>
+                                    <Text strong>近1月：</Text>
+                                    <span className={getPercentClassName(record.oneMonthChangePercent)}>
+                                      {formatPercent(record.oneMonthChangePercent)}
+                                    </span>
+                                  </div>
+                                </Col>
+                                <Col span={8}>
+                                  <div className={styles.infoItem}>
+                                    <Text strong>近3月：</Text>
+                                    <span className={getPercentClassName(record.threeMonthChangePercent)}>
+                                      {formatPercent(record.threeMonthChangePercent)}
+                                    </span>
+                                  </div>
+                                </Col>
+                                <Col span={8}>
+                                  <div className={styles.infoItem}>
+                                    <Text strong>今年：</Text>
+                                    <span className={getPercentClassName(record.yearToDateChangePercent)}>
+                                      {formatPercent(record.yearToDateChangePercent)}
+                                    </span>
+                                  </div>
+                                </Col>
+                              </Row>
+                            </div>
+                          </div>
+                          
+                          {hasHistory && (
+                            <div className={styles.mobileSection}>
+                              <div className={styles.mobileSectionTitle}>
+                                <Text strong>历史财报数据</Text>
+                              </div>
+                              <div className={styles.mobileSectionContent}>
+                                {record.previousReports?.map((prevReport, index) => (
+                                  <div key={prevReport.reportDate} className={styles.historyItem}>
+                                    <div className={styles.historyHeader}>
+                                      <Text strong>{`#${index + 1} ${prevReport.reportDate}`}</Text>
+                                      <div style={{ fontSize: '14px', color: '#888' }}>
+                                        {moment(prevReport.reportDate).format('dddd')} ({prevReport.releasePeriod})
+                                      </div>
+                                    </div>
+                                    <div className={styles.historyDetails}>
+                                      <div className={styles.historyDetail}>
+                                        <Text>EPS: </Text>
+                                        <Space>
+                                          <Text>预测 {formatNumber(prevReport.estimateEps)}</Text>
+                                          <Text>实际 </Text>
+                                          <span className={getCompareClassName(prevReport.actualEps, prevReport.estimateEps)}>
+                                            {formatNumber(prevReport.actualEps)}
+                                          </span>
+                                          <span className={getPercentClassName(prevReport.epsDiffPercent)}>
+                                            {formatPercent(prevReport.epsDiffPercent)}
+                                          </span>
+                                        </Space>
+                                      </div>
+                                      <div className={styles.historyDetail}>
+                                        <Text>收入(亿): </Text>
+                                        <Space>
+                                          <Text>预测 {formatNumber(prevReport.estimateRevenueInBillion)}</Text>
+                                          <Text>实际 </Text>
+                                          <span className={getCompareClassName(prevReport.actualRevenueInBillion, prevReport.estimateRevenueInBillion)}>
+                                            {formatNumber(prevReport.actualRevenueInBillion)}
+                                          </span>
+                                          <span className={getPercentClassName(prevReport.revenueDiffPercent)}>
+                                            {formatPercent(prevReport.revenueDiffPercent)}
+                                          </span>
+                                        </Space>
+                                      </div>
+                                      <div className={styles.historyDetail}>
+                                        <Text>交易日期: </Text>
+                                        <div>
+                                          <div>{prevReport.tradingDate}</div>
+                                          <div style={{ color: '#888' }}>{moment(prevReport.tradingDate).format('dddd')}</div>
+                                        </div>
+                                      </div>
+                                      <div className={styles.historyDetail}>
+                                        <Text>股价变动: </Text>
+                                        <Space>
+                                          <span className={getPercentClassName(prevReport.changePercent)}>
+                                            {formatPercent(prevReport.changePercent)}
+                                          </span>
+                                          <Text>(大盘: </Text>
+                                          <span className={getPercentClassName(prevReport.qqqChangePercent)}>
+                                            {formatPercent(prevReport.qqqChangePercent)}
+                                          </span>
+                                          <Text>)</Text>
+                                        </Space>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </Panel>
+                    );
+                  })}
+                </Collapse>
           </Card>
         );
-      });
+          })}
+      </>
+    );
   };
 
+  // 修改最终渲染的return部分
   return (
     <PageContainer title="财报数据站">
       <Spin spinning={loading} tip="加载中...">
         <div className={styles.container}>
+          {renderMarketCapFilter()}
           {Object.keys(earningsData).length > 0 ? (
             isMobile ? renderMobileView() : renderDateGroup()
           ) : (

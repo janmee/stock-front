@@ -77,9 +77,20 @@ const TableList: React.FC = () => {
     {
       title: '订单来源',
       dataIndex: 'systemType',
-      valueType: 'textarea',
+      valueType: 'select',
       sorter: true,
-      hideInSearch: true,
+      hideInSearch: false,
+      valueEnum: {
+        '0': { text: '定投' },
+        '1': { text: '跟单' },
+        '2': { text: '富途同步' },
+        '3': { text: '大盘下跌阈值触发' },
+        '4': { text: '人工下单' },
+        '5': { text: '人工止盈单' },
+        '6': { text: '定投止盈单' },
+        '7': { text: '分时平均线策略' },
+        '8': { text: '策略止盈单' },
+      }
     },
     {
       title: '买入方向',
@@ -196,6 +207,7 @@ const TableList: React.FC = () => {
         rowKey={(record) => record.id || record.orderNo}
         search={{
           labelWidth: 120,
+          defaultCollapsed: false,
         }}
         request={listOrderInfo}
         columns={columns}

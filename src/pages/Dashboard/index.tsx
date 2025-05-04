@@ -41,6 +41,16 @@ interface TradingStats {
     profit: number;
     successRate: number;
   };
+  regularDingtou?: {
+    count: number;
+    profit: number;
+    successRate: number;
+  };
+  callbackDingtou?: {
+    count: number;
+    profit: number;
+    successRate: number;
+  };
   manualStats: {
     count: number;
     profit: number;
@@ -296,7 +306,7 @@ const DashboardList: React.FC = () => {
           <Col span={8}>
             <Card title="策略交易统计" bordered={false}>
               <Statistic
-                title="定投交易"
+                title="定投交易总计"
                 value={tradingStats.dingtouStats.count}
                 precision={0}
                 prefix={<ShoppingCartOutlined />}
@@ -311,6 +321,51 @@ const DashboardList: React.FC = () => {
                   </Space>
                 }
               />
+              
+              {tradingStats.regularDingtou && (
+                <>
+                  <Divider style={{ margin: '12px 0' }} />
+                  <Statistic
+                    title="常规定投"
+                    value={tradingStats.regularDingtou.count}
+                    precision={0}
+                    prefix={<ShoppingCartOutlined />}
+                    suffix={
+                      <Space>
+                        <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.regularDingtou.profit >= 0 ? '#3f8600' : '#cf1322' }}>
+                          {tradingStats.regularDingtou.profit >= 0 ? '+' : ''}{tradingStats.regularDingtou.profit.toFixed(2)}$
+                        </span>
+                        <Tag color={tradingStats.regularDingtou.successRate > 50 ? 'green' : 'orange'}>
+                          成功率 {tradingStats.regularDingtou.successRate.toFixed(1)}%
+                        </Tag>
+                      </Space>
+                    }
+                  />
+                </>
+              )}
+              
+              {tradingStats.callbackDingtou && (
+                <>
+                  <Divider style={{ margin: '12px 0' }} />
+                  <Statistic
+                    title="定投卖出回调买入"
+                    value={tradingStats.callbackDingtou.count}
+                    precision={0}
+                    prefix={<ShoppingCartOutlined />}
+                    suffix={
+                      <Space>
+                        <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.callbackDingtou.profit >= 0 ? '#3f8600' : '#cf1322' }}>
+                          {tradingStats.callbackDingtou.profit >= 0 ? '+' : ''}{tradingStats.callbackDingtou.profit.toFixed(2)}$
+                        </span>
+                        <Tag color={tradingStats.callbackDingtou.successRate > 50 ? 'green' : 'orange'}>
+                          成功率 {tradingStats.callbackDingtou.successRate.toFixed(1)}%
+                        </Tag>
+                      </Space>
+                    }
+                  />
+                </>
+              )}
+              
               <Divider />
               <Statistic
                 title="分时平均线策略交易"

@@ -192,4 +192,5 @@ export const layout: RunTimeLayoutConfig = ({initialState, setInitialState}) => 
  */
 export const request = {
   ...errorConfig,
+  timeout: 0, // 设置为0表示没有超时限制
 };
