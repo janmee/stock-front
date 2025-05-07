@@ -17,4 +17,24 @@ declare module 'mockjs';
 declare module 'react-fittext';
 declare module 'bizcharts-plugin-slider';
 
+// preview.pro.ant.design only do not use in your production ;
+// preview.pro.ant.design Dedicated environment variable, please do not use it in your project.
+declare let ANT_DESIGN_PRO_ONLY_DO_NOT_USE_IN_YOUR_PRODUCTION: 'site' | undefined;
+
 declare const REACT_APP_ENV: 'test' | 'dev' | 'pre' | false;
+
+// 添加国际化类型声明，让Umi知道如何处理app.title
+interface IntlType {
+  locale: string;
+  getMessage: (id: string, defaultMessage?: string) => string;
+}
+
+declare global {
+  interface Window {
+    umi: {
+      locale: {
+        getIntl: () => IntlType;
+      };
+    };
+  }
+}

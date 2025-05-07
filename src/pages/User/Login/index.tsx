@@ -189,7 +189,10 @@ const Login: React.FC = () => {
             maxWidth: '75vw',
           }}
           logo={<img alt="logo" src="/logo.svg"/>}
-          title="鸿道智能量化交易"
+          title={intl.formatMessage({
+            id: 'app.title',
+            defaultMessage: '鸿道智能量化交易'
+          })}
           subTitle={intl.formatMessage({id: 'pages.layouts.userLayout.title'})}
           initialValues={{
             autoLogin: true,

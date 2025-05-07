@@ -3,7 +3,7 @@ import {Question, SelectLang} from '@/components/RightContent';
 import {LinkOutlined} from '@ant-design/icons';
 import type {Settings as LayoutSettings} from '@ant-design/pro-components';
 import type {RunTimeLayoutConfig} from '@umijs/max';
-import {history, Link} from '@umijs/max';
+import {history, Link, useIntl} from '@umijs/max';
 import defaultSettings from '../config/defaultSettings';
 import {errorConfig} from './requestErrorConfig';
 import {currentUser as queryCurrentUser} from './services/ant-design-pro/api';
@@ -28,45 +28,45 @@ export async function getInitialState(aa: any): Promise<{
   connected?: boolean;
   fetchUserInfo?: () => Promise<API.CurrentUser | undefined>;
 }> {
-
   const fetchUserInfo = async () => {
     try {
+      const token = localStorage.getItem('token');
       const msg = await queryCurrentUser({
         skipErrorHandler: true,
+        headers: {
+          'Authorization': token ? token : '',
+        }
       });
+      console.log('当前用户信息', msg);
       return msg.data;
     } catch (error) {
-      console.error('获取用户信息失败', error);
-      return undefined;
+      console.log('获取用户信息异常', error)
+      history.push(loginPath);
     }
     return undefined;
   };
-  // 如果不是登录页面，执行
-  const {location} = history;
-  if (location.pathname !== loginPath) {
-    // 如果是财报页面，不需要强制登录
-    if (location.pathname === '/Earnings') {
-      return {
-        fetchUserInfo,
-        settings: defaultSettings as Partial<LayoutSettings>,
-      };
-    }
-    
+  
+  console.log('app.tsx getInitialState', history.location.pathname);
+  
+  // 如果是财报页面，不需要强制登录
+  if (history.location.pathname === '/Earnings') {
+    return {
+      fetchUserInfo,
+      settings: defaultSettings as Partial<LayoutSettings>,
+    };
+  }
+
+  // 如果不是登录页面，获取用户信息
+  if (history.location.pathname !== loginPath) {
+    // 获取用户信息
     const currentUser = await fetchUserInfo();
-    // 如果获取用户信息失败且不在登录页，则跳转到登录页
-    if (!currentUser) {
-      history.push(loginPath);
-      return {
-        fetchUserInfo,
-        settings: defaultSettings as Partial<LayoutSettings>,
-      };
-    }
     return {
       fetchUserInfo,
       currentUser,
       settings: defaultSettings as Partial<LayoutSettings>,
     };
   }
+  
   return {
     fetchUserInfo,
     settings: defaultSettings as Partial<LayoutSettings>,
@@ -88,10 +88,32 @@ export const layout: RunTimeLayoutConfig = ({initialState, setInitialState}) => 
       // 水印设置
       // content: initialState?.currentUser?.name,
     },
-    // on
+    title: undefined, // 不使用app.title作为key，由defaultSettings处理
+    headerTitleRender: (logo, title) => {
+      const intl = useIntl();
+      const customTitle = intl.formatMessage({
+        id: 'app.title',
+        defaultMessage: '鸿道智能量化交易',
+      });
+      return (
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          {logo}
+          <span style={{ 
+            marginLeft: '10px', 
+            fontSize: '18px', 
+            fontWeight: 'bold',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}>
+            {customTitle}
+          </span>
+        </div>
+      );
+    },
     footerRender: () => <Footer/>,
 
-    // 添加页面变化监听，确保未登录时跳转到登录页
+    // 页面加载完成后执行，强制应用国际化设置
     onPageChange: (page) => {
       const { location } = history;
       

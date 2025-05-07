@@ -1,10 +1,17 @@
 import { GithubOutlined } from '@ant-design/icons';
 import { DefaultFooter } from '@ant-design/pro-components';
-import { useIntl } from '@umijs/max';
-import React from 'react';
+import { useIntl, getLocale } from '@umijs/max';
+import React, { useEffect, useState } from 'react';
 
 const Footer: React.FC = () => {
   const intl = useIntl();
+  const [currentLocale, setCurrentLocale] = useState(getLocale());
+  
+  useEffect(() => {
+    // 监听语言变化
+    setCurrentLocale(getLocale());
+  }, []);
+  
   const defaultMessage = intl.formatMessage({
     id: 'app.copyright.produced',
     defaultMessage: 'mwang.online',
@@ -21,7 +28,7 @@ const Footer: React.FC = () => {
       links={[
         {
           key: 'Stock-Trading System',
-          title: 'Stock-Trading System v3.1.1',
+          title: `Stock-Trading System v3.1.1 (${currentLocale})`,
           href: 'https://github.com/mwangli',
           blankTarget: true,
         },

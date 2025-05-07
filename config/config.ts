@@ -80,7 +80,7 @@ export default defineConfig({
    * @name layout 插件
    * @doc https://umijs.org/docs/max/layout-menu
    */
-  title: 'Stock-Trading',
+  title: '鸿道智能量化交易',
   layout: {
     locale: true,
     ...defaultSettings,
@@ -104,6 +104,7 @@ export default defineConfig({
     antd: true,
     // default true, when it is true, will use `navigator.language` overwrite default
     baseNavigator: true,
+    title: true, // 开启标题国际化
   },
   /**
    * @name antd 插件
