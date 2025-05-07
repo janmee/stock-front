@@ -44,6 +44,14 @@ export async function getInitialState(aa: any): Promise<{
   // 如果不是登录页面，执行
   const {location} = history;
   if (location.pathname !== loginPath) {
+    // 如果是财报页面，不需要强制登录
+    if (location.pathname === '/Earnings') {
+      return {
+        fetchUserInfo,
+        settings: defaultSettings as Partial<LayoutSettings>,
+      };
+    }
+    
     const currentUser = await fetchUserInfo();
     // 如果获取用户信息失败且不在登录页，则跳转到登录页
     if (!currentUser) {
@@ -86,6 +94,11 @@ export const layout: RunTimeLayoutConfig = ({initialState, setInitialState}) => 
     // 添加页面变化监听，确保未登录时跳转到登录页
     onPageChange: (page) => {
       const { location } = history;
+      
+      // 如果当前是财报页面，允许未登录访问
+      if (location.pathname === '/Earnings') {
+        return;
+      }
       
       // 检查本地是否存在token，如果不存在，且不在登录页面，则跳转到登录页
       const token = localStorage.getItem('token');

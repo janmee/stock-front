@@ -73,31 +73,31 @@ const EarningsCalendar: React.FC = () => {
         // 前端只需将其提取出来单独显示
         
         // 找出最早的日期(应该是上一个交易日)
-        const dates = Object.keys(result.data).sort();
-        if (dates.length > 0) {
-          const earliestDate = dates[0];
+        // const dates = Object.keys(result.data).sort();
+        // if (dates.length > 0) {
+        //   const earliestDate = dates[0];
           
-          // 判断这个日期是否是当天之前的日期
-          const today = moment().format('YYYY-MM-DD');
-          if (moment(earliestDate).isBefore(today)) {
-            const previousDayData = result.data[earliestDate] || [];
+        //   // 判断这个日期是否是当天之前的日期
+        //   const today = moment().format('YYYY-MM-DD');
+        //   if (moment(earliestDate).isBefore(today)) {
+        //     const previousDayData = result.data[earliestDate] || [];
             
-            // 只筛选出盘后财报
-            const afterMarketData = previousDayData.filter((item: EarningsData) => {
-              return item.releasePeriod.includes('盘后') || 
-                     item.releasePeriod.includes('AMC') || 
-                     item.releasePeriod.includes('After Market Close');
-            });
+        //     // 只筛选出盘后财报
+        //     const afterMarketData = previousDayData.filter((item: EarningsData) => {
+        //       return item.releasePeriod.includes('盘后') || 
+        //              item.releasePeriod.includes('AMC') || 
+        //              item.releasePeriod.includes('After Market Close');
+        //     });
             
-            if (afterMarketData.length > 0) {
-              setPreviousTradingDayEarnings(afterMarketData);
-            } else {
-              setPreviousTradingDayEarnings([]);
-            }
-          } else {
-            setPreviousTradingDayEarnings([]);
-          }
-        }
+        //     if (afterMarketData.length > 0) {
+        //       setPreviousTradingDayEarnings(afterMarketData);
+        //     } else {
+        //       setPreviousTradingDayEarnings([]);
+        //     }
+        //   } else {
+        //     setPreviousTradingDayEarnings([]);
+        //   }
+        // }
       }
     } catch (error) {
       console.error('获取财报数据失败:', error);
@@ -457,7 +457,7 @@ const EarningsCalendar: React.FC = () => {
     return (
       <>
         {/* 桌面端上一个交易日财报数据 */}
-        {showPreviousDay && previousTradingDayEarnings.length > 0 && (
+        {/* {showPreviousDay && previousTradingDayEarnings.length > 0 && (
           <Card 
             key="previous-day"
             title={
@@ -492,7 +492,7 @@ const EarningsCalendar: React.FC = () => {
               scroll={{ x: 'max-content' }}
             />
           </Card>
-        )}
+        )} */}
 
         {/* 按日期分组的财报数据 */}
         {Object.keys(earningsData)
@@ -564,6 +564,17 @@ const EarningsCalendar: React.FC = () => {
                       <div className={styles.mobilePanelHeader}>
                         <div className={styles.stockSymbol}>{record.stockSymbol}</div>
                         {record.companyName && <div className={styles.companyName}>{record.companyName}</div>}
+                        <div className={styles.briefInfo}>
+                          <Tag color={
+                            record.releasePeriod.includes('盘前') || record.releasePeriod.includes('BMO') ? 'green' : 
+                            record.releasePeriod.includes('盘后') || record.releasePeriod.includes('AMC') ? 'red' : 'blue'
+                          }>
+                            {record.releasePeriod}
+                          </Tag>
+                          <span style={{ marginLeft: '8px' }}>
+                            {formatMarketCap(record.marketCapInBillion).value}{formatMarketCap(record.marketCapInBillion).suffix}
+                          </span>
+                        </div>
                       </div>
                     }
                     className={styles.mobilePanel}
@@ -762,6 +773,17 @@ const EarningsCalendar: React.FC = () => {
                           <div className={styles.mobilePanelHeader}>
                             <div className={styles.stockSymbol}>{record.stockSymbol}</div>
                             {record.companyName && <div className={styles.companyName}>{record.companyName}</div>}
+                            <div className={styles.briefInfo}>
+                              <Tag color={
+                                record.releasePeriod.includes('盘前') || record.releasePeriod.includes('BMO') ? 'green' : 
+                                record.releasePeriod.includes('盘后') || record.releasePeriod.includes('AMC') ? 'red' : 'blue'
+                              }>
+                                {record.releasePeriod}
+                              </Tag>
+                              <span style={{ marginLeft: '8px' }}>
+                                {formatMarketCap(record.marketCapInBillion).value}{formatMarketCap(record.marketCapInBillion).suffix}
+                              </span>
+                            </div>
                           </div>
                         }
                         className={styles.mobilePanel}

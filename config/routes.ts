@@ -156,7 +156,6 @@ export default [
     name: '财报数据',
     icon: 'LineChartOutlined',
     component: './Earnings',
-    access: 'canGuest',
   },
   {
     path: '/',
