@@ -15,7 +15,7 @@ const Settings: ProLayoutProps & {
   fixedHeader: false,
   fixSiderbar: true,
   colorWeak: false,
-  title: false,
+  title: '鸿道智能量化交易',
   pwa: true,
   logo: '/logo.svg',
   iconfontUrl: '',

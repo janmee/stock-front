@@ -88,7 +88,7 @@ export const layout: RunTimeLayoutConfig = ({initialState, setInitialState}) => 
       // 水印设置
       // content: initialState?.currentUser?.name,
     },
-    title: undefined, // 不使用app.title作为key，由defaultSettings处理
+    title: defaultSettings.title,
     headerTitleRender: (logo, title) => {
       const intl = useIntl();
       const customTitle = intl.formatMessage({

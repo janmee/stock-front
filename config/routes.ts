@@ -30,7 +30,7 @@ export default [
   // },
   {
     path: '/dashboard',
-    name: '数据大盘',
+    name: 'dashboard',
     icon: 'DashboardOutlined',
     component: './Dashboard',
     access: 'canAdmin',
@@ -153,7 +153,7 @@ export default [
   },
   {
     path: '/Earnings',
-    name: '财报数据',
+    name: 'Earnings',
     icon: 'LineChartOutlined',
     component: './Earnings',
   },

@@ -173,7 +173,7 @@ const Login: React.FC = () => {
             id: 'menu.login',
             defaultMessage: '登录页',
           })}
-          - {Settings.title}
+          - {intl.formatMessage({id: 'app.title', defaultMessage: '鸿道智能量化交易'})}
         </title>
       </Helmet>
       <Lang/>
