@@ -37,8 +37,6 @@ export default {
   'menu.list.backtest': 'Strategy Backtest',
   'menu.list.realtime-regression': 'Realtime Strategy',
   'menu.Earnings': 'Earnings Report',
-  'menu.数据大盘': 'Dashboard',
-  'menu.财报数据': 'Earnings Report',
   'menu.profile': 'Profile',
   'menu.profile.basic': 'Basic Profile',
   'menu.profile.advanced': 'Advanced Profile',

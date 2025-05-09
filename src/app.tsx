@@ -1,5 +1,6 @@
 import Footer from '@/components/Footer';
-import {Question, SelectLang} from '@/components/RightContent';
+import {Question} from '@/components/RightContent';
+import SelectLang from '@/components/SelectLang';
 import {LinkOutlined} from '@ant-design/icons';
 import type {Settings as LayoutSettings} from '@ant-design/pro-components';
 import type {RunTimeLayoutConfig} from '@umijs/max';

@@ -3,14 +3,19 @@ import { Card, Row, Col, Statistic, Select, Spin, message, Divider, Tag, Space }
 import { 
   ArrowUpOutlined, 
   ArrowDownOutlined, 
-  ShoppingCartOutlined,
-  PercentageOutlined 
+  LineChartOutlined,
+  StockOutlined,
+  FundOutlined,
+  PercentageOutlined,
+  RiseOutlined,
+  FallOutlined,
+  SlidersOutlined
 } from '@ant-design/icons';
 import { Line } from '@ant-design/plots';
 import type { LineConfig } from '@ant-design/plots';
 import { DatePicker } from 'antd';
 import type { RangePickerProps } from 'antd/es/date-picker';
-import { request } from '@umijs/max';
+import { request, useIntl } from '@umijs/max';
 import { PageContainer } from '@ant-design/pro-layout';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -71,6 +76,7 @@ interface TradingStats {
 const PAGE_SIZE = 500;
 
 const DashboardList: React.FC = () => {
+  const intl = useIntl();
   const [profitData, setProfitData] = useState<ProfitData>({});
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null);
   const [accounts, setAccounts] = useState<AccountInfo[]>([]);
@@ -102,7 +108,7 @@ const DashboardList: React.FC = () => {
       }
     } catch (error) {
       console.error('获取账户列表失败:', error);
-      message.error('获取账户列表失败');
+      message.error(intl.formatMessage({ id: 'component.message.fetchAccountListFailed' }, { defaultMessage: '获取账户列表失败' }));
     } finally {
       setAccountLoading(false);
     }
@@ -143,7 +149,7 @@ const DashboardList: React.FC = () => {
       }
     } catch (error) {
       console.error('获取数据失败:', error);
-      message.error('获取数据失败');
+      message.error(intl.formatMessage({ id: 'component.message.fetchDataFailed' }, { defaultMessage: '获取数据失败' }));
     }
   };
 
@@ -160,7 +166,7 @@ const DashboardList: React.FC = () => {
       }
     } catch (error) {
       console.error('获取交易统计数据失败:', error);
-      message.error('获取交易统计数据失败');
+      message.error(intl.formatMessage({ id: 'component.message.fetchTradingStatsFailed' }, { defaultMessage: '获取交易统计数据失败' }));
     } finally {
       setStatsLoading(false);
     }
@@ -255,22 +261,22 @@ const DashboardList: React.FC = () => {
   // 渲染统计卡片
   const renderStatsCard = () => {
     if (!tradingStats) {
-      return <Spin tip="加载中..." />;
+      return <Spin tip={intl.formatMessage({ id: 'component.loading' }, { defaultMessage: '加载中...' })} />;
     }
     
     return (
-      <Card title="交易数据统计" bordered={false} loading={statsLoading}>
+      <Card title={intl.formatMessage({ id: 'dashboard.stats.title' })} bordered={false} loading={statsLoading}>
         <Row gutter={24}>
           <Col span={8}>
-            <Card title="整体统计" bordered={false}>
+            <Card title={intl.formatMessage({ id: 'dashboard.stats.overall' })} bordered={false}>
               <Statistic
-                title="总买入次数"
+                title={intl.formatMessage({ id: 'dashboard.stats.total.buy.count' })}
                 value={tradingStats.overallStats.totalBuyCount}
-                prefix={<ShoppingCartOutlined />}
+                prefix={<SlidersOutlined />}
               />
               <Divider />
               <Statistic
-                title="总盈亏"
+                title={intl.formatMessage({ id: 'dashboard.stats.total.profit' })}
                 value={tradingStats.overallStats.totalProfit}
                 precision={2}
                 valueStyle={{ color: tradingStats.overallStats.totalProfit >= 0 ? '#3f8600' : '#cf1322' }}
@@ -283,7 +289,8 @@ const DashboardList: React.FC = () => {
                   <Statistic
                     title={
                       <span>
-                        未实现盈亏 <Tag color="blue">{tradingStats.unrealizedProfits.positionCount}个持仓</Tag>
+                        {intl.formatMessage({ id: 'dashboard.stats.unrealized.profit' })}{' '}
+                        <Tag color="blue">{tradingStats.unrealizedProfits.positionCount}{intl.formatMessage({ id: 'dashboard.stats.positions' })}</Tag>
                       </span>
                     }
                     value={tradingStats.unrealizedProfits.unrealizedProfit}
@@ -304,19 +311,19 @@ const DashboardList: React.FC = () => {
           </Col>
           
           <Col span={8}>
-            <Card title="策略交易统计" bordered={false}>
+            <Card title={intl.formatMessage({ id: 'dashboard.stats.strategy' })} bordered={false}>
               <Statistic
-                title="定投交易总计"
+                title={intl.formatMessage({ id: 'dashboard.stats.dingtou.total' })}
                 value={tradingStats.dingtouStats.count}
                 precision={0}
-                prefix={<ShoppingCartOutlined />}
+                prefix={<SlidersOutlined />}
                 suffix={
                   <Space>
                     <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.dingtouStats.profit >= 0 ? '#3f8600' : '#cf1322' }}>
                       {tradingStats.dingtouStats.profit >= 0 ? '+' : ''}{tradingStats.dingtouStats.profit.toFixed(2)}$
                     </span>
                     <Tag color={tradingStats.dingtouStats.successRate > 50 ? 'green' : 'orange'}>
-                      成功率 {tradingStats.dingtouStats.successRate.toFixed(1)}%
+                      {intl.formatMessage({ id: 'dashboard.stats.success.rate' })} {tradingStats.dingtouStats.successRate.toFixed(1)}%
                     </Tag>
                   </Space>
                 }
@@ -326,17 +333,17 @@ const DashboardList: React.FC = () => {
                 <>
                   <Divider style={{ margin: '12px 0' }} />
                   <Statistic
-                    title="常规定投"
+                    title={intl.formatMessage({ id: 'dashboard.stats.regular.dingtou' })}
                     value={tradingStats.regularDingtou.count}
                     precision={0}
-                    prefix={<ShoppingCartOutlined />}
+                    prefix={<SlidersOutlined />}
                     suffix={
                       <Space>
                         <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.regularDingtou.profit >= 0 ? '#3f8600' : '#cf1322' }}>
                           {tradingStats.regularDingtou.profit >= 0 ? '+' : ''}{tradingStats.regularDingtou.profit.toFixed(2)}$
                         </span>
                         <Tag color={tradingStats.regularDingtou.successRate > 50 ? 'green' : 'orange'}>
-                          成功率 {tradingStats.regularDingtou.successRate.toFixed(1)}%
+                          {intl.formatMessage({ id: 'dashboard.stats.success.rate' })} {tradingStats.regularDingtou.successRate.toFixed(1)}%
                         </Tag>
                       </Space>
                     }
@@ -348,17 +355,17 @@ const DashboardList: React.FC = () => {
                 <>
                   <Divider style={{ margin: '12px 0' }} />
                   <Statistic
-                    title="定投卖出回调买入"
+                    title={intl.formatMessage({ id: 'dashboard.stats.callback.dingtou' })}
                     value={tradingStats.callbackDingtou.count}
                     precision={0}
-                    prefix={<ShoppingCartOutlined />}
+                    prefix={<SlidersOutlined />}
                     suffix={
                       <Space>
                         <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.callbackDingtou.profit >= 0 ? '#3f8600' : '#cf1322' }}>
                           {tradingStats.callbackDingtou.profit >= 0 ? '+' : ''}{tradingStats.callbackDingtou.profit.toFixed(2)}$
                         </span>
                         <Tag color={tradingStats.callbackDingtou.successRate > 50 ? 'green' : 'orange'}>
-                          成功率 {tradingStats.callbackDingtou.successRate.toFixed(1)}%
+                          {intl.formatMessage({ id: 'dashboard.stats.success.rate' })} {tradingStats.callbackDingtou.successRate.toFixed(1)}%
                         </Tag>
                       </Space>
                     }
@@ -368,17 +375,17 @@ const DashboardList: React.FC = () => {
               
               <Divider />
               <Statistic
-                title="分时平均线策略交易"
+                title={intl.formatMessage({ id: 'dashboard.stats.avg.strategy' })}
                 value={tradingStats.avgStrategyStats.count}
                 precision={0}
-                prefix={<ShoppingCartOutlined />}
+                prefix={<SlidersOutlined />}
                 suffix={
                   <Space>
                     <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.avgStrategyStats.profit >= 0 ? '#3f8600' : '#cf1322' }}>
                       {tradingStats.avgStrategyStats.profit >= 0 ? '+' : ''}{tradingStats.avgStrategyStats.profit.toFixed(2)}$
                     </span>
                     <Tag color={tradingStats.avgStrategyStats.successRate > 50 ? 'green' : 'orange'}>
-                      成功率 {tradingStats.avgStrategyStats.successRate.toFixed(1)}%
+                      {intl.formatMessage({ id: 'dashboard.stats.success.rate' })} {tradingStats.avgStrategyStats.successRate.toFixed(1)}%
                     </Tag>
                   </Space>
                 }
@@ -387,16 +394,16 @@ const DashboardList: React.FC = () => {
           </Col>
           
           <Col span={8}>
-            <Card title="人工交易统计" bordered={false}>
+            <Card title={intl.formatMessage({ id: 'dashboard.stats.manual' })} bordered={false}>
               <Statistic
-                title="交易次数"
+                title={intl.formatMessage({ id: 'dashboard.stats.trade.count' })}
                 value={tradingStats.manualStats.count}
                 precision={0}
-                prefix={<ShoppingCartOutlined />}
+                prefix={<SlidersOutlined />}
               />
               <Divider />
               <Statistic
-                title="交易盈亏"
+                title={intl.formatMessage({ id: 'dashboard.stats.trade.profit' })}
                 value={tradingStats.manualStats.profit}
                 precision={2}
                 valueStyle={{ color: tradingStats.manualStats.profit >= 0 ? '#3f8600' : '#cf1322' }}
@@ -405,11 +412,11 @@ const DashboardList: React.FC = () => {
               />
               <Divider />
               <Statistic
-                title="成功率"
+                title={intl.formatMessage({ id: 'dashboard.stats.success.rate' })}
                 value={tradingStats.manualStats.successRate}
                 precision={1}
                 valueStyle={{ color: tradingStats.manualStats.successRate > 50 ? '#3f8600' : '#cf1322' }}
-                prefix={<PercentageOutlined />}
+                prefix={tradingStats.manualStats.successRate >= 0 ? <RiseOutlined /> : <FallOutlined />}
                 suffix="%"
               />
             </Card>
@@ -422,22 +429,22 @@ const DashboardList: React.FC = () => {
   return (
     <PageContainer>
       <div style={{ marginBottom: 16, padding: '16px 24px', background: '#f5f5f5', borderRadius: '4px' }}>
-        <p style={{ marginBottom: 8, fontWeight: 'bold' }}>数据说明：</p>
-        <p style={{ marginBottom: 8, paddingLeft: 16 }}>1. 盈利比例 = (当前资金 - 初始资金) / 初始资金 * 100%</p>
-        <p style={{ marginBottom: 8, paddingLeft: 16 }}>2. 当前资金包含现金和所有持仓股票的市值</p>
-        <p style={{ marginBottom: 8, paddingLeft: 16 }}>3. 交易统计数据包括已实现的盈亏和未实现的持仓盈亏</p>
+        <p style={{ marginBottom: 8, fontWeight: 'bold' }}>{intl.formatMessage({ id: 'dashboard.data.explanation' })}</p>
+        <p style={{ marginBottom: 8, paddingLeft: 16 }}>{intl.formatMessage({ id: 'dashboard.data.explanation.1' })}</p>
+        <p style={{ marginBottom: 8, paddingLeft: 16 }}>{intl.formatMessage({ id: 'dashboard.data.explanation.2' })}</p>
+        <p style={{ marginBottom: 8, paddingLeft: 16 }}>{intl.formatMessage({ id: 'dashboard.data.explanation.3' })}</p>
       </div>
       
       {renderStatsCard()}
       
       <Card 
-        title="账户盈利趋势" 
+        title={intl.formatMessage({ id: 'dashboard.profit.trend' })}
         bordered={false}
         style={{ marginTop: 16 }}
         extra={
           <Space>
             <Select
-              placeholder="选择账户"
+              placeholder={intl.formatMessage({ id: 'dashboard.select.account' })}
               mode="multiple"
               allowClear
               showSearch
@@ -459,7 +466,10 @@ const DashboardList: React.FC = () => {
               onChange={handleDateRangeChange}
               disabledDate={disabledDate}
               allowClear
-              placeholder={['开始日期', '结束日期']}
+              placeholder={[
+                intl.formatMessage({ id: 'dashboard.date.start' }), 
+                intl.formatMessage({ id: 'dashboard.date.end' })
+              ]}
             />
           </Space>
         }

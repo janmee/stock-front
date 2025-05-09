@@ -153,7 +153,7 @@ export default [
   },
   {
     path: '/Earnings',
-    name: 'Earnings',
+    name: 'earnings',
     icon: 'LineChartOutlined',
     component: './Earnings',
   },

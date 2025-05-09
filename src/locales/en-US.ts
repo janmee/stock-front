@@ -23,6 +23,17 @@ export default {
   ...pwa,
   ...component,
   ...pages,
+  
+  // Error messages
+  'component.message.fetchAccountListFailed': 'Failed to fetch account list',
+  'component.message.fetchDataFailed': 'Failed to fetch data',
+  'component.message.fetchTradingStatsFailed': 'Failed to fetch trading statistics',
+  'component.loading': 'Loading...',
+  
+  // Menu items
+  'menu.dashboard': 'Dashboard',
+  'menu.earnings': 'Earnings Calendar',
+  
   'list.backtest': 'Strategy Backtest',
   'list.realtime-regression': 'Real-time Strategy Regression',
   'list.realtime-regression.desc': 'Real-time Strategy Regression',
@@ -51,4 +62,29 @@ export default {
   'list.realtime-regression.performance.total-profit': 'Total Profit',
   'list.realtime-regression.performance.avg-profit': 'Average Profit',
   'list.realtime-regression.performance.avg-holding-time': 'Average Holding Time',
+  
+  // Dashboard page
+  'dashboard.data.explanation': 'Data Explanation:',
+  'dashboard.data.explanation.1': '1. Profit Percentage = (Current Funds - Initial Funds) / Initial Funds * 100%',
+  'dashboard.data.explanation.2': '2. Current Funds include cash and the market value of all stock positions',
+  'dashboard.data.explanation.3': '3. Trading statistics include realized profits/losses and unrealized position gains/losses',
+  'dashboard.stats.title': 'Trading Statistics',
+  'dashboard.stats.overall': 'Overall Statistics',
+  'dashboard.stats.total.buy.count': 'Total Buy Transactions',
+  'dashboard.stats.total.profit': 'Total Profit/Loss',
+  'dashboard.stats.unrealized.profit': 'Unrealized Profit/Loss',
+  'dashboard.stats.positions': 'Positions',
+  'dashboard.stats.strategy': 'Strategy Trading Statistics',
+  'dashboard.stats.dingtou.total': 'Total DCA Trades',
+  'dashboard.stats.success.rate': 'Success Rate',
+  'dashboard.stats.regular.dingtou': 'Regular DCA',
+  'dashboard.stats.callback.dingtou': 'DCA Callback Buys',
+  'dashboard.stats.avg.strategy': 'Moving Average Strategy Trades',
+  'dashboard.stats.manual': 'Manual Trading Statistics',
+  'dashboard.stats.trade.count': 'Trade Count',
+  'dashboard.stats.trade.profit': 'Trading Profit/Loss',
+  'dashboard.profit.trend': 'Account Profit Trend',
+  'dashboard.select.account': 'Select Account',
+  'dashboard.date.start': 'Start Date',
+  'dashboard.date.end': 'End Date',
 };

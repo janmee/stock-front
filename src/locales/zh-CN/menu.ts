@@ -7,7 +7,7 @@ export default {
   'menu.login': '登录',
   'menu.register': '注册',
   'menu.register-result': '注册结果',
-  'menu.dashboard': 'Dashboard',
+  'menu.dashboard': '数据大盘',
   'menu.dashboard.analysis': '分析页',
   'menu.dashboard.monitor': '监控页',
   'menu.dashboard.workplace': '工作台',
@@ -67,4 +67,5 @@ export default {
   'menu.list.realtime-regression': '实时回归测试',
   'pages.searchTable.jobTimeZone': '时区',
   'pages.modalForm.message.timeZone': '请选择时区',
+  'menu.earnings': '财报日历',
 };

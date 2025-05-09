@@ -23,6 +23,17 @@ export default {
   ...settings,
   ...pwa,
   ...component,
+  
+  // 错误消息
+  'component.message.fetchAccountListFailed': '获取账户列表失败',
+  'component.message.fetchDataFailed': '获取数据失败',
+  'component.message.fetchTradingStatsFailed': '获取交易统计数据失败',
+  'component.loading': '加载中...',
+  
+  // 菜单项
+  'menu.dashboard': '数据大盘',
+  'menu.earnings': '财报日历',
+  
   'list.backtest': '策略回测',
   'list.realtime-regression': '分时平均线策略回测',
   'list.realtime-regression.desc': '分时平均线策略回测',
@@ -50,4 +61,29 @@ export default {
   'dingtou.form.weekInterval.tooltip': '每隔多少周定投一次，1表示每周定投',
   'dingtou.form.buyOnIndexDown': '指数下跌时买入',
   'dingtou.form.buyOnIndexDown.tooltip': '开启后，只在指数下跌时进行定投',
+  
+  // Dashboard页面
+  'dashboard.data.explanation': '数据说明：',
+  'dashboard.data.explanation.1': '1. 盈利比例 = (当前资金 - 初始资金) / 初始资金 * 100%',
+  'dashboard.data.explanation.2': '2. 当前资金包含现金和所有持仓股票的市值',
+  'dashboard.data.explanation.3': '3. 交易统计数据包括已实现的盈亏和未实现的持仓盈亏',
+  'dashboard.stats.title': '交易数据统计',
+  'dashboard.stats.overall': '整体统计',
+  'dashboard.stats.total.buy.count': '总买入次数',
+  'dashboard.stats.total.profit': '总盈亏',
+  'dashboard.stats.unrealized.profit': '未实现盈亏',
+  'dashboard.stats.positions': '个持仓',
+  'dashboard.stats.strategy': '策略交易统计',
+  'dashboard.stats.dingtou.total': '定投交易总计',
+  'dashboard.stats.success.rate': '成功率',
+  'dashboard.stats.regular.dingtou': '常规定投',
+  'dashboard.stats.callback.dingtou': '定投卖出回调买入',
+  'dashboard.stats.avg.strategy': '分时平均线策略交易',
+  'dashboard.stats.manual': '人工交易统计',
+  'dashboard.stats.trade.count': '交易次数',
+  'dashboard.stats.trade.profit': '交易盈亏',
+  'dashboard.profit.trend': '账户盈利趋势',
+  'dashboard.select.account': '选择账户',
+  'dashboard.date.start': '开始日期',
+  'dashboard.date.end': '结束日期',
 };

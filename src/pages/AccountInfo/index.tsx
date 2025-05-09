@@ -37,16 +37,18 @@ const TableList: React.FC = () => {
       });
       
       if (response.success) {
-        message.success(enable ? '账户已启用' : '账户已禁用');
+        message.success(enable 
+          ? intl.formatMessage({ id: 'pages.account.enabled' }) 
+          : intl.formatMessage({ id: 'pages.account.disabled' }));
         // 刷新表格数据
         if (actionRef.current) {
           actionRef.current.reload();
         }
       } else {
-        message.error(response.message || '操作失败');
+        message.error(response.message || intl.formatMessage({ id: 'pages.account.operationFailed' }));
       }
     } catch (error) {
-      message.error('操作请求失败');
+      message.error(intl.formatMessage({ id: 'pages.account.requestFailed' }));
       console.error('操作错误:', error);
     }
   };
@@ -54,24 +56,24 @@ const TableList: React.FC = () => {
   // 处理删除账户
   const handleDeleteAccount = async (id: number) => {
     Modal.confirm({
-      title: '确认删除',
-      content: '确定要删除此账户吗？此操作不可恢复。',
+      title: intl.formatMessage({ id: 'pages.account.confirmDelete' }),
+      content: intl.formatMessage({ id: 'pages.account.confirmDeleteContent' }),
       onOk: async () => {
         try {
           // 调用删除账户API
           const response = await deleteAccountInfo(id);
           
           if (response.success) {
-            message.success('账户已删除');
+            message.success(intl.formatMessage({ id: 'pages.account.deleteSuccess' }));
             // 刷新表格数据
             if (actionRef.current) {
               actionRef.current.reload();
             }
           } else {
-            message.error(response.message || '删除失败');
+            message.error(response.message || intl.formatMessage({ id: 'pages.account.deleteFailed' }));
           }
         } catch (error) {
-          message.error('删除请求失败');
+          message.error(intl.formatMessage({ id: 'pages.account.deleteRequestFailed' }));
           console.error('删除错误:', error);
         }
       }
@@ -118,7 +120,7 @@ const TableList: React.FC = () => {
       });
       
       if (response.success) {
-        message.success('账户信息已更新');
+        message.success(intl.formatMessage({ id: 'pages.account.updateSuccess' }));
         setEditModalVisible(false);
         // 刷新表格数据
         if (actionRef.current) {
@@ -126,11 +128,11 @@ const TableList: React.FC = () => {
         }
         return true;
       } else {
-        message.error(response.message || '更新失败');
+        message.error(response.message || intl.formatMessage({ id: 'pages.account.updateFailed' }));
         return false;
       }
     } catch (error) {
-      message.error('更新请求失败');
+      message.error(intl.formatMessage({ id: 'pages.account.updateRequestFailed' }));
       console.error('更新错误:', error);
       return false;
     }
@@ -154,7 +156,7 @@ const TableList: React.FC = () => {
       });
       
       if (response.success) {
-        message.success('账户创建成功');
+        message.success(intl.formatMessage({ id: 'pages.account.createSuccess' }));
         setCreateModalVisible(false);
         // 刷新表格数据
         if (actionRef.current) {
@@ -162,11 +164,11 @@ const TableList: React.FC = () => {
         }
         return true;
       } else {
-        message.error(response.message || '创建失败');
+        message.error(response.message || intl.formatMessage({ id: 'pages.account.createFailed' }));
         return false;
       }
     } catch (error) {
-      message.error('创建请求失败');
+      message.error(intl.formatMessage({ id: 'pages.account.createRequestFailed' }));
       console.error('创建错误:', error);
       return false;
     }
@@ -180,12 +182,12 @@ const TableList: React.FC = () => {
       });
       
       if (response.success) {
-        message.success('配置文件生成成功');
+        message.success(intl.formatMessage({ id: 'pages.account.generateConfigSuccess' }));
       } else {
-        message.error(response.message || '生成配置失败');
+        message.error(response.message || intl.formatMessage({ id: 'pages.account.generateConfigFailed' }));
       }
     } catch (error) {
-      message.error('生成配置请求失败');
+      message.error(intl.formatMessage({ id: 'pages.account.generateConfigRequestFailed' }));
       console.error('生成配置错误:', error);
     }
   };
@@ -198,31 +200,31 @@ const TableList: React.FC = () => {
       });
       
       if (response.success) {
-        message.success('OpenD已启动成功');
+        message.success(intl.formatMessage({ id: 'pages.account.startOpenDSuccess' }));
       } else {
-        message.error(response.message || '启动OpenD失败');
+        message.error(response.message || intl.formatMessage({ id: 'pages.account.startOpenDFailed' }));
       }
     } catch (error) {
-      message.error('启动OpenD请求失败');
+      message.error(intl.formatMessage({ id: 'pages.account.startOpenDRequestFailed' }));
       console.error('启动OpenD错误:', error);
     }
   };
 
   const columns: ProColumns[] = [
     {
-      title: '牛牛号',
+      title: intl.formatMessage({ id: 'pages.account.accountId' }),
       dataIndex: 'account',
       valueType: 'text',
       sorter: true,
     },
     {
-      title: '账户别名',
+      title: intl.formatMessage({ id: 'pages.account.accountName' }),
       dataIndex: 'name',
       valueType: 'text',
       sorter: true,
     },
     {
-      title: '是否连接OpenD',
+      title: intl.formatMessage({ id: 'pages.account.openDConnection' }),
       dataIndex: 'connected',
       valueType: 'text',
       hideInSearch: true,
@@ -231,20 +233,22 @@ const TableList: React.FC = () => {
         const isConnected = record.connected === true;
         return (
           <span style={{ color: isConnected ? '#52c41a' : '#ff4d4f' }}>
-            {isConnected ? '已连接' : '未连接'}
+            {isConnected 
+              ? intl.formatMessage({ id: 'pages.account.connected' }) 
+              : intl.formatMessage({ id: 'pages.account.disconnected' })}
           </span>
         );
       }
     },
     {
-      title: '资金账户ID',
+      title: intl.formatMessage({ id: 'pages.account.accId' }),
       dataIndex: 'accId',
       valueType: 'text',
       hideInSearch: true,
     },
 
     {
-      title: '可用资金',
+      title: intl.formatMessage({ id: 'pages.account.availableAmount' }),
       dataIndex: 'availableAmount',
       valueType: {
         type: 'money',
@@ -254,7 +258,7 @@ const TableList: React.FC = () => {
       sorter: true,
     },
     {
-      title: '总资产',
+      title: intl.formatMessage({ id: 'pages.account.totalAmount' }),
       dataIndex: 'totalAmount',
       valueType: {
         type: 'money',
@@ -264,7 +268,7 @@ const TableList: React.FC = () => {
       sorter: true,
     },
     {
-      title: '证券市值',
+      title: intl.formatMessage({ id: 'pages.account.marketValue' }),
       dataIndex: 'marketVal',
       valueType: {
         type: 'money',
@@ -274,7 +278,7 @@ const TableList: React.FC = () => {
       sorter: true,
     },
     {
-      title: '初始资金',
+      title: intl.formatMessage({ id: 'pages.account.initialAmount' }),
       dataIndex: 'initAmount',
       valueType: {
         type: 'money',
@@ -284,7 +288,7 @@ const TableList: React.FC = () => {
       sorter: true,
     },
     {
-      title: '最大使用资金占比',
+      title: intl.formatMessage({ id: 'pages.account.maxUsageRatio' }),
       dataIndex: 'overPercent',
       valueType: 'percent',
       hideInSearch: true,
@@ -292,7 +296,7 @@ const TableList: React.FC = () => {
       render: (_, record) => `${(record.overPercent * 100).toFixed(2)}%`,
     },
     {
-      title: '购买力',
+      title: intl.formatMessage({ id: 'pages.account.buyingPower' }),
       dataIndex: 'power',
       valueType: {
         type: 'money',
@@ -302,28 +306,28 @@ const TableList: React.FC = () => {
       sorter: true,
     },
     {
-      title: '风险等级',
+      title: intl.formatMessage({ id: 'pages.account.riskLevel' }),
       dataIndex: 'riskLevel',
       valueType: 'text',
       hideInSearch: true,
       valueEnum: {
-        '-1': { text: '未知', status: 'Default' },
-        '0': { text: '安全', status: 'Success' },
-        '1': { text: '预警', status: 'Warning' },
-        '2': { text: '危险', status: 'Error' },
-        '3': { text: '绝对安全', status: 'Success' },
-        '4': { text: '危险', status: 'Error' },
+        '-1': { text: intl.formatMessage({ id: 'pages.trade.risk.unknown' }), status: 'Default' },
+        '0': { text: intl.formatMessage({ id: 'pages.trade.risk.safe' }), status: 'Success' },
+        '1': { text: intl.formatMessage({ id: 'pages.trade.risk.warning' }), status: 'Warning' },
+        '2': { text: intl.formatMessage({ id: 'pages.trade.risk.danger' }), status: 'Error' },
+        '3': { text: intl.formatMessage({ id: 'pages.trade.risk.absolutelySafe' }), status: 'Success' },
+        '4': { text: intl.formatMessage({ id: 'pages.trade.risk.danger' }), status: 'Error' },
       },
     },
     {
-      title: '创建时间',
+      title: intl.formatMessage({ id: 'pages.account.createTime' }),
       dataIndex: 'createTime',
       valueType: 'dateTime',
       hideInSearch: true,
       sorter: true,
     },
     {
-      title: '状态',
+      title: intl.formatMessage({ id: 'pages.account.status' }),
       dataIndex: 'enable',
       valueType: 'switch',
       hideInSearch: true,
@@ -331,13 +335,13 @@ const TableList: React.FC = () => {
         <Switch
           checked={record.enable}
           onChange={(checked) => handleToggleStatus(record.id, checked)}
-          checkedChildren="启用"
-          unCheckedChildren="禁用"
+          checkedChildren={intl.formatMessage({ id: 'pages.account.enabled.switch' })}
+          unCheckedChildren={intl.formatMessage({ id: 'pages.account.disabled.switch' })}
         />
       )
     },
     {
-      title: '操作',
+      title: intl.formatMessage({ id: 'pages.account.operations' }),
       dataIndex: 'option',
       valueType: 'option',
       render: (_, record) => [
@@ -346,21 +350,14 @@ const TableList: React.FC = () => {
           type="link"
           onClick={() => handleEditAccount(record)}
         >
-          编辑
+          {intl.formatMessage({ id: 'pages.account.edit' })}
         </Button>,
-        // <Button
-        //   key="generateConfig"
-        //   type="link"
-        //   onClick={() => handleGenerateConfig(record.account)}
-        // >
-        //   生成配置
-        // </Button>,
         <Button
           key="startOpenD"
           type="link"
           onClick={() => handleStartOpenD(record.account)}
         >
-          启动OpenD
+          {intl.formatMessage({ id: 'pages.account.startOpenD' })}
         </Button>,
         <Button
           key="delete"
@@ -368,7 +365,7 @@ const TableList: React.FC = () => {
           danger
           onClick={() => handleDeleteAccount(record.id)}
         >
-          删除
+          {intl.formatMessage({ id: 'pages.account.delete' })}
         </Button>,
       ],
     },
@@ -405,14 +402,14 @@ const TableList: React.FC = () => {
               setCreateModalVisible(true);
             }}
           >
-            新建
+            {intl.formatMessage({ id: 'pages.account.create' })}
           </Button>,
         ]}
       />
 
       {/* 编辑账户表单 */}
       <ModalForm
-        title="编辑账户信息"
+        title={intl.formatMessage({ id: 'pages.account.editForm.title' })}
         width={500}
         open={editModalVisible}
         onOpenChange={(visible) => {
@@ -428,8 +425,8 @@ const TableList: React.FC = () => {
         form={form}
         submitter={{
           searchConfig: {
-            submitText: '确认',
-            resetText: '取消',
+            submitText: intl.formatMessage({ id: 'pages.account.form.submit' }),
+            resetText: intl.formatMessage({ id: 'pages.account.form.cancel' }),
           },
           render: (props, defaultDoms) => {
             return [
@@ -441,54 +438,54 @@ const TableList: React.FC = () => {
         <ProForm.Group>
           <ProFormText
             name="account"
-            label="牛牛号"
-            placeholder="请输入牛牛号"
-            rules={[{ required: true, message: '请输入牛牛号' }]}
+            label={intl.formatMessage({ id: 'pages.account.accountId' })}
+            placeholder={intl.formatMessage({ id: 'pages.account.form.accountIdPlaceholder' })}
+            rules={[{ required: true, message: intl.formatMessage({ id: 'pages.account.form.accountIdRequired' }) }]}
           />
           <ProFormText
             name="name"
-            label="账户别名"
-            placeholder="请输入账户别名"
-            rules={[{ required: true, message: '请输入账户别名' }]}
+            label={intl.formatMessage({ id: 'pages.account.accountName' })}
+            placeholder={intl.formatMessage({ id: 'pages.account.form.accountNamePlaceholder' })}
+            rules={[{ required: true, message: intl.formatMessage({ id: 'pages.account.form.accountNameRequired' }) }]}
           />
           <ProFormText
             name="host"
-            label="主机地址"
-            placeholder="请输入主机地址"
-            rules={[{ required: true, message: '请输入主机地址' }]}
+            label={intl.formatMessage({ id: 'pages.account.host' })}
+            placeholder={intl.formatMessage({ id: 'pages.account.form.hostPlaceholder' })}
+            rules={[{ required: true, message: intl.formatMessage({ id: 'pages.account.form.hostRequired' }) }]}
           />
           <ProFormDigit
             name="port"
-            label="端口"
-            placeholder="请输入端口"
+            label={intl.formatMessage({ id: 'pages.account.port' })}
+            placeholder={intl.formatMessage({ id: 'pages.account.form.portPlaceholder' })}
             min={1}
             max={65535}
-            rules={[{ required: true, message: '请输入端口' }]}
+            rules={[{ required: true, message: intl.formatMessage({ id: 'pages.account.form.portRequired' }) }]}
           />
           <ProFormText.Password
             name="tradePassword"
-            label="交易密码"
-            placeholder="请输入交易密码（将进行MD5加密）"
-            rules={[{ required: false, message: '请输入交易密码' }]}
+            label={intl.formatMessage({ id: 'pages.account.tradePassword' })}
+            placeholder={intl.formatMessage({ id: 'pages.account.form.tradePasswordPlaceholder' })}
+            rules={[{ required: false, message: intl.formatMessage({ id: 'pages.account.form.tradePasswordRequired' }) }]}
             fieldProps={{
               autoComplete: 'new-password',
             }}
-            tooltip="不填写则不会更新交易密码"
+            tooltip={intl.formatMessage({ id: 'pages.account.form.tradePasswordTooltip' })}
           />
           <ProFormText.Password
             name="loginPassword"
-            label="登录密码"
-            placeholder="请输入登录密码（将进行MD5加密）"
-            rules={[{ required: false, message: '请输入登录密码' }]}
+            label={intl.formatMessage({ id: 'pages.account.loginPassword' })}
+            placeholder={intl.formatMessage({ id: 'pages.account.form.loginPasswordPlaceholder' })}
+            rules={[{ required: false, message: intl.formatMessage({ id: 'pages.account.form.loginPasswordRequired' }) }]}
             fieldProps={{
               autoComplete: 'new-password',
             }}
-            tooltip="不填写则不会更新登录密码"
+            tooltip={intl.formatMessage({ id: 'pages.account.form.loginPasswordTooltip' })}
           />
           <ProFormDigit
             name="overPercent"
-            label="最大使用资金占比(%)"
-            placeholder="请输入最大使用资金占比"
+            label={intl.formatMessage({ id: 'pages.account.maxUsageRatio' })}
+            placeholder={intl.formatMessage({ id: 'pages.account.form.maxUsageRatioPlaceholder' })}
             min={0}
             max={200}
             fieldProps={{
@@ -497,40 +494,40 @@ const TableList: React.FC = () => {
               formatter: (value) => `${value}%`,
               parser: (value) => value ? parseFloat(value.replace('%', '')) : 0,
             }}
-            rules={[{ required: true, message: '请输入最大使用资金占比' }]}
+            rules={[{ required: true, message: intl.formatMessage({ id: 'pages.account.form.maxUsageRatioRequired' }) }]}
           />
           <ProFormDigit
             name="initAmount"
-            label="初始资金"
-            placeholder="请输入初始资金"
+            label={intl.formatMessage({ id: 'pages.account.initialAmount' })}
+            placeholder={intl.formatMessage({ id: 'pages.account.form.initialAmountPlaceholder' })}
             min={0}
             fieldProps={{
               precision: 2,
               step: 0.01,
             }}
-            rules={[{ required: true, message: '请输入初始资金' }]}
+            rules={[{ required: true, message: intl.formatMessage({ id: 'pages.account.form.initialAmountRequired' }) }]}
           />
           <ProFormSwitch
             name="master"
-            label="主账户"
-            checkedChildren="是"
-            unCheckedChildren="否"
+            label={intl.formatMessage({ id: 'pages.account.master' })}
+            checkedChildren={intl.formatMessage({ id: 'pages.account.form.masterCheckedChildren' })}
+            unCheckedChildren={intl.formatMessage({ id: 'pages.account.form.masterUncheckedChildren' })}
           />
           <Form.Item noStyle dependencies={['master']}>
             {({ getFieldValue }) => (
               <ProFormText
                 name="follow"
-                label="跟单账户"
-                placeholder="请输入跟单账户ID"
+                label={intl.formatMessage({ id: 'pages.account.follow' })}
+                placeholder={intl.formatMessage({ id: 'pages.account.form.followPlaceholder' })}
                 disabled={getFieldValue('master')}
               />
             )}
           </Form.Item>
           <ProFormText
             name="accId"
-            label="资金账户ID(默认自动获取)"
-            placeholder="请输入资金账户ID"
-            tooltip="资金账户ID为可选字段"
+            label={intl.formatMessage({ id: 'pages.account.accId' })}
+            placeholder={intl.formatMessage({ id: 'pages.account.form.accIdPlaceholder' })}
+            tooltip={intl.formatMessage({ id: 'pages.account.form.accIdTooltip' })}
             rules={[{ required: false }]}
           />
         </ProForm.Group>
@@ -538,7 +535,7 @@ const TableList: React.FC = () => {
 
       {/* 创建账户表单 */}
       <ModalForm
-        title="创建新账户"
+        title={intl.formatMessage({ id: 'pages.account.createForm.title' })}
         width={500}
         open={createModalVisible}
         onOpenChange={setCreateModalVisible}
@@ -549,57 +546,63 @@ const TableList: React.FC = () => {
           overPercent: 100,  // 默认最大使用资金占比为100%
           initAmount: 0  // 默认初始资金为0
         }}
+        submitter={{
+          searchConfig: {
+            submitText: intl.formatMessage({ id: 'pages.account.form.submit' }),
+            resetText: intl.formatMessage({ id: 'pages.account.form.cancel' }),
+          },
+        }}
       >
         <ProForm.Group>
           <ProFormText
             name="account"
-            label="牛牛号"
-            placeholder="请输入牛牛号"
-            rules={[{ required: true, message: '请输入牛牛号' }]}
+            label={intl.formatMessage({ id: 'pages.account.accountId' })}
+            placeholder={intl.formatMessage({ id: 'pages.account.form.accountIdPlaceholder' })}
+            rules={[{ required: true, message: intl.formatMessage({ id: 'pages.account.form.accountIdRequired' }) }]}
           />
           <ProFormText
             name="name"
-            label="账户别名"
-            placeholder="请输入账户别名"
-            rules={[{ required: true, message: '请输入账户别名' }]}
+            label={intl.formatMessage({ id: 'pages.account.accountName' })}
+            placeholder={intl.formatMessage({ id: 'pages.account.form.accountNamePlaceholder' })}
+            rules={[{ required: true, message: intl.formatMessage({ id: 'pages.account.form.accountNameRequired' }) }]}
           />
           <ProFormText
             name="host"
-            label="主机地址"
-            placeholder="请输入主机地址"
+            label={intl.formatMessage({ id: 'pages.account.host' })}
+            placeholder={intl.formatMessage({ id: 'pages.account.form.hostPlaceholder' })}
             initialValue="127.0.0.1"
-            rules={[{ required: true, message: '请输入主机地址' }]}
+            rules={[{ required: true, message: intl.formatMessage({ id: 'pages.account.form.hostRequired' }) }]}
           />
           <ProFormDigit
             name="port"
-            label="端口"
-            placeholder="请输入端口"
+            label={intl.formatMessage({ id: 'pages.account.port' })}
+            placeholder={intl.formatMessage({ id: 'pages.account.form.portPlaceholder' })}
             min={1}
             max={65535}
-            rules={[{ required: true, message: '请输入端口' }]}
+            rules={[{ required: true, message: intl.formatMessage({ id: 'pages.account.form.portRequired' }) }]}
           />
           <ProFormText.Password
             name="tradePassword"
-            label="交易密码"
-            placeholder="请输入交易密码（将进行MD5加密）"
-            rules={[{ required: true, message: '请输入交易密码' }]}
+            label={intl.formatMessage({ id: 'pages.account.tradePassword' })}
+            placeholder={intl.formatMessage({ id: 'pages.account.form.tradePasswordPlaceholder' })}
+            rules={[{ required: true, message: intl.formatMessage({ id: 'pages.account.form.tradePasswordRequired' }) }]}
             fieldProps={{
               autoComplete: 'new-password',
             }}
           />
           <ProFormText.Password
             name="loginPassword"
-            label="登录密码"
-            placeholder="请输入登录密码（将进行MD5加密）"
-            rules={[{ required: true, message: '请输入登录密码' }]}
+            label={intl.formatMessage({ id: 'pages.account.loginPassword' })}
+            placeholder={intl.formatMessage({ id: 'pages.account.form.loginPasswordPlaceholder' })}
+            rules={[{ required: true, message: intl.formatMessage({ id: 'pages.account.form.loginPasswordRequired' }) }]}
             fieldProps={{
               autoComplete: 'new-password',
             }}
           />
           <ProFormDigit
             name="overPercent"
-            label="最大使用资金占比(%)"
-            placeholder="请输入最大使用资金占比"
+            label={intl.formatMessage({ id: 'pages.account.maxUsageRatio' })}
+            placeholder={intl.formatMessage({ id: 'pages.account.form.maxUsageRatioPlaceholder' })}
             min={0}
             max={200}
             fieldProps={{
@@ -608,41 +611,41 @@ const TableList: React.FC = () => {
               formatter: (value) => `${value}%`,
               parser: (value) => value ? parseFloat(value.replace('%', '')) : 0,
             }}
-            rules={[{ required: true, message: '请输入最大使用资金占比' }]}
+            rules={[{ required: true, message: intl.formatMessage({ id: 'pages.account.form.maxUsageRatioRequired' }) }]}
           />
           <ProFormDigit
             name="initAmount"
-            label="初始资金（美金）"
-            placeholder="请输入初始资金"
+            label={intl.formatMessage({ id: 'pages.account.initialAmount' })}
+            placeholder={intl.formatMessage({ id: 'pages.account.form.initialAmountPlaceholder' })}
             min={0}
             fieldProps={{
               precision: 2,
               step: 0.01,
             }}
-            rules={[{ required: true, message: '请输入初始资金' }]}
+            rules={[{ required: true, message: intl.formatMessage({ id: 'pages.account.form.initialAmountRequired' }) }]}
           />
           <ProFormSwitch
             name="master"
-            label="主账户"
-            checkedChildren="是"
-            unCheckedChildren="否"
+            label={intl.formatMessage({ id: 'pages.account.master' })}
+            checkedChildren={intl.formatMessage({ id: 'pages.account.form.masterCheckedChildren' })}
+            unCheckedChildren={intl.formatMessage({ id: 'pages.account.form.masterUncheckedChildren' })}
             initialValue={true}
           />
           <Form.Item noStyle dependencies={['master']}>
             {({ getFieldValue }) => (
               <ProFormText
                 name="follow"
-                label="跟单账户"
-                placeholder="请输入跟单账户ID"
+                label={intl.formatMessage({ id: 'pages.account.follow' })}
+                placeholder={intl.formatMessage({ id: 'pages.account.form.followPlaceholder' })}
                 disabled={getFieldValue('master')}
               />
             )}
           </Form.Item>
           <ProFormText
             name="accId"
-            label="资金账户ID(默认自动获取)"
-            placeholder="请输入资金账户ID"
-            tooltip="资金账户ID为可选字段"
+            label={intl.formatMessage({ id: 'pages.account.accId' })}
+            placeholder={intl.formatMessage({ id: 'pages.account.form.accIdPlaceholder' })}
+            tooltip={intl.formatMessage({ id: 'pages.account.form.accIdTooltip' })}
             rules={[{ required: false }]}
           />
         </ProForm.Group>

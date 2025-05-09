@@ -103,7 +103,8 @@ export default defineConfig({
     default: 'zh-CN',
     antd: true,
     // default true, when it is true, will use `navigator.language` overwrite default
-    baseNavigator: true,
+    baseNavigator: false, // 禁用浏览器语言检测，强制使用默认语言
+    baseSeparator: '-',
     title: true, // 开启标题国际化
   },
   /**
@@ -153,8 +154,7 @@ export default defineConfig({
       projectName: 'swagger',
     },
   ],
-  mfsu: {
-    strategy: 'normal',
-  },
+  // 禁用MFSU以解决构建问题
+  mfsu: false,
   requestRecord: {},
 });
