@@ -24,113 +24,13 @@ import type {FormValueType} from './components/UpdateForm';
 import UpdateForm from './components/UpdateForm';
 import {PlusOutlined} from "@ant-design/icons";
 
-const handleAdd = async (fields: API.RuleListItem) => {
-  const hide = message.loading('正在创建任务...');
-  try {
-    hide();
-    const res = await createJob({data: fields});
-    if (res.success) {
-      message.success('任务创建成功！');
-    } else {
-      message.error('任务创建失败！');
-    }
-  } catch (error) {
-    hide();
-  }
-};
-
-const handleUpdate = async (fields: FormValueType) => {
-  const hide = message.loading('正在修改任务...');
-  try {
-    hide();
-    let res = await modifyJob({data: fields});
-    if (res.success) {
-      message.success('任务修改成功！');
-    } else {
-      message.error('任务修改失败！');
-    }
-  } catch (error) {
-    hide();
-  }
-};
-
-const handleRemove = async (fields: FormValueType) => {
-  const hide = message.loading('正在删除任务...');
-  try {
-    hide();
-    let res = await deleteJob({data: fields});
-    if (res.success) {
-      message.success('任务删除成功！');
-    } else {
-      message.error('任务删除失败！');
-    }
-  } catch (error) {
-    hide();
-  }
-};
-
-
-const handlePause = async (fields: FormValueType) => {
-  const hide = message.loading('正在停止任务...');
-  try {
-    hide();
-    let res = await pauseJob({data: fields});
-    if (res.success) {
-      message.success('停止任务成功！');
-    } else {
-      message.error('停止任务成功！');
-    }
-  } catch (error) {
-    hide();
-  }
-};
-
-const handleInterrupt = async (fields: FormValueType) => {
-  const hide = message.loading('正在终止任务...');
-  try {
-    hide()
-    const res = await interruptJob({data: fields});
-    if (res?.success) {
-      message.success('终止任务成功！');
-    } else {
-      message.error('终止任务失败！');
-    }
-  } catch (error) {
-    hide()
-  }
-};
-
-const handleResume = async (fields: FormValueType) => {
-  const hide = message.loading('正在恢复任务...');
-  try {
-    hide();
-    let res = await resumeJob({data: fields});
-    if (res?.success) {
-      message.success('恢复任务成功！');
-    } else {
-      message.error('恢复任务失败！');
-    }
-  } catch (error) {
-    hide();
-  }
-};
-
-const handleRun = async (fields: FormValueType) => {
-  const hide = message.loading(`${fields.name},正在触发任务...`);
-  try {
-    hide();
-    let res = await runJob({data: fields});
-    if (res?.success) {
-      message.success('触发任务成功！');
-    } else {
-      message.error("任务触发失败！");
-    }
-  } catch (error) {
-    hide();
-  }
-};
-
+/**
+ * @en-US International configuration
+ * @zh-CN 国际化配置
+ * */
 const TableList: React.FC = () => {
+  // International configuration
+  const intl = useIntl();
 
   /**
    * @en-US Pop-up window of new window
@@ -145,12 +45,6 @@ const TableList: React.FC = () => {
 
   const actionRef = useRef<ActionType>();
   const [currentRow, setCurrentRow] = useState<API.RuleListItem>();
-
-  /**
-   * @en-US International configuration
-   * @zh-CN 国际化配置
-   * */
-  const intl = useIntl();
 
   useEffect(() => {
     const localServer = "localhost:8080";
@@ -212,8 +106,12 @@ const TableList: React.FC = () => {
       valueType: 'select',
       hideInSearch: true,
       valueEnum: {
-        'Asia/Shanghai': { text: '北京时区 (CST)' },
-        'America/New_York': { text: '美东时区 (EDT/EST)' },
+        'Asia/Shanghai': { 
+          text: <FormattedMessage id="pages.job.timeZone.shanghai" defaultMessage="Beijing (CST)" /> 
+        },
+        'America/New_York': { 
+          text: <FormattedMessage id="pages.job.timeZone.newyork" defaultMessage="Eastern US (EDT/EST)" /> 
+        },
       },
     },
     {
@@ -264,21 +162,21 @@ const TableList: React.FC = () => {
       valueEnum: (a) => {
         return a?.running == '1' ? {
             0: {
-              text: '运行中',
+              text: <FormattedMessage id="pages.job.status.running" defaultMessage="Running" />,
               status: 'Processing',
             },
             1: {
-              text: '运行中',
+              text: <FormattedMessage id="pages.job.status.running" defaultMessage="Running" />,
               status: 'Processing',
             }
           } :
           {
             1: {
-              text: '调度中',
+              text: <FormattedMessage id="pages.searchTable.jobStatus.running" defaultMessage="Scheduling" />,
               status: 'Success',
             },
             0: {
-              text: '已暂停',
+              text: <FormattedMessage id="pages.searchTable.jobStatus.paused" defaultMessage="Paused" />,
               status: 'Default',
             }
           }
@@ -298,7 +196,9 @@ const TableList: React.FC = () => {
              }
              actionRef?.current?.reload();
            }}
-        >{record.running == '1' ? '终止' : '触发'}
+        >
+          <FormattedMessage id={record.running == '1' ? 'pages.searchTable.interruptJob' : 'pages.searchTable.runJob'} 
+                            defaultMessage={record.running == '1' ? 'Interrupt' : 'Trigger'} />
         </a>,
         <a
           key="k2"
@@ -313,7 +213,7 @@ const TableList: React.FC = () => {
           }}
         >
           <FormattedMessage id={record.status == "1" ? "pages.searchTable.stopJob" : "pages.searchTable.startJob"}
-                            defaultMessage="Configuration"/>
+                            defaultMessage={record.status == "1" ? "Pause" : "Resume"} />
         </a>,
         <a key="k3"
            onClick={() => {
@@ -323,7 +223,7 @@ const TableList: React.FC = () => {
         >
           <FormattedMessage
             id="pages.searchTable.updateJob"
-            defaultMessage="Subscribe to alerts"
+            defaultMessage="Update"
           />
         </a>,
         <a key="k4"
@@ -335,12 +235,122 @@ const TableList: React.FC = () => {
         >
           <FormattedMessage
             id="pages.searchTable.deleteJob"
-            defaultMessage="Subscribe to alerts"
+            defaultMessage="Delete"
           />
         </a>,
       ],
     }
   ];
+
+  const handleAdd = async (fields: API.RuleListItem) => {
+    const hide = message.loading(intl.formatMessage({ id: 'pages.job.message.creating', defaultMessage: 'Creating job...' }));
+    try {
+      hide();
+      const res = await createJob({data: fields});
+      if (res.success) {
+        message.success(intl.formatMessage({ id: 'pages.job.message.createSuccess', defaultMessage: 'Job created successfully!' }));
+      } else {
+        message.error(intl.formatMessage({ id: 'pages.job.message.createFailed', defaultMessage: 'Failed to create job!' }));
+      }
+    } catch (error) {
+      hide();
+    }
+  };
+
+  const handleUpdate = async (fields: FormValueType) => {
+    const hide = message.loading(intl.formatMessage({ id: 'pages.job.message.updating', defaultMessage: 'Updating job...' }));
+    try {
+      hide();
+      let res = await modifyJob({data: fields});
+      if (res.success) {
+        message.success(intl.formatMessage({ id: 'pages.job.message.updateSuccess', defaultMessage: 'Job updated successfully!' }));
+      } else {
+        message.error(intl.formatMessage({ id: 'pages.job.message.updateFailed', defaultMessage: 'Failed to update job!' }));
+      }
+    } catch (error) {
+      hide();
+    }
+  };
+
+  const handleRemove = async (fields: FormValueType) => {
+    const hide = message.loading(intl.formatMessage({ id: 'pages.job.message.deleting', defaultMessage: 'Deleting job...' }));
+    try {
+      hide();
+      let res = await deleteJob({data: fields});
+      if (res.success) {
+        message.success(intl.formatMessage({ id: 'pages.job.message.deleteSuccess', defaultMessage: 'Job deleted successfully!' }));
+      } else {
+        message.error(intl.formatMessage({ id: 'pages.job.message.deleteFailed', defaultMessage: 'Failed to delete job!' }));
+      }
+    } catch (error) {
+      hide();
+    }
+  };
+
+  const handlePause = async (fields: FormValueType) => {
+    const hide = message.loading(intl.formatMessage({ id: 'pages.job.message.pausing', defaultMessage: 'Pausing job...' }));
+    try {
+      hide();
+      let res = await pauseJob({data: fields});
+      if (res.success) {
+        message.success(intl.formatMessage({ id: 'pages.job.message.pauseSuccess', defaultMessage: 'Job paused successfully!' }));
+      } else {
+        message.error(intl.formatMessage({ id: 'pages.job.message.pauseFailed', defaultMessage: 'Failed to pause job!' }));
+      }
+    } catch (error) {
+      hide();
+    }
+  };
+
+  const handleInterrupt = async (fields: FormValueType) => {
+    const hide = message.loading(intl.formatMessage({ id: 'pages.job.message.interrupting', defaultMessage: 'Interrupting job...' }));
+    try {
+      hide()
+      const res = await interruptJob({data: fields});
+      if (res?.success) {
+        message.success(intl.formatMessage({ id: 'pages.job.message.interruptSuccess', defaultMessage: 'Job interrupted successfully!' }));
+      } else {
+        message.error(intl.formatMessage({ id: 'pages.job.message.interruptFailed', defaultMessage: 'Failed to interrupt job!' }));
+      }
+    } catch (error) {
+      hide()
+    }
+  };
+
+  const handleResume = async (fields: FormValueType) => {
+    const hide = message.loading(intl.formatMessage({ id: 'pages.job.message.resuming', defaultMessage: 'Resuming job...' }));
+    try {
+      hide();
+      let res = await resumeJob({data: fields});
+      if (res?.success) {
+        message.success(intl.formatMessage({ id: 'pages.job.message.resumeSuccess', defaultMessage: 'Job resumed successfully!' }));
+      } else {
+        message.error(intl.formatMessage({ id: 'pages.job.message.resumeFailed', defaultMessage: 'Failed to resume job!' }));
+      }
+    } catch (error) {
+      hide();
+    }
+  };
+
+  const handleRun = async (fields: FormValueType) => {
+    const hide = message.loading(
+      intl.formatMessage(
+        { id: 'pages.job.message.running', defaultMessage: '{name}, triggering job...' },
+        { name: fields.name }
+      )
+    );
+    try {
+      hide();
+      let res = await runJob({data: fields});
+      if (res?.success) {
+        message.success(intl.formatMessage({ id: 'pages.job.message.runSuccess', defaultMessage: 'Job triggered successfully!' }));
+      } else {
+        message.error(intl.formatMessage({ id: 'pages.job.message.runFailed', defaultMessage: 'Failed to trigger job!' }));
+      }
+    } catch (error) {
+      hide();
+    }
+  };
 
   return (
     <PageContainer>

@@ -450,7 +450,7 @@ export async function download(file: API.LoginParams, options?: { [key: string]:
 
 }
 
-/** 获取账户列表 GET /api/accountInfo/list */
+/** 获取账户列表 GET /api/account/list */
 export async function listAccountInfo(
   params: {
     // query
@@ -464,15 +464,35 @@ export async function listAccountInfo(
   sort: object,
   options?: { [key: string]: any },
 ) {
-  return request('/api/accountInfo/list', {
-    method: 'GET',
-    params: {
-      ...params,
-      sortKey: sort ? Object.keys(sort)[0] : '',
-      sortOrder: sort ? Object.values(sort)[0] : '',
-    },
-    ...(options || {}),
-  });
+  try {
+    const response = await request<API.Response<{
+      list: API.AccountInfo[];
+      total: number;
+    }>>('/api/accountInfo/list', {
+      method: 'GET',
+      params: {
+        ...params,
+        sortKey: sort ? Object.keys(sort)[0] : '',
+        sortOrder: sort ? Object.values(sort)[0] : '',
+      },
+      ...(options || {}),
+    });
+    
+    // 打印响应结果以进行调试
+    console.log('账户列表API返回数据:', response);
+    
+    // 确保返回正确的数据结构
+    return {
+      data: response.data,
+      success: response.success || true,
+    };
+  } catch (error) {
+    console.error('获取账户列表出错:', error);
+    return {
+      data: { list: [], total: 0 },
+      success: false,
+    };
+  }
 }
 
 /** 更新账户状态 POST /api/accountInfo/status */

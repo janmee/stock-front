@@ -4,6 +4,8 @@ import { ProTable } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
 import { Button, Modal, Form, Input, Radio, InputNumber, message, Checkbox, Divider, Table, Space } from 'antd';
 import { listAccountInfo, batchTrade, listOrderInfo, cancelOrder, queryStockPosition } from '@/services/ant-design-pro/api';
+import { FormattedMessage, useIntl } from '@umijs/max';
+import { getLocale } from '@umijs/max';
 
 interface TradeFormData {
   code: string;
@@ -28,21 +30,39 @@ const Trade: React.FC = () => {
   const [form] = Form.useForm();
   const actionRef = useRef<ActionType>();
 
+  // 获取当前语言环境
+  const currentLocale = getLocale();
+  const intl = useIntl();
+
+  // 根据当前语言环境选择货币符号
+  const getCurrencySymbol = () => {
+    return currentLocale === 'zh-CN' ? '¥' : '$';
+  };
+
+  // 根据当前语言环境选择金额格式
+  const getMoneyLocale = () => {
+    return currentLocale === 'zh-CN' ? 'zh-CN' : 'en-US';
+  };
+
   const columns: ProColumns<API.AccountInfo>[] = [
     {
-      title: '牛牛号',
+      title: <FormattedMessage id="pages.trade.account.id" defaultMessage="Account ID" />,
       dataIndex: 'account',
-      width: 180,
+      width: 140,
+      fixed: 'left',
+      sorter: true,
+      hideInSearch: true,
     },
     {
-      title: '账户别名',
+      title: <FormattedMessage id="pages.trade.account.name" defaultMessage="Account Name" />,
       dataIndex: 'name',
-      width: 180,
+      width: 140,
+      hideInSearch: true,
     },
     {
-      title: '可用资金',
+      title: <FormattedMessage id="pages.trade.account.availableAmount" defaultMessage="Available Funds" />,
       dataIndex: 'availableAmount',
-      width: 180,
+      width: 150,
       valueType: {
         type: 'money',
         locale: 'en-US',
@@ -50,9 +70,9 @@ const Trade: React.FC = () => {
       hideInSearch: true,
     },
     {
-      title: '总资金',
+      title: <FormattedMessage id="pages.trade.account.totalAmount" defaultMessage="Total Funds" />,
       dataIndex: 'totalAmount',
-      width: 180,
+      width: 150,
       valueType: {
         type: 'money',
         locale: 'en-US',
@@ -60,9 +80,9 @@ const Trade: React.FC = () => {
       hideInSearch: true,
     },
     {
-      title: '证券市值',
+      title: <FormattedMessage id="pages.searchTable.marketValue" defaultMessage="Market Value" />,
       dataIndex: 'marketVal',
-      width: 180,
+      width: 150,
       valueType: {
         type: 'money',
         locale: 'en-US',
@@ -70,9 +90,9 @@ const Trade: React.FC = () => {
       hideInSearch: true,
     },
     {
-      title: '最大购买力',
+      title: <FormattedMessage id="pages.searchTable.maxBuyingPower" defaultMessage="Max Buying Power" />,
       dataIndex: 'power',
-      width: 180,
+      width: 150,
       valueType: {
         type: 'money',
         locale: 'en-US',
@@ -80,21 +100,21 @@ const Trade: React.FC = () => {
       hideInSearch: true,
     },
     {
-      title: '风险等级',
+      title: <FormattedMessage id="pages.searchTable.riskLevel" defaultMessage="Risk Level" />,
       dataIndex: 'riskLevel',
       width: 120,
       hideInSearch: true,
       valueEnum: {
-        '-1': { text: '未知', status: 'Default' },
-        '0': { text: '安全', status: 'Success' },
-        '1': { text: '预警', status: 'Warning' },
-        '2': { text: '危险', status: 'Error' },
-        '3': { text: '绝对安全', status: 'Success' },
-        '4': { text: '危险', status: 'Error' },
+        '-1': { text: <FormattedMessage id="pages.trade.risk.unknown" defaultMessage="Unknown" />, status: 'Default' },
+        '0': { text: <FormattedMessage id="pages.trade.risk.safe" defaultMessage="Safe" />, status: 'Success' },
+        '1': { text: <FormattedMessage id="pages.trade.risk.warning" defaultMessage="Warning" />, status: 'Warning' },
+        '2': { text: <FormattedMessage id="pages.trade.risk.danger" defaultMessage="Danger" />, status: 'Error' },
+        '3': { text: <FormattedMessage id="pages.trade.risk.absolutelySafe" defaultMessage="Absolutely Safe" />, status: 'Success' },
+        '4': { text: <FormattedMessage id="pages.trade.risk.danger" defaultMessage="Danger" />, status: 'Error' },
       },
     },
     {
-      title: '操作',
+      title: <FormattedMessage id="pages.searchTable.titleOption" defaultMessage="Option" />,
       dataIndex: 'option',
       valueType: 'option',
       width: 120,
@@ -106,7 +126,7 @@ const Trade: React.FC = () => {
           type="link"
           onClick={() => handleViewPosition(record.account)}
         >
-          查看持仓
+          <FormattedMessage id="pages.trade.viewPosition" defaultMessage="View Position" />
         </Button>
       ],
     },
@@ -114,76 +134,80 @@ const Trade: React.FC = () => {
 
   const orderColumns: ProColumns[] = [
     {
-      title: '账号名称',
+      title: <FormattedMessage id="pages.searchTable.accountName" defaultMessage="Account Name" />,
       dataIndex: 'accountName',
       valueType: 'textarea',
       sorter: true,
     },
     {
-      title: '股票代码',
+      title: <FormattedMessage id="pages.searchTable.code" defaultMessage="Stock Code" />,
       dataIndex: 'code',
       valueType: 'textarea',
       sorter: true,
     },
     {
-      title: '订单来源',
+      title: <FormattedMessage id="pages.searchTable.systemType" defaultMessage="Order Source" />,
       dataIndex: 'systemType',
       valueType: 'textarea',
       sorter: true,
       hideInSearch: true,
     },
     {
-      title: '买入方向',
+      title: <FormattedMessage id="pages.searchTable.trdSide" defaultMessage="Buy Direction" />,
       dataIndex: 'trdSide',
       valueType: 'textarea',
       hideInSearch: true,
       valueEnum: {
-        1: { text: '买入', status: 'Success' },
-        2: { text: '卖出', status: 'Error' },
+        1: { text: <FormattedMessage id="pages.trade.action.buy" defaultMessage="Buy" />, status: 'Success' },
+        2: { text: <FormattedMessage id="pages.trade.action.sell" defaultMessage="Sell" />, status: 'Error' },
       },
     },
     {
-      title: '订单类型',
+      title: <FormattedMessage id="pages.searchTable.orderType" defaultMessage="Order Type" />,
       dataIndex: 'orderType',
       valueType: 'textarea',
       hideInSearch: true,
       valueEnum: {
-        1: { text: '限价单' },
-        2: { text: '市价单' },
+        1: { text: <FormattedMessage id="pages.trade.orderType.limit" defaultMessage="Limit Order" /> },
+        2: { text: <FormattedMessage id="pages.trade.orderType.market" defaultMessage="Market Order" /> },
       },
     },
     {
-      title: '订单数量',
+      title: <FormattedMessage id="pages.searchTable.number" defaultMessage="Order Quantity" />,
       dataIndex: 'number',
       valueType: 'textarea',
       hideInSearch: true,
     },
     {
-      title: '股票单价',
+      title: <FormattedMessage id="pages.searchTable.price" defaultMessage="Stock Price" />,
       dataIndex: 'price',
       width: 100,
       render: (_, record) => {
-        return record.orderType === 2 ? '市价' : record.price;
+        return record.orderType === 2 ? 
+          <FormattedMessage id="pages.order.marketPrice" defaultMessage="Market Price" /> : 
+          record.price;
       },
       hideInSearch: true,
     },
     {
-      title: '订单金额',
+      title: <FormattedMessage id="pages.searchTable.amount" defaultMessage="Order Amount" />,
       dataIndex: 'amount',
       width: 120,
       hideInSearch: true,
       render: (_, record) => {
-        return record.orderType === 2 ? '市价' : record.amount;
+        return record.orderType === 2 ? 
+          <FormattedMessage id="pages.order.marketPrice" defaultMessage="Market Price" /> : 
+          record.amount;
       },
     },
     {
-      title: '成交数量',
+      title: <FormattedMessage id="pages.searchTable.fillQty" defaultMessage="Fill Quantity" />,
       dataIndex: 'fillQty',
       valueType: 'textarea',
       hideInSearch: true,
     },
     {
-      title: '成交均价',
+      title: <FormattedMessage id="pages.searchTable.fillAvgPrice" defaultMessage="Average Fill Price" />,
       dataIndex: 'fillAvgPrice',
       valueType: {
         type: 'money',
@@ -192,28 +216,28 @@ const Trade: React.FC = () => {
       hideInSearch: true,
     },
     {
-      title: '创建时间',
+      title: <FormattedMessage id="pages.searchTable.createTime" defaultMessage="Creation Time" />,
       dataIndex: 'createTime',
       valueType: 'textarea',
       hideInSearch: true,
       sorter: true,
     },
     {
-      title: '订单状态',
+      title: <FormattedMessage id="pages.searchTable.status" defaultMessage="Status" />,
       dataIndex: 'status',
       hideInSearch: true,
       sorter: true,
       valueEnum: {
-        0: { text: '未提交', status: 'Default' },
-        1: { text: '待执行', status: 'Processing' },
-        2: { text: '部分成交', status: 'Processing' },
-        3: { text: '全部成交', status: 'Success' },
-        4: { text: '已失效', status: 'Error' },
-        5: { text: '已撤单', status: 'Warning' },
+        0: { text: <FormattedMessage id="pages.trade.status.notSubmitted" defaultMessage="Not Submitted" />, status: 'Default' },
+        1: { text: <FormattedMessage id="pages.trade.status.pending" defaultMessage="Pending" />, status: 'Processing' },
+        2: { text: <FormattedMessage id="pages.trade.status.partiallyFilled" defaultMessage="Partially Filled" />, status: 'Processing' },
+        3: { text: <FormattedMessage id="pages.trade.status.filled" defaultMessage="Filled" />, status: 'Success' },
+        4: { text: <FormattedMessage id="pages.trade.status.invalid" defaultMessage="Invalid" />, status: 'Error' },
+        5: { text: <FormattedMessage id="pages.trade.status.canceled" defaultMessage="Canceled" />, status: 'Warning' },
       },
     },
     {
-      title: '操作',
+      title: <FormattedMessage id="pages.searchTable.titleOption" defaultMessage="Option" />,
       dataIndex: 'option',
       valueType: 'option',
       render: (_, record) => {
@@ -228,7 +252,7 @@ const Trade: React.FC = () => {
             danger
             onClick={() => handleCancelOrder(record.orderNo)}
           >
-            撤单
+            <FormattedMessage id="pages.order.cancel" defaultMessage="Cancel" />
           </Button>
         ] : null;
       },
@@ -237,9 +261,14 @@ const Trade: React.FC = () => {
 
   // 处理撤单操作
   const handleCancelOrder = async (orderNo: string) => {
+    const intl = useIntl();
+    
     Modal.confirm({
-      title: '确认撤单',
-      content: `确定要撤销订单 ${orderNo} 吗？`,
+      title: intl.formatMessage({ id: 'pages.trade.confirmCancel.title', defaultMessage: 'Confirm Cancellation' }),
+      content: intl.formatMessage(
+        { id: 'pages.trade.confirmCancel.content', defaultMessage: 'Are you sure you want to cancel order {orderNo}?' },
+        { orderNo }
+      ),
       onOk: async () => {
         try {
           const response = await cancelOrder({
@@ -247,18 +276,19 @@ const Trade: React.FC = () => {
           });
           
           if (response.data === true) {
-            message.success('撤单成功');
+            message.success(intl.formatMessage({ id: 'pages.trade.cancelSuccess', defaultMessage: 'Order canceled successfully' }));
             // 刷新表格数据
             actionRef.current?.reload();
           } else {
-            const errorMsg = response?.errorMessage || response?.message || '撤单失败';
+            const errorMsg = response?.errorMessage || response?.message || 
+              intl.formatMessage({ id: 'pages.trade.cancelFailed', defaultMessage: 'Failed to cancel order' });
             message.error(errorMsg);
           }
         } catch (error) {
-          message.error('撤单请求失败');
+          message.error(intl.formatMessage({ id: 'pages.trade.cancelRequestFailed', defaultMessage: 'Cancel request failed' }));
           console.error('撤单错误:', error);
         }
-      }
+      },
     });
   };
   
@@ -344,50 +374,52 @@ const Trade: React.FC = () => {
 
   const positionColumns = [
     {
-      title: '股票代码',
+      title: <FormattedMessage id="pages.searchTable.code" defaultMessage="Stock Code" />,
       dataIndex: 'code',
       key: 'code',
     },
     {
-      title: '持仓方向',
+      title: <FormattedMessage id="pages.trade.position.direction" defaultMessage="Position Direction" />,
       dataIndex: 'positionSide',
       key: 'positionSide',
       render: (val: number) => {
         const color = val === 0 ? '#52c41a' : '#ff4d4f';
-        const text = val === 0 ? '多仓' : '空仓';
+        const text = val === 0 ? 
+          intl.formatMessage({ id: 'pages.trade.position.long', defaultMessage: 'Long' }) : 
+          intl.formatMessage({ id: 'pages.trade.position.short', defaultMessage: 'Short' });
         return <span style={{ color }}>{text}</span>;
       },
     },
     {
-      title: '持仓数量',
+      title: <FormattedMessage id="pages.trade.position.quantity" defaultMessage="Position Quantity" />,
       dataIndex: 'qty',
       key: 'qty',
     },
     {
-      title: '可用数量',
+      title: <FormattedMessage id="pages.trade.position.availableQty" defaultMessage="Available Quantity" />,
       dataIndex: 'canSellQty',
       key: 'canSellQty',
     },
     {
-      title: '成本价',
+      title: <FormattedMessage id="pages.trade.position.costPrice" defaultMessage="Cost Price" />,
       dataIndex: 'costPrice',
       key: 'costPrice',
       render: (val: number) => val?.toFixed(2),
     },
     {
-      title: '当前价',
+      title: <FormattedMessage id="pages.trade.position.currentPrice" defaultMessage="Current Price" />,
       dataIndex: 'price',
       key: 'price',
       render: (val: number) => val?.toFixed(2),
     },
     {
-      title: '持仓市值',
+      title: <FormattedMessage id="pages.trade.position.marketValue" defaultMessage="Market Value" />,
       dataIndex: 'val',
       key: 'val',
       render: (val: number) => val?.toFixed(2),
     },
     {
-      title: '盈亏比例',
+      title: <FormattedMessage id="pages.trade.position.plRatio" defaultMessage="P/L Ratio" />,
       dataIndex: 'plRatio',
       key: 'plRatio',
       render: (val: number) => {
@@ -396,7 +428,7 @@ const Trade: React.FC = () => {
       },
     },
     {
-      title: '操作',
+      title: <FormattedMessage id="pages.searchTable.titleOption" defaultMessage="Option" />,
       key: 'action',
       render: (_: unknown, record: API.PositionObj) => (
         <Space>
@@ -405,7 +437,7 @@ const Trade: React.FC = () => {
             size="small"
             onClick={() => handlePositionTrade('buy', record.code)}
           >
-            买入
+            <FormattedMessage id="pages.trade.action.buy" defaultMessage="Buy" />
           </Button>
           <Button
             type="primary"
@@ -413,7 +445,7 @@ const Trade: React.FC = () => {
             size="small"
             onClick={() => handlePositionTrade('sell', record.code)}
           >
-            卖出
+            <FormattedMessage id="pages.trade.action.sell" defaultMessage="Sell" />
           </Button>
         </Space>
       ),
@@ -484,7 +516,13 @@ const Trade: React.FC = () => {
       />
 
       <Modal
-        title={`${tradeType === 'buy' ? '买入' : '卖出'}交易`}
+        title={intl.formatMessage(
+          { id: 'pages.trade.form.title', defaultMessage: '{type} Order' },
+          { type: tradeType === 'buy' ? 
+              intl.formatMessage({ id: 'pages.trade.action.buy', defaultMessage: 'Buy' }) : 
+              intl.formatMessage({ id: 'pages.trade.action.sell', defaultMessage: 'Sell' }) 
+          }
+        )}
         open={tradeModalVisible}
         onCancel={() => {
           setTradeModalVisible(false);
@@ -525,35 +563,35 @@ const Trade: React.FC = () => {
         >
           <Form.Item
             name="code"
-            label="股票代码"
-            rules={[{ required: true, message: '请输入股票代码' }]}
+            label={intl.formatMessage({ id: 'pages.trade.form.stockCode', defaultMessage: 'Stock Code' })}
+            rules={[{ required: true, message: intl.formatMessage({ id: 'pages.trade.form.stockCodeRequired', defaultMessage: 'Please input stock code' }) }]}
           >
             <Input 
-              placeholder="请输入股票代码" 
+              placeholder={intl.formatMessage({ id: 'pages.trade.form.stockCodePlaceholder', defaultMessage: 'Please input stock code' })}
               disabled={!!currentAccount}  // 从持仓进入时禁用输入
             />
           </Form.Item>
 
           <Form.Item
             name="qty"
-            label="交易数量"
-            rules={[{ required: true, message: '请输入交易数量' }]}
+            label={intl.formatMessage({ id: 'pages.trade.form.quantity', defaultMessage: 'Quantity' })}
+            rules={[{ required: true, message: intl.formatMessage({ id: 'pages.trade.form.quantityRequired', defaultMessage: 'Please input quantity' }) }]}
           >
             <InputNumber
               min={1}
-              placeholder="请输入交易数量"
+              placeholder={intl.formatMessage({ id: 'pages.trade.form.quantityPlaceholder', defaultMessage: 'Please input quantity' })}
               style={{ width: '100%' }}
             />
           </Form.Item>
 
           <Form.Item
             name="orderType"
-            label="订单类型"
+            label={intl.formatMessage({ id: 'pages.trade.form.orderType', defaultMessage: 'Order Type' })}
             initialValue="market"
           >
             <Radio.Group>
-              <Radio value="market">市价单</Radio>
-              <Radio value="limit">限价单</Radio>
+              <Radio value="market">{intl.formatMessage({ id: 'pages.trade.orderType.market', defaultMessage: 'Market Order' })}</Radio>
+              <Radio value="limit">{intl.formatMessage({ id: 'pages.trade.orderType.limit', defaultMessage: 'Limit Order' })}</Radio>
             </Radio.Group>
           </Form.Item>
 
@@ -562,7 +600,7 @@ const Trade: React.FC = () => {
             valuePropName="checked"
             initialValue={false}
           >
-            <Checkbox>撤单有效</Checkbox>
+            <Checkbox>{intl.formatMessage({ id: 'pages.trade.form.timeForce', defaultMessage: 'Time In Force' })}</Checkbox>
           </Form.Item>
 
           <Form.Item
@@ -670,14 +708,24 @@ const Trade: React.FC = () => {
 
           <Form.Item>
             <Button type="primary" htmlType="submit" block>
-              确认{tradeType === 'buy' ? '买入' : '卖出'}
+              {intl.formatMessage(
+                { id: 'pages.trade.form.submit', defaultMessage: 'Confirm {type}' },
+                { 
+                  type: tradeType === 'buy' ? 
+                    intl.formatMessage({ id: 'pages.trade.action.buy', defaultMessage: 'Buy' }) : 
+                    intl.formatMessage({ id: 'pages.trade.action.sell', defaultMessage: 'Sell' }) 
+                }
+              )}
             </Button>
           </Form.Item>
         </Form>
       </Modal>
 
       <Modal
-        title={`牛牛号${currentAccount}持仓信息`}
+        title={intl.formatMessage(
+          { id: 'pages.trade.position.title', defaultMessage: 'Position Information of {account}' },
+          { account: currentAccount }
+        )}
         open={positionModalVisible}
         onCancel={() => {
           setPositionModalVisible(false);
@@ -694,6 +742,9 @@ const Trade: React.FC = () => {
           rowKey="code"
           loading={positionLoading}
           pagination={false}
+          locale={{
+            emptyText: intl.formatMessage({ id: 'pages.trade.position.empty', defaultMessage: 'No position data' })
+          }}
         />
       </Modal>
     </PageContainer>

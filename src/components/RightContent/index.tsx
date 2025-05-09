@@ -21,6 +21,14 @@ export const SelectLang = () => {
         padding: 4,
       }}
       onItemClick={({ key }) => handleLocaleChange(key)}
+      shortName={true}
+      // 只显示中文和英文
+      postLocalesData={(oldLangMenu) => {
+        // 只保留中文和英文
+        return oldLangMenu.filter(
+          (lang) => lang.key === 'zh-CN' || lang.key === 'en-US'
+        );
+      }}
     />
   );
 };

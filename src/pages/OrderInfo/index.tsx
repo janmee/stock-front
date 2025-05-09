@@ -13,6 +13,7 @@ import {FormattedMessage, useIntl} from '@umijs/max';
 import {Button, Drawer, Modal, message} from 'antd';
 import React, {useRef, useState} from 'react';
 import {Area} from "@ant-design/charts";
+import { getLocale } from '@umijs/max';
 
 const TableList: React.FC = () => {
 
@@ -32,12 +33,21 @@ const TableList: React.FC = () => {
    * @zh-CN 国际化配置
    * */
   const intl = useIntl();
+  const currentLocale = getLocale();
+
+  // 获取当前语言环境的金额格式
+  const getMoneyLocale = () => {
+    return currentLocale === 'zh-CN' ? 'zh-CN' : 'en-US';
+  };
 
   // 处理撤单操作
   const handleCancelOrder = async (orderNo: string) => {
     Modal.confirm({
-      title: '确认撤单',
-      content: `确定要撤销订单 ${orderNo} 吗？`,
+      title: intl.formatMessage({ id: 'pages.trade.confirmCancel.title', defaultMessage: 'Confirm Cancellation' }),
+      content: intl.formatMessage(
+        { id: 'pages.trade.confirmCancel.content', defaultMessage: 'Are you sure you want to cancel order {orderNo}?' },
+        { orderNo }
+      ),
       onOk: async () => {
         try {
           const response = await cancelOrder({
@@ -45,15 +55,16 @@ const TableList: React.FC = () => {
           });
           
           if (response.data === true) {
-            message.success('撤单成功');
+            message.success(intl.formatMessage({ id: 'pages.trade.cancelSuccess', defaultMessage: 'Order canceled successfully' }));
             // 刷新表格数据
             actionRef.current?.reload();
           } else {
-            const errorMsg = response?.errorMessage || response?.message || '撤单失败';
+            const errorMsg = response?.errorMessage || response?.message || 
+              intl.formatMessage({ id: 'pages.trade.cancelFailed', defaultMessage: 'Failed to cancel order' });
             message.error(errorMsg);
           }
         } catch (error) {
-          message.error('撤单请求失败');
+          message.error(intl.formatMessage({ id: 'pages.trade.cancelRequestFailed', defaultMessage: 'Cancel request failed' }));
           console.error('撤单错误:', error);
         }
       }
@@ -62,87 +73,91 @@ const TableList: React.FC = () => {
 
   const columns: ProColumns[] = [
     {
-      title: '账号名称',
+      title: <FormattedMessage id="pages.searchTable.accountName" defaultMessage="Account Name" />,
       dataIndex: 'accountName',
       valueType: 'textarea',
       sorter: true,
       hideInSearch: false,
     },
     {
-      title: '股票代码',
+      title: <FormattedMessage id="pages.searchTable.code" defaultMessage="Stock Code" />,
       dataIndex: 'code',
       valueType: 'textarea',
       sorter: true,
     },
     {
-      title: '订单来源',
+      title: <FormattedMessage id="pages.searchTable.systemType" defaultMessage="Order Source" />,
       dataIndex: 'systemType',
       valueType: 'select',
       sorter: true,
       hideInSearch: false,
       valueEnum: {
-        '0': { text: '定投' },
-        '1': { text: '跟单' },
-        '2': { text: '富途同步' },
-        '3': { text: '大盘下跌阈值触发' },
-        '4': { text: '人工下单' },
-        '5': { text: '人工止盈单' },
-        '6': { text: '定投止盈单' },
-        '7': { text: '分时平均线策略' },
-        '8': { text: '策略止盈单' },
+        '0': { text: <FormattedMessage id="pages.order.source.dingtou" defaultMessage="Investment Plan" /> },
+        '1': { text: <FormattedMessage id="pages.order.source.following" defaultMessage="Follow Order" /> },
+        '2': { text: <FormattedMessage id="pages.order.source.futu" defaultMessage="Futu Sync" /> },
+        '3': { text: <FormattedMessage id="pages.order.source.marketDrop" defaultMessage="Market Drop Trigger" /> },
+        '4': { text: <FormattedMessage id="pages.order.source.manual" defaultMessage="Manual Order" /> },
+        '5': { text: <FormattedMessage id="pages.order.source.manualProfit" defaultMessage="Manual Profit Order" /> },
+        '6': { text: <FormattedMessage id="pages.order.source.dingtouProfit" defaultMessage="Investment Profit Order" /> },
+        '7': { text: <FormattedMessage id="pages.order.source.maStrategy" defaultMessage="MA Strategy" /> },
+        '8': { text: <FormattedMessage id="pages.order.source.strategyProfit" defaultMessage="Strategy Profit Order" /> },
       }
     },
     {
-      title: '买入方向',
+      title: <FormattedMessage id="pages.searchTable.trdSide" defaultMessage="Buy Direction" />,
       dataIndex: 'trdSide',
       valueType: 'textarea',
       hideInSearch: true,
     },
     {
-      title: '订单类型',
+      title: <FormattedMessage id="pages.searchTable.orderType" defaultMessage="Order Type" />,
       dataIndex: 'orderType',
       valueType: 'textarea',
       hideInSearch: true,
     },
     {
-      title: '订单编号',
+      title: <FormattedMessage id="pages.searchTable.orderNo" defaultMessage="Order Number" />,
       dataIndex: 'orderNo',
       valueType: 'textarea',
       sorter: true,
       hideInSearch: true,
     },
     {
-      title: '订单数量',
+      title: <FormattedMessage id="pages.searchTable.number" defaultMessage="Order Quantity" />,
       dataIndex: 'number',
       valueType: 'textarea',
       hideInSearch: true,
     },
     {
-      title: '股票单价',
+      title: <FormattedMessage id="pages.searchTable.price" defaultMessage="Stock Price" />,
       dataIndex: 'price',
       width: 100,
       render: (_, record) => {
-        return record.orderType === '市价单' ? '市价' : record.price;
+        return record.orderType === '市价单' ? 
+          <FormattedMessage id="pages.order.marketPrice" defaultMessage="Market Price" /> : 
+          record.price;
       },
       hideInSearch: true,
     },
     {
-      title: '订单金额',
+      title: <FormattedMessage id="pages.searchTable.amount" defaultMessage="Order Amount" />,
       dataIndex: 'amount',
       width: 120,
       render: (_, record) => {
-        return record.orderType === '市价单' ? '市价' : record.amount;
+        return record.orderType === '市价单' ? 
+          <FormattedMessage id="pages.order.marketPrice" defaultMessage="Market Price" /> : 
+          record.amount;
       },
       hideInSearch: true,
     },
     {
-      title: '成交数量',
+      title: <FormattedMessage id="pages.searchTable.fillQty" defaultMessage="Fill Quantity" />,
       dataIndex: 'fillQty',
       valueType: 'textarea',
       hideInSearch: true,
     },
     {
-      title: '成交均价',
+      title: <FormattedMessage id="pages.searchTable.fillAvgPrice" defaultMessage="Average Fill Price" />,
       dataIndex: 'fillAvgPrice',
       valueType: {
         type: 'money',
@@ -151,30 +166,30 @@ const TableList: React.FC = () => {
       hideInSearch: true,
     },
     {
-      title: '创建时间',
+      title: <FormattedMessage id="pages.searchTable.createTime" defaultMessage="Creation Time" />,
       dataIndex: 'createTime',
       valueType: 'textarea',
       hideInSearch: true,
       sorter: true,
     },
     {
-      title: '订单状态',
+      title: <FormattedMessage id="pages.searchTable.status" defaultMessage="Status" />,
       dataIndex: 'status',
       hideInSearch: true,
       sorter: true,
       valueEnum: {
         1: {
-          text: '已成交',
+          text: <FormattedMessage id="pages.order.status.filled" defaultMessage="Filled" />,
           status: 'Success',
         },
         0: {
-          text: '未成交',
+          text: <FormattedMessage id="pages.order.status.unfilled" defaultMessage="Unfilled" />,
           status: 'Error',
         },
       },
     },
     {
-      title: '操作',
+      title: <FormattedMessage id="pages.searchTable.titleOption" defaultMessage="Option" />,
       dataIndex: 'option',
       valueType: 'option',
       render: (_, record) => {
@@ -189,7 +204,7 @@ const TableList: React.FC = () => {
             danger
             onClick={() => handleCancelOrder(record.orderNo)}
           >
-            撤单
+            <FormattedMessage id="pages.order.cancel" defaultMessage="Cancel" />
           </Button>
         ] : null;
       },
