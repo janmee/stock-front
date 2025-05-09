@@ -86,4 +86,12 @@ export default {
   'dashboard.select.account': '选择账户',
   'dashboard.date.start': '开始日期',
   'dashboard.date.end': '结束日期',
+  
+  // Dashboard顶部专业文案
+  'dashboard.banner.title': '美股投资 · 智能量化交易平台',
+  'dashboard.banner.subtitle': '5×24小时量化交易，多策略实时执行，全自动风险控制，提升投资收益',
+  'dashboard.banner.feature.1': '专业策略模型 · 基于海量数据分析',
+  'dashboard.banner.feature.2': '智能风控系统 · 动态调整持仓比例',
+  'dashboard.banner.feature.3': '全球资产配置 · 低相关性多元投资',
+  'dashboard.banner.action': '开始智能投资之旅',
 };

@@ -428,14 +428,77 @@ const DashboardList: React.FC = () => {
 
   return (
     <PageContainer>
+      <div 
+        style={{ 
+          marginBottom: 16, 
+          padding: '24px', 
+          borderRadius: '4px',
+          backgroundImage: 'url(/images/dashboard-bg.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          color: '#fff',
+          textShadow: '0 1px 2px rgba(0, 0, 0, 0.6)',
+          minHeight: '350px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center'
+        }}
+      >
+        <div style={{ maxWidth: '60%', paddingLeft: '20px' }}>
+          <h1 style={{ color: '#fff', fontSize: '28px', marginBottom: '12px', fontWeight: 'bold' }}>
+            {intl.formatMessage({ id: 'dashboard.banner.title' })}
+          </h1>
+          <h3 style={{ color: '#fff', fontSize: '18px', marginBottom: '24px', opacity: 0.9 }}>
+            {intl.formatMessage({ id: 'dashboard.banner.subtitle' })}
+          </h3>
+          
+          <div style={{ marginBottom: '6px', display: 'flex', alignItems: 'center' }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#4caf50', marginRight: '12px' }}></div>
+            <span style={{ fontSize: '16px' }}>{intl.formatMessage({ id: 'dashboard.banner.feature.1' })}</span>
+          </div>
+          
+          <div style={{ marginBottom: '6px', display: 'flex', alignItems: 'center' }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#2196f3', marginRight: '12px' }}></div>
+            <span style={{ fontSize: '16px' }}>{intl.formatMessage({ id: 'dashboard.banner.feature.2' })}</span>
+          </div>
+          
+          <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center' }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff9800', marginRight: '12px' }}></div>
+            <span style={{ fontSize: '16px' }}>{intl.formatMessage({ id: 'dashboard.banner.feature.3' })}</span>
+          </div>
+          
+          <button 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.2)', 
+              border: '1px solid rgba(255, 255, 255, 0.4)', 
+              color: 'white', 
+              padding: '8px 20px', 
+              borderRadius: '4px', 
+              fontSize: '15px',
+              cursor: 'pointer',
+              backdropFilter: 'blur(5px)',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+            }}
+          >
+            {intl.formatMessage({ id: 'dashboard.banner.action' })}
+          </button>
+        </div>
+      </div>
+      
+      {renderStatsCard()}
+      
       <div style={{ marginBottom: 16, padding: '16px 24px', background: '#f5f5f5', borderRadius: '4px' }}>
         <p style={{ marginBottom: 8, fontWeight: 'bold' }}>{intl.formatMessage({ id: 'dashboard.data.explanation' })}</p>
         <p style={{ marginBottom: 8, paddingLeft: 16 }}>{intl.formatMessage({ id: 'dashboard.data.explanation.1' })}</p>
         <p style={{ marginBottom: 8, paddingLeft: 16 }}>{intl.formatMessage({ id: 'dashboard.data.explanation.2' })}</p>
         <p style={{ marginBottom: 8, paddingLeft: 16 }}>{intl.formatMessage({ id: 'dashboard.data.explanation.3' })}</p>
       </div>
-      
-      {renderStatsCard()}
       
       <Card 
         title={intl.formatMessage({ id: 'dashboard.profit.trend' })}

@@ -87,4 +87,12 @@ export default {
   'dashboard.select.account': 'Select Account',
   'dashboard.date.start': 'Start Date',
   'dashboard.date.end': 'End Date',
+  
+  // Dashboard banner professional content
+  'dashboard.banner.title': 'US Stock Investment · Intelligent Quantitative Trading Platform',
+  'dashboard.banner.subtitle': '5×24 Hours Quantitative Trading, Multi-Strategy Real-Time Execution, Automated Risk Control',
+  'dashboard.banner.feature.1': 'Professional Strategy Models · Based on Massive Data Analysis',
+  'dashboard.banner.feature.2': 'Intelligent Risk Management · Dynamic Position Adjustment',
+  'dashboard.banner.feature.3': 'Global Asset Allocation · Low Correlation Diversified Investment',
+  'dashboard.banner.action': 'Start Your Smart Investment Journey',
 };
