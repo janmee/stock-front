@@ -1,19 +1,22 @@
 export interface Dingtou {
   id?: number;
   account: string;
+  accountAlias?: string;
   code: string;
-  startTime: string;
-  lastTime?: string;
+  startTime?: Date;
+  lastTime?: Date;
   alreadyTimes?: number;
-  allTimes: number;
-  rate: number;
-  amount: number;
-  enable: boolean;
-  createTime?: string;
-  updateTime?: string;
-  sellPercentage: number;  // 盈利百分比卖出，0为不卖出
-  buyAfterSellPercentage: number;  // 卖出后，下跌多少百分比后，再次买入，0为不买入
-  buyOnIndexDown: boolean;  // 是否在大盘下跌时买入
+  allTimes?: number;
+  rate?: number;
+  amount?: number;
+  enable?: boolean;
+  sellPercentage?: number;
+  buyAfterSellPercentage?: number;
+  weekDay?: number;
+  weekInterval?: number;
+  buyOnIndexDown?: boolean;
+  createTime?: Date;
+  updateTime?: Date;
 }
 
 export interface DingtouQueryParams {

@@ -1,4 +1,4 @@
-import {createDingtou, deleteDingtou, fetchDingtouList, updateDingtou, updateDingtouStatus} from '@/services/ant-design-pro/api';
+import {createDingtou, deleteDingtou, fetchDingtouList, updateDingtou, updateDingtouStatus, batchCreateDingtou} from '@/services/ant-design-pro/api';
 import type {ActionType, ProColumns} from '@ant-design/pro-components';
 import {
   ModalForm,
@@ -12,7 +12,8 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import {useIntl} from '@umijs/max';
-import {Button, Form, InputNumber, Modal, Switch, message} from 'antd';
+import {Button, Form, InputNumber, Modal, Switch, message, Checkbox, Space} from 'antd';
+import type { CheckboxChangeEvent } from 'antd/es/checkbox';
 import React, {useRef, useState, useCallback} from 'react';
 import { Dingtou } from '@/models/dingtou';
 import { request } from 'umi';
@@ -38,6 +39,7 @@ const DingtouList: React.FC = () => {
   const [accountPage, setAccountPage] = useState(1);
   const [accountTotal, setAccountTotal] = useState(0);
   const [searchName, setSearchName] = useState('');
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
 
   /**
    * 国际化配置
@@ -97,6 +99,12 @@ const DingtouList: React.FC = () => {
         fetchAccounts(nextPage, searchName);
       }
     }
+  };
+
+  // 处理账户选择，自动填充账号别名
+  const handleAccountSelect = (value: string, option: any) => {
+    // 旧的方法不再需要，因为账号别名由后端自动设置
+    // 但是我们保留方法，以防将来需要在选择账号时执行其他操作
   };
 
   // 初始化时获取账户列表
@@ -165,17 +173,18 @@ const DingtouList: React.FC = () => {
   const handleUpdateDingtou = async (values: any) => {
     if (!currentDingtou) return false;
     
-    // 验证定投比例和固定金额不能同时为空
-    // if ((values.rate === undefined || values.rate === null || values.rate === 0) &&
-    //     (values.amount === undefined || values.amount === null || values.amount === 0)) {
-    //   message.error('每次定投比例和固定金额不能同时为空');
-    //   return false;
-    // }
+    // 不需要传递accountAlias字段，由后端自动设置
+    const { accountAlias, ...submitValues } = values;
+    
+    // 确保股票代码为大写
+    if (submitValues.code) {
+      submitValues.code = submitValues.code.toUpperCase();
+    }
     
     try {
       const response = await updateDingtou({
         id: currentDingtou.id,
-        ...values
+        ...submitValues
       });
       
       if (response && response.data === true) {
@@ -199,15 +208,16 @@ const DingtouList: React.FC = () => {
 
   // 处理创建定投
   const handleCreateDingtou = async (values: any) => {
-    // 验证定投比例和固定金额不能同时为空
-    // if ((values.rate === undefined || values.rate === null || values.rate === 0) &&
-    //     (values.amount === undefined || values.amount === null || values.amount === 0)) {
-    //   message.error('每次定投比例和固定金额不能同时为空');
-    //   return false;
-    // }
+    // 不需要传递accountAlias字段，由后端自动设置
+    const { accountAlias, ...submitValues } = values;
+    
+    // 确保股票代码为大写
+    if (submitValues.code) {
+      submitValues.code = submitValues.code.toUpperCase();
+    }
     
     try {
-      const response = await createDingtou(values);
+      const response = await createDingtou(submitValues);
       
       if (response && response.data === true) {
         message.success('定投计划创建成功');
@@ -228,12 +238,128 @@ const DingtouList: React.FC = () => {
     }
   };
 
+  // 处理账户全选
+  const handleSelectAllAccounts = (e: CheckboxChangeEvent) => {
+    if (e.target.checked) {
+      // 全选所有账户
+      const allAccountValues = accounts.map(item => item.account);
+      setSelectedAccounts(allAccountValues);
+      
+      // 更新表单值
+      form.setFieldsValue({ accounts: allAccountValues });
+    } else {
+      // 取消全选
+      setSelectedAccounts([]);
+      
+      // 更新表单值
+      form.setFieldsValue({ accounts: [] });
+    }
+  };
+
+  // 监听账户选择变化
+  const handleAccountSelectChange = (values: string[]) => {
+    setSelectedAccounts(values);
+  };
+
+  // 处理创建模态框打开时重置选中账户
+  const handleCreateModalOpen = (visible: boolean) => {
+    setCreateModalVisible(visible);
+    if (visible) {
+      // 打开模态框时重置表单
+      form.resetFields();
+      // 初始化表单默认值
+      form.setFieldsValue({
+        rate: 0,
+        amount: 0,
+        sellPercentage: 0,
+        buyAfterSellPercentage: 0,
+        allTimes: 156,
+        weekDay: 5,
+        weekInterval: 1,
+        buyOnIndexDown: true,
+        accounts: selectedAccounts
+      });
+    } else {
+      // 关闭模态框时重置选中账户
+      setSelectedAccounts([]);
+    }
+  };
+
+  // 处理多账户创建定投
+  const handleCreateDingtouMultiAccount = async (values: any) => {
+    // 不需要传递accountAlias字段，由后端自动设置
+    const { accountAlias, accounts, ...baseValues } = values;
+    
+    // 打印一下表单值，方便调试
+    console.log('提交的表单值:', values);
+    console.log('选中的账户:', accounts);
+    
+    // 确保股票代码为大写
+    if (baseValues.code) {
+      baseValues.code = baseValues.code.toUpperCase();
+    }
+    
+    if (!accounts || accounts.length === 0) {
+      message.error('请选择至少一个交易账号');
+      return false;
+    }
+
+    // 创建加载提示
+    const hide = message.loading('正在创建定投计划...', 0);
+
+    try {
+      // 调用批量创建API
+      const response = await batchCreateDingtou({
+        accounts: accounts,
+        ...baseValues
+      });
+      
+      hide(); // 关闭加载提示
+      
+      if (response && response.success) {
+        const result = response.data;
+        
+        if (result.successCount > 0) {
+          if (result.failCount > 0) {
+            message.warning(`定投计划创建部分成功：成功 ${result.successCount} 个，失败 ${result.failCount} 个`);
+          } else {
+            message.success(`定投计划创建成功：共创建 ${result.successCount} 个定投计划`);
+          }
+          setCreateModalVisible(false);
+          // 刷新表格数据
+          if (actionRef.current) {
+            actionRef.current.reload();
+          }
+          return true;
+        } else {
+          message.error('所有定投计划创建都失败了，请检查参数或联系管理员');
+          return false;
+        }
+      } else {
+        message.error(response?.message || '批量创建定投失败');
+        return false;
+      }
+    } catch (error) {
+      hide(); // 确保关闭加载提示
+      message.error('创建定投计划过程中出现错误');
+      console.error('创建定投批量错误:', error);
+      return false;
+    }
+  };
+
   const columns: ProColumns[] = [
     {
       title: '交易账号',
       dataIndex: 'account',
       valueType: 'text',
       sorter: true,
+    },
+    {
+      title: '账号别名',
+      dataIndex: 'accountAlias',
+      valueType: 'text',
+      sorter: true,
+      tooltip: '账号别名自动根据账号名称设置，无需手动填写',
     },
     {
       title: '股票代码',
@@ -403,7 +529,7 @@ const DingtouList: React.FC = () => {
             key="create"
             onClick={() => setCreateModalVisible(true)}
           >
-            新建定投
+            新建定投(支持多账户)
           </Button>,
         ]}
         request={fetchDingtouList}
@@ -452,13 +578,24 @@ const DingtouList: React.FC = () => {
               showSearch: true,
               defaultActiveFirstOption: false,
               notFoundContent: accountLoading ? '加载中...' : '暂无数据',
+              onSelect: handleAccountSelect,
             }}
+            help="账号别名将使用账户名称自动设置"
           />
           <ProFormText
             name="code"
             label="股票代码"
             placeholder="请输入股票代码"
             rules={[{ required: true, message: '请输入股票代码' }]}
+            fieldProps={{
+              onChange: (e) => {
+                // 当用户输入时，自动转换为大写
+                const value = e.target.value;
+                if (value) {
+                  e.target.value = value.toUpperCase();
+                }
+              }
+            }}
           />
           <ProFormSelect
             name="weekDay"
@@ -558,8 +695,9 @@ const DingtouList: React.FC = () => {
         title="创建新定投计划"
         width={500}
         open={createModalVisible}
-        onOpenChange={setCreateModalVisible}
-        onFinish={handleCreateDingtou}
+        onOpenChange={handleCreateModalOpen}
+        onFinish={handleCreateDingtouMultiAccount}
+        form={form}
         initialValues={{
           rate: 0,
           amount: 0,
@@ -568,16 +706,32 @@ const DingtouList: React.FC = () => {
           allTimes: 156,
           weekDay: 5,
           weekInterval: 1,
-          buyOnIndexDown: true
+          buyOnIndexDown: true,
+          accounts: selectedAccounts
         }}
       >
         <ProForm.Group>
+          <div style={{ marginBottom: 16 }}>
+            <Space>
+              <Checkbox 
+                onChange={handleSelectAllAccounts}
+                checked={selectedAccounts.length > 0 && selectedAccounts.length === accounts.length}
+                indeterminate={selectedAccounts.length > 0 && selectedAccounts.length < accounts.length}
+              >
+                全选账户
+              </Checkbox>
+              <span style={{ color: '#999' }}>
+                已选择 {selectedAccounts.length}/{accounts.length} 个账户
+              </span>
+            </Space>
+          </div>
           <ProFormSelect
-            name="account"
+            name="accounts"
             label="交易账号"
             placeholder="请选择交易账号"
-            rules={[{ required: true, message: '请选择交易账号' }]}
+            rules={[{ required: true, message: '请选择至少一个交易账号' }]}
             showSearch
+            mode="multiple"
             options={accounts.map(item => ({
               label: `${item.name} (${item.account})`,
               value: item.account,
@@ -590,13 +744,26 @@ const DingtouList: React.FC = () => {
               showSearch: true,
               defaultActiveFirstOption: false,
               notFoundContent: accountLoading ? '加载中...' : '暂无数据',
+              onSelect: handleAccountSelect,
+              onChange: handleAccountSelectChange,
+              value: selectedAccounts
             }}
+            help="账号别名将使用账户名称自动设置，可以选择多个账号同时创建"
           />
           <ProFormText
             name="code"
             label="股票代码"
             placeholder="请输入股票代码"
             rules={[{ required: true, message: '请输入股票代码' }]}
+            fieldProps={{
+              onChange: (e) => {
+                // 当用户输入时，自动转换为大写
+                const value = e.target.value;
+                if (value) {
+                  e.target.value = value.toUpperCase();
+                }
+              }
+            }}
           />
           <ProFormSelect
             name="weekDay"

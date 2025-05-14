@@ -51,11 +51,11 @@ export async function getInitialState(aa: any): Promise<{
   
   // 如果是财报页面，不需要强制登录
   if (history.location.pathname === '/Earnings') {
-    return {
-      fetchUserInfo,
-      settings: defaultSettings as Partial<LayoutSettings>,
-    };
-  }
+      return {
+        fetchUserInfo,
+        settings: defaultSettings as Partial<LayoutSettings>,
+      };
+    }
 
   // 如果不是登录页面，获取用户信息
   if (history.location.pathname !== loginPath) {

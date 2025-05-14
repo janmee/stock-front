@@ -469,14 +469,14 @@ export async function listAccountInfo(
       list: API.AccountInfo[];
       total: number;
     }>>('/api/accountInfo/list', {
-      method: 'GET',
-      params: {
-        ...params,
-        sortKey: sort ? Object.keys(sort)[0] : '',
-        sortOrder: sort ? Object.values(sort)[0] : '',
-      },
-      ...(options || {}),
-    });
+    method: 'GET',
+    params: {
+      ...params,
+      sortKey: sort ? Object.keys(sort)[0] : '',
+      sortOrder: sort ? Object.values(sort)[0] : '',
+    },
+    ...(options || {}),
+  });
     
     // 打印响应结果以进行调试
     console.log('账户列表API返回数据:', response);
@@ -595,49 +595,18 @@ export async function fetchDingtouById(id: number, options?: { [key: string]: an
 }
 
 /** 创建定投 POST /api/dingtou */
-export async function createDingtou(
-  params: {
-    account: string;
-    code: string;
-    startTime: string;
-    allTimes: number;
-    rate: number;
-    amount: number;
-    enable: boolean;
-    sellPercentage?: number;
-    buyAfterSellPercentage?: number;
-    buyOnIndexDown?: boolean;
-  },
-  options?: { [key: string]: any },
-) {
+export async function createDingtou(params: Record<string, any>) {
   return request('/api/dingtou', {
     method: 'POST',
     data: params,
-    ...(options || {}),
   });
 }
 
 /** 更新定投 PUT /api/dingtou/{id} */
-export async function updateDingtou(
-  params: {
-    id: number;
-    account?: string;
-    code?: string;
-    startTime?: string;
-    allTimes?: number;
-    rate?: number;
-    amount?: number;
-    enable?: boolean;
-    sellPercentage?: number;
-    buyAfterSellPercentage?: number;
-    buyOnIndexDown?: boolean;
-  },
-  options?: { [key: string]: any },
-) {
+export async function updateDingtou(params: Record<string, any>) {
   return request(`/api/dingtou/${params.id}`, {
     method: 'PUT',
     data: params,
-    ...(options || {}),
   });
 }
 
@@ -855,5 +824,13 @@ export async function runMarketCapRegression(
       sellProfitPercentage,
     },
     ...(options || {}),
+  });
+}
+
+// 批量创建定投（多账户）
+export async function batchCreateDingtou(params: Record<string, any>) {
+  return request('/api/dingtou/batch', {
+    method: 'POST',
+    data: params,
   });
 }
