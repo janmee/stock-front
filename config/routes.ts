@@ -152,6 +152,14 @@ export default [
     hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
   },
   {
+    name: 'list.scheduled-orders',
+    icon: 'ScheduleOutlined',
+    path: '/scheduled-orders',
+    component: './ScheduledOrders',
+    access: 'canAdmin',
+    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
+  },
+  {
     path: '/Earnings',
     name: 'earnings',
     icon: 'LineChartOutlined',

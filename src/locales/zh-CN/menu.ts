@@ -64,8 +64,9 @@ export default {
   'menu.list.trade': '实时交易',
   'menu.backtest': '策略回测',
   'menu.list.backtest': '策略回测',
-  'menu.list.realtime-regression': '实时回归测试',
+  'menu.list.realtime-regression': '实时回归策略',
   'pages.searchTable.jobTimeZone': '时区',
   'pages.modalForm.message.timeZone': '请选择时区',
   'menu.earnings': '财报日历',
+  'menu.list.scheduled-orders': '定时订单管理',
 };

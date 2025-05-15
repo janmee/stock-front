@@ -179,4 +179,32 @@ declare namespace API {
     /** 回归测试详情 */
     details: string;
   };
+
+  // 定时订单类型
+  type ScheduledOrder = {
+    id: number;
+    accounts: string;
+    accountAliases?: string;
+    code: string;
+    trdSide: number;
+    orderType: number;
+    price?: number;
+    number: number;
+    scheduledTime: string;
+    timezone: string;
+    status: number;
+    execResults?: string;
+    errorMessage?: string;
+    timeForce?: number;
+    sellTriggerType?: string;
+    sellTriggerValue?: number;
+    createdBy?: string;
+    createTime: string;
+    updateTime: string;
+  };
+  
+  // 账号执行结果类型
+  type AccountExecutionResult = {
+    [account: string]: string;
+  };
 }

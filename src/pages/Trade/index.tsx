@@ -1,11 +1,13 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
-import { Button, Modal, Form, Input, Radio, InputNumber, message, Checkbox, Divider, Table, Space } from 'antd';
-import { listAccountInfo, batchTrade, listOrderInfo, cancelOrder, queryStockPosition } from '@/services/ant-design-pro/api';
+import { Button, Modal, Form, Input, Radio, InputNumber, message, Checkbox, Divider, Table, Space, DatePicker, Tabs, Select, Switch } from 'antd';
+import { listAccountInfo, batchTrade, listOrderInfo, cancelOrder, queryStockPosition, createScheduledOrder, batchCreateScheduledOrders, getTimezones } from '@/services/ant-design-pro/api';
 import { FormattedMessage, useIntl } from '@umijs/max';
 import { getLocale } from '@umijs/max';
+import moment from 'moment';
+import { request } from 'umi';
 
 interface TradeFormData {
   code: string;
@@ -16,6 +18,9 @@ interface TradeFormData {
   sellTriggerType?: 'percentage' | 'amount' | 'limit';
   sellTriggerValue?: number;
   timeForce?: boolean;
+  isScheduled?: boolean;
+  scheduledTime?: moment.Moment;
+  timezone?: string;
 }
 
 const Trade: React.FC = () => {
@@ -29,6 +34,10 @@ const Trade: React.FC = () => {
   const [positionLoading, setPositionLoading] = useState(false);
   const [form] = Form.useForm();
   const actionRef = useRef<ActionType>();
+  const [isScheduled, setIsScheduled] = useState<boolean>(false);
+  const [scheduledTime, setScheduledTime] = useState<moment.Moment | null>(null);
+  const [timezone, setTimezone] = useState<string>('Asia/Shanghai');
+  const [timezones] = useState<string[]>(['America/New_York', 'Asia/Shanghai']);
 
   // 获取当前语言环境
   const currentLocale = getLocale();
@@ -261,8 +270,6 @@ const Trade: React.FC = () => {
 
   // 处理撤单操作
   const handleCancelOrder = async (orderNo: string) => {
-    const intl = useIntl();
-    
     Modal.confirm({
       title: intl.formatMessage({ id: 'pages.trade.confirmCancel.title', defaultMessage: 'Confirm Cancellation' }),
       content: intl.formatMessage(
@@ -304,6 +311,94 @@ const Trade: React.FC = () => {
 
   const handleTradeSubmit = async (values: TradeFormData) => {
     try {
+      if (selectedRows.length === 0) {
+        message.warning(intl.formatMessage({ 
+          id: 'pages.trade.selectAccount', 
+          defaultMessage: 'Please select at least one account' 
+        }));
+        return;
+      }
+      
+      // 日志打印表单值
+      console.log('表单值:', JSON.stringify(values, null, 2));
+      console.log('表单scheduledTime值:', values.scheduledTime ? values.scheduledTime.format() : null);
+      
+      // 逻辑优化：同时检查表单值和状态变量
+      const shouldCreateScheduledOrder = (values.isScheduled === true || isScheduled === true) && values.scheduledTime != null;
+      
+      // 如果是定时交易，则创建定时订单
+      if (shouldCreateScheduledOrder && values.scheduledTime) {
+        console.log('执行定时下单逻辑');
+        try {
+          // 确保日期时间格式正确 - 直接使用字符串格式
+          const formattedDateTime = values.scheduledTime.format('YYYY-MM-DD HH:mm:ss');
+          console.log('格式化后的日期时间:', formattedDateTime);
+          
+          // 组装请求参数（符合ScheduledOrderVO格式）
+          const scheduledOrderParams = {
+            code: values.code.toUpperCase(),
+            trdSide: tradeType === 'buy' ? 1 : 2,
+            orderType: values.orderType === 'market' ? 2 : 1,
+            price: values.orderType === 'limit' ? Number(values.price) : null, // 确保是数字类型
+            number: Number(values.qty),  // 确保数量是数字类型
+            scheduledTime: formattedDateTime, // 使用格式化后的字符串
+            timezone: values.timezone || 'Asia/Shanghai',
+            accountList: selectedRows.map(row => row.account), // 将账号列表添加到请求体中
+            accountAliases: selectedRows.length > 1 ? `批量下单(${selectedRows.length}个账号)` : selectedRows[0].name,
+            // 添加BatchTradeRequest相关参数
+            timeForce: values.timeForce ? 1 : 0,
+            sellTriggerType: values.autoSell && values.sellTriggerType ? values.sellTriggerType : undefined,
+            sellTriggerValue: values.autoSell && values.sellTriggerValue ? Number(values.sellTriggerValue) : undefined // 确保是数字类型
+          };
+          
+          // 打印完整的请求参数，方便调试
+          console.log('定时下单请求参数:', JSON.stringify(scheduledOrderParams, null, 2));
+          
+          // 使用batchCreateScheduledOrders API
+          const response = await batchCreateScheduledOrders(scheduledOrderParams);
+          
+          console.log('定时下单API响应:', response);
+          
+          if (response && response.success) {
+            message.success(intl.formatMessage({ 
+              id: 'pages.trade.scheduledOrder.createSuccess', 
+              defaultMessage: 'Scheduled order created successfully' 
+            }));
+            setTradeModalVisible(false);
+            form.resetFields();
+          } else {
+            // 处理API返回的错误信息
+            const errorMsg = response?.errorMessage || response?.message || 
+              intl.formatMessage({ id: 'common.unknownError', defaultMessage: 'Unknown error' });
+            console.error('API返回错误:', errorMsg);
+            message.error(intl.formatMessage(
+              { id: 'pages.trade.scheduledOrder.createFailed', defaultMessage: 'Failed to create scheduled order: {error}' },
+              { error: errorMsg }
+            ));
+          }
+        } catch (apiError: any) {
+          // 捕获API调用过程中的错误
+          console.error('API调用异常:', apiError);
+          
+          // 检查是否是HTTP 400错误
+          if (apiError.response && apiError.response.status === 400) {
+            console.error('收到400状态码错误，请求参数可能有误:', apiError.response.data);
+            message.error(intl.formatMessage(
+              { id: 'pages.trade.scheduledOrder.badRequest', defaultMessage: 'Invalid request parameters: {error}' },
+              { error: apiError.response.data?.errorMessage || '请检查输入参数' }
+            ));
+          } else {
+            message.error(intl.formatMessage({ 
+              id: 'pages.trade.scheduledOrder.networkError', 
+              defaultMessage: 'Network error while creating scheduled order' 
+            }));
+          }
+        }
+        
+        return;
+      }
+      
+      // 普通交易处理
       const response = await batchTrade({
         accounts: selectedRows.map(row => row.account),
         code: values.code,
@@ -311,9 +406,9 @@ const Trade: React.FC = () => {
         orderType: values.orderType === 'market' ? 2 : 1,
         trdSide: tradeType === 'buy' ? 1 : 2,
         price: values.orderType === 'limit' ? values.price : undefined,
+        timeForce: values.timeForce ? 1 : 0,
         sellTriggerType: values.autoSell && values.sellTriggerType ? values.sellTriggerType : undefined,
         sellTriggerValue: values.autoSell && values.sellTriggerValue ? values.sellTriggerValue : undefined,
-        timeForce: values.timeForce ? 1 : 0,
       });
       
       if (response.data) {
@@ -464,7 +559,7 @@ const Trade: React.FC = () => {
         params={{
           enable: true
         }}
-        request={listAccountInfo}
+        request={listAccountInfo as any}
         columns={columns}
         pagination={{
           defaultPageSize: 100,
@@ -561,6 +656,87 @@ const Trade: React.FC = () => {
           onFinish={handleTradeSubmit}
           layout="vertical"
         >
+          <Tabs
+            defaultActiveKey="1"
+            items={[
+              {
+                key: '1',
+                label: '即时下单',
+                children: (
+                  <Form.Item
+                    name="isScheduled"
+                    hidden
+                    initialValue={false}
+                  >
+                    <Checkbox />
+                  </Form.Item>
+                ),
+              },
+              {
+                key: '2',
+                label: '定时下单',
+                children: (
+                  <>
+                    <Form.Item
+                      name="isScheduled"
+                      hidden
+                      initialValue={true}
+                    >
+                      <Checkbox checked={true} />
+                    </Form.Item>
+                    <Form.Item
+                      name="scheduledTime"
+                      label="定时执行时间"
+                      rules={[{ required: true, message: '请选择定时执行时间' }]}
+                    >
+                      <DatePicker 
+                        showTime 
+                        format="YYYY-MM-DD HH:mm:ss" 
+                        placeholder="选择执行时间" 
+                        style={{ width: '100%' }}
+                        onChange={(value) => setScheduledTime(value as any)}
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      name="timezone"
+                      label="时区"
+                      initialValue="Asia/Shanghai"
+                      rules={[{ required: true, message: '请选择时区' }]}
+                    >
+                      <Select 
+                        style={{ width: '100%' }}
+                      >
+                        <Select.Option value="America/New_York">美东时间</Select.Option>
+                        <Select.Option value="Asia/Shanghai">北京时间</Select.Option>
+                      </Select>
+                    </Form.Item>
+                  </>
+                ),
+              },
+            ]}
+            onChange={(activeKey) => {
+              console.log('切换Tab:', activeKey);
+              // 当切换标签页时，更新表单中的isScheduled字段
+              const isScheduledValue = activeKey === '2';
+              console.log('设置isScheduled为:', isScheduledValue);
+              
+              form.setFieldsValue({
+                isScheduled: isScheduledValue
+              });
+              
+              setIsScheduled(isScheduledValue);
+              
+              // 如果切换到定时下单标签，但未设置日期，则设置默认日期为当前时间+1小时
+              if (isScheduledValue && !form.getFieldValue('scheduledTime')) {
+                const defaultTime = moment().add(1, 'hours');
+                form.setFieldsValue({
+                  scheduledTime: defaultTime
+                });
+                setScheduledTime(defaultTime);
+              }
+            }}
+          />
+
           <Form.Item
             name="code"
             label={intl.formatMessage({ id: 'pages.trade.form.stockCode', defaultMessage: 'Stock Code' })}
@@ -600,7 +776,16 @@ const Trade: React.FC = () => {
             valuePropName="checked"
             initialValue={false}
           >
-            <Checkbox>{intl.formatMessage({ id: 'pages.trade.form.timeForce', defaultMessage: 'Time In Force' })}</Checkbox>
+            <Checkbox 
+              onChange={(e) => {
+                // 如果选中"撤单有效"，则自动取消"自动挂卖单"选项
+                if (e.target.checked) {
+                  form.setFieldsValue({ autoSell: false });
+                }
+              }}
+            >
+              {intl.formatMessage({ id: 'pages.trade.form.timeForce', defaultMessage: 'Time In Force' })}
+            </Checkbox>
           </Form.Item>
 
           <Form.Item
@@ -634,17 +819,41 @@ const Trade: React.FC = () => {
                 valuePropName="checked"
                 initialValue={true}
               >
-                <Checkbox>全部成交后自动挂卖单</Checkbox>
+                <Checkbox
+                  onChange={(e) => {
+                    // 如果选中"自动挂卖单"，则自动取消"撤单有效"选项
+                    if (e.target.checked) {
+                      form.setFieldsValue({ timeForce: false });
+                    }
+                  }}
+                >
+                  全部成交后自动挂卖单（程序自动执行）
+                </Checkbox>
               </Form.Item>
 
               <Form.Item
                 noStyle
                 shouldUpdate={(prevValues, currentValues) => 
-                  prevValues.autoSell !== currentValues.autoSell
+                  prevValues.autoSell !== currentValues.autoSell ||
+                  prevValues.timeForce !== currentValues.timeForce
                 }
               >
-                {({ getFieldValue }) => 
-                  getFieldValue('autoSell') ? (
+                {({ getFieldValue }) => {
+                  // 获取当前两个选项的值
+                  const autoSell = getFieldValue('autoSell');
+                  const timeForce = getFieldValue('timeForce');
+                  
+                  // 如果选中了"撤单有效"，则禁用"自动挂卖单"相关选项
+                  if (timeForce) {
+                    return (
+                      <div style={{ marginBottom: 16, color: '#ff4d4f' }}>
+                        撤单有效选项与自动挂卖单互斥，不能同时选择
+                      </div>
+                    );
+                  }
+                  
+                  // 显示自动挂卖单的相关选项
+                  return autoSell ? (
                     <>
                       <Form.Item
                         name="sellTriggerType"
@@ -700,8 +909,8 @@ const Trade: React.FC = () => {
                         }}
                       </Form.Item>
                     </>
-                  ) : null
-                }
+                  ) : null;
+                }}
               </Form.Item>
             </>
           )}

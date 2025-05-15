@@ -834,3 +834,156 @@ export async function batchCreateDingtou(params: Record<string, any>) {
     data: params,
   });
 }
+
+// 获取定时订单列表
+export async function listScheduledOrders(
+  params: {
+    current?: number;
+    pageSize?: number;
+    accounts?: string;
+    code?: string;
+    status?: number;
+    trdSide?: number;
+    startTime?: string;
+    endTime?: string;
+    timezone?: string;
+  },
+  sort?: Record<string, string>,
+  options?: { [key: string]: any },
+) {
+  try {
+    const response = await request('/api/scheduledOrder/list', {
+      method: 'GET',
+      params: {
+        ...params,
+        sortKey: sort ? Object.keys(sort)[0] : '',
+        sortOrder: sort ? Object.values(sort)[0] : '',
+      },
+      ...(options || {}),
+    });
+    
+    // 调试输出
+    console.log('定时订单API原始返回:', response);
+    
+    // 确保返回符合表格预期的数据结构
+    if (!response.data && response.records) {
+      response.data = response.records;
+    }
+    
+    // 如果 data 不是数组，尝试修复
+    if (response.data && !Array.isArray(response.data)) {
+      if (Array.isArray(response.data.records)) {
+        response.data = response.data.records;
+      } else {
+        console.error('定时订单API返回的数据结构异常:', response.data);
+        response.data = [];
+      }
+    }
+    
+    return response;
+  } catch (error) {
+    console.error('获取定时订单列表异常:', error);
+    return { success: false, data: [] };
+  }
+}
+
+// 创建定时订单
+export async function createScheduledOrder(data: Record<string, any>) {
+  return request('/api/scheduledOrder', {
+    method: 'POST',
+    data,
+  });
+}
+
+// 批量创建定时订单
+export async function batchCreateScheduledOrders(data: Record<string, any>) {
+  console.log('批量创建定时订单 - 参数:', JSON.stringify(data, null, 2));
+  
+  // 确保参数格式正确
+  const formattedData = {
+    ...data,
+    // 确保accountList存在
+    accountList: Array.isArray(data.accountList) ? data.accountList : [],
+    // 确保数值类型正确
+    number: typeof data.number === 'number' ? data.number : parseInt(data.number),
+    price: data.price !== null && data.price !== undefined ? 
+      (typeof data.price === 'number' ? data.price : parseFloat(data.price)) : 
+      null,
+    sellTriggerValue: data.sellTriggerValue !== null && data.sellTriggerValue !== undefined ? 
+      (typeof data.sellTriggerValue === 'number' ? data.sellTriggerValue : parseFloat(data.sellTriggerValue)) : 
+      null,
+    // 确保字段名正确
+    accountAliases: data.accountAliases || (Array.isArray(data.accountList) && data.accountList.length > 0 ? 
+      `批量下单(${data.accountList.length}个账号)` : '未命名账号'),
+    // 确保scheduledTime是字符串格式
+    scheduledTime: typeof data.scheduledTime === 'string' ? 
+      data.scheduledTime : 
+      (data.scheduledTime && data.scheduledTime.format ? 
+        data.scheduledTime.format('YYYY-MM-DD HH:mm:ss') : 
+        data.scheduledTime)
+  };
+  
+  console.log('格式化后的请求参数:', JSON.stringify(formattedData, null, 2));
+  
+  try {
+    const response = await request<API.Response<any>>('/api/scheduledOrder/batch', {
+      method: 'POST',
+      data: formattedData,
+      errorHandler: (error: any) => {
+        console.error('批量创建定时订单API错误:', error);
+        const errorResponse = error.response?.data || {};
+        return { 
+          success: false, 
+          errorMessage: errorResponse.message || error.message || '请求失败' 
+        };
+      }
+    });
+    
+    console.log('批量创建定时订单 - 响应:', response);
+    return response;
+  } catch (error: any) {
+    console.error('批量创建定时订单 - 捕获到异常:', error);
+    throw error;
+  }
+}
+
+// 取消定时订单
+export async function cancelScheduledOrder(id: number) {
+  return request(`/api/scheduledOrder/cancel/${id}`, {
+    method: 'POST',
+  });
+}
+
+// 批量取消定时订单
+export async function batchCancelScheduledOrders(ids: number[]) {
+  return request('/api/scheduledOrder/batchCancel', {
+    method: 'POST',
+    params: {
+      ids: ids.join(','),
+    },
+  });
+}
+
+// 立即执行定时订单
+export async function executeScheduledOrder(id: number) {
+  return request(`/api/scheduledOrder/execute/${id}`, {
+    method: 'POST',
+  });
+}
+
+// 获取支持的时区列表，修改为返回固定的两个时区
+export async function getTimezones() {
+  // 固定返回两个时区
+  return {
+    success: true,
+    data: ['America/New_York', 'Asia/Shanghai']
+  };
+}
+
+// 更新定时订单
+export async function updateScheduledOrder(id: number, data: Record<string, any>) {
+  return request(`/api/scheduledOrder/${id}`, {
+    method: 'PUT',
+    data,
+  });
+}
