@@ -113,6 +113,14 @@ export default [
     access: 'canAdmin',
     hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
   },
+  {
+    name: 'list.strategy',
+    icon: 'RobotOutlined',
+    path: '/strategy',
+    component: './Strategy',
+    access: 'canAdmin',
+    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
+  },
   // {
   //   name: 'list.run-logs',
   //   icon: 'OrderedListOutlined',

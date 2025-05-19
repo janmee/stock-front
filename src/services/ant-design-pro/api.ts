@@ -400,30 +400,29 @@ export async function deleteStrategy(options?: { [key: string]: any }) {
   });
 }
 
-/** 获取定时任务 GET /api/job */
-export async function listStrategy(
+/** 获取策略股票关系列表 GET /api/strategy/stock/page */
+export async function listStrategyStock(
   params: {
     // query
     /** 当前的页码 */
     current?: number;
     /** 页面的容量 */
     pageSize?: number;
-    name?: string;
-    code?: string;
+    strategyId?: number;
+    stockCode?: string;
+    status?: string;
   },
-  sort: object,
   options?: { [key: string]: any },
 ) {
-  return request<any>('/api/modelInfo/list', {
+  return request<API.StrategyStockList>('/api/strategy/stock/page', {
     method: 'GET',
     params: {
       ...params,
-      sortKey: sort ? Object.keys(sort)[0] : '',
-      sortOrder: sort ? Object.values(sort)[0] : '',
     },
     ...(options || {}),
   });
 }
+
 /** 图片上传接口 POST /api/login/account */
 export async function upload(file: API.LoginParams, options?: { [key: string]: any }) {
   return request<API.LoginResult>('/api/ocr/uploadImage', {
@@ -432,6 +431,41 @@ export async function upload(file: API.LoginParams, options?: { [key: string]: a
       'Content-Type': 'multipart/form-data',
     },
     data: file,
+    ...(options || {}),
+  });
+}
+
+/** 创建策略股票关系 POST /api/strategy/stock */
+export async function createStrategyStock(body: API.StrategyStockItem, options?: { [key: string]: any }) {
+  return request<API.Response<void>>('/api/strategy/stock', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 更新策略股票关系 PUT /api/strategy/stock */
+export async function updateStrategyStock(body: API.StrategyStockItem, options?: { [key: string]: any }) {
+  return request<API.Response<void>>('/api/strategy/stock', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 删除策略股票关系 DELETE /api/strategy/stock/{id} */
+export async function deleteStrategyStock(body: API.StrategyStockItem, options?: { [key: string]: any }) {
+  return request<API.Response<void>>(`/api/strategy/stock/${body.id}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
     ...(options || {}),
   });
 }
@@ -986,4 +1020,147 @@ export async function updateScheduledOrder(id: number, data: Record<string, any>
     method: 'PUT',
     data,
   });
+}
+
+/** 获取策略任务列表 GET /api/strategyJob/list */
+export async function listStrategyJob(
+  params: {
+    // query
+    /** 当前的页码 */
+    current?: number;
+    /** 页面的容量 */
+    pageSize?: number;
+    name?: string;
+    status?: string;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.StrategyJobList>('/api/strategy/job/page', {
+    method: 'GET',
+    params: {
+      ...params,
+    },
+    ...(options || {}),
+  });
+}
+
+/** 创建策略任务 POST /api/strategyJob/create */
+export async function createStrategyJob(body: API.StrategyJobItem, options?: { [key: string]: any }) {
+  return request<API.Response<void>>('/api/strategy/job', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 更新策略任务 POST /api/strategyJob/update */
+export async function updateStrategyJob(body: API.StrategyJobItem, options?: { [key: string]: any }) {
+  return request<API.Response<void>>('/api/strategy/job', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 删除策略任务 POST /api/strategyJob/delete */
+export async function deleteStrategyJob(body: API.StrategyJobItem, options?: { [key: string]: any }) {
+  return request<API.Response<void>>(`/api/strategy/job/${body.id}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    ...(options || {}),
+  });
+}
+
+/** 获取策略用户股票关系列表 GET /api/strategy/user-stock/page */
+export async function listStrategyUserStock(
+  params: {
+    // query
+    /** 当前的页码 */
+    current?: number;
+    /** 页面的容量 */
+    pageSize?: number;
+    strategyId?: number;
+    account?: string;
+    stockCode?: string;
+    status?: string;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.StrategyUserStockList>('/api/strategy/user-stock/page', {
+    method: 'GET',
+    params: {
+      ...params,
+    },
+    ...(options || {}),
+  });
+}
+
+/** 创建策略用户股票关系 POST /api/strategy/user-stock */
+export async function createStrategyUserStock(body: API.StrategyUserStockItem, options?: { [key: string]: any }) {
+  return request<API.Response<void>>('/api/strategy/user-stock', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 更新策略用户股票关系 PUT /api/strategy/user-stock */
+export async function updateStrategyUserStock(body: API.StrategyUserStockItem, options?: { [key: string]: any }) {
+  return request<API.Response<void>>('/api/strategy/user-stock', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 删除策略用户股票关系 DELETE /api/strategy/user-stock/{id} */
+export async function deleteStrategyUserStock(body: API.StrategyUserStockItem, options?: { [key: string]: any }) {
+  return request<API.Response<void>>(`/api/strategy/user-stock/${body.id}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    ...(options || {}),
+  });
+}
+
+// 获取账户列表 (简易版，用于下拉选择)
+export async function listAccount(params?: { [key: string]: any }) {
+  try {
+    const response = await request<API.Response<API.AccountInfo[]>>('/api/accountInfo/list', {
+      method: 'GET',
+      params,
+    });
+    
+    if (response && response.data) {
+      // 转换为下拉选择器所需的格式
+      return {
+        success: true,
+        data: response.data.map((item: any) => ({
+          account: item.account,
+          name: item.name,
+          id: item.id
+        }))
+      };
+    }
+    
+    return { success: false, data: [] };
+  } catch (error) {
+    console.error('获取账户列表出错:', error);
+    return { success: false, data: [] };
+  }
 }

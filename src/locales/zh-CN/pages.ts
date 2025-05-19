@@ -205,7 +205,7 @@ export default {
   'pages.trade.form.orderType': '订单类型',
   'pages.trade.form.price': '价格',
   'pages.trade.form.submit': '确认{type}',
-  'pages.trade.form.autoSell': '自动卖出(程序)',
+  'pages.trade.form.autoSell': '自动卖出',
   'pages.trade.form.sellTriggerType': '卖出触发类型',
   'pages.trade.form.sellTriggerValue': '触发值',
   'pages.trade.form.timeForce': '撤单有效(富途)',
@@ -413,4 +413,72 @@ export default {
   'pages.earnings.hide': '隐藏',
   'pages.earnings.viewHistoricalData': '查看历史财报数据',
   'pages.earnings.fetchError': '获取财报数据失败:',
+  
+  // 策略管理页面翻译
+  'pages.strategy.tabs.strategyJob': '策略任务',
+  'pages.strategy.tabs.strategyStock': '策略股票关系',
+  'pages.strategy.tabs.strategyUserStock': '策略用户股票关系',
+  
+  // 策略任务
+  'pages.strategy.job.id': '任务ID',
+  'pages.strategy.job.name': '任务名称',
+  'pages.strategy.job.description': '任务描述',
+  'pages.strategy.job.className': '任务类名',
+  'pages.strategy.job.cron': 'Cron表达式',
+  'pages.strategy.job.timeZone': '时区',
+  'pages.strategy.job.status': '状态',
+  'pages.strategy.job.running': '运行中',
+  'pages.strategy.job.create': '创建策略任务',
+  'pages.strategy.job.edit': '编辑策略任务',
+  
+  // 策略状态
+  'pages.strategy.status.enabled': '启用',
+  'pages.strategy.status.disabled': '禁用',
+  'pages.strategy.running.yes': '是',
+  'pages.strategy.running.no': '否',
+  'pages.strategy.createTime': '创建时间',
+  
+  // 策略股票关系
+  'pages.strategy.stock.relation.stockCode': '股票代码',
+  'pages.strategy.stock.relation.profitRatio': '盈利比例',
+  'pages.strategy.stock.relation.profitRatioTip': '设置止盈的盈利比例',
+  'pages.strategy.stock.relation.status': '状态',
+  'pages.strategy.stock.relation.create': '创建策略股票关系',
+  'pages.strategy.stock.relation.edit': '编辑策略股票关系',
+  
+  // 策略用户股票关系
+  'pages.strategy.user.stockRelation.account': '账户',
+  'pages.strategy.user.stockRelation.accountName': '账户名称',
+  'pages.strategy.user.stockRelation.stockCode': '股票代码',
+  'pages.strategy.user.stockRelation.fundPercent': '资金占比',
+  'pages.strategy.user.stockRelation.fundPercentTip': '分配给此股票的资金百分比(与最大金额互斥)',
+  'pages.strategy.user.stockRelation.maxAmount': '最大金额',
+  'pages.strategy.user.stockRelation.maxAmountTip': '分配给此股票的最大金额(与资金占比互斥)',
+  'pages.strategy.user.stockRelation.status': '状态',
+  'pages.strategy.user.stockRelation.create': '创建策略用户股票关系',
+  'pages.strategy.user.stockRelation.edit': '编辑策略用户股票关系',
+  
+  // 通用操作
+  'pages.common.actions': '操作',
+  'pages.common.edit': '编辑',
+  'pages.common.delete': '删除',
+  'pages.common.select': '选择',
+  'pages.common.new': '新建',
+  'pages.common.yes': '是',
+  'pages.common.no': '否',
+  'pages.common.deleteConfirm': '确定要删除这条记录吗？',
+  
+  // 过滤标签
+  'pages.filtered.by.strategy': '按策略过滤：',
+  
+  // 消息提示
+  'pages.message.creating': '正在创建...',
+  'pages.message.created': '创建成功！',
+  'pages.message.createFailed': '创建失败！',
+  'pages.message.updating': '正在更新...',
+  'pages.message.updated': '更新成功！',
+  'pages.message.updateFailed': '更新失败！',
+  'pages.message.deleting': '正在删除...',
+  'pages.message.deleted': '删除成功！',
+  'pages.message.deleteFailed': '删除失败！',
 };

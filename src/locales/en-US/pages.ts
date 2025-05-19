@@ -339,4 +339,72 @@ export default {
   'pages.earnings.hide': 'Hide',
   'pages.earnings.viewHistoricalData': 'View Historical Data',
   'pages.earnings.fetchError': 'Failed to fetch earnings data:',
+  
+  // Strategy Management
+  'pages.strategy.tabs.strategyJob': 'Strategy Jobs',
+  'pages.strategy.tabs.strategyStock': 'Strategy Stocks',
+  'pages.strategy.tabs.strategyUserStock': 'Strategy User Stocks',
+  
+  // Strategy Job
+  'pages.strategy.job.id': 'Job ID',
+  'pages.strategy.job.name': 'Job Name',
+  'pages.strategy.job.description': 'Description',
+  'pages.strategy.job.className': 'Class Name',
+  'pages.strategy.job.cron': 'Cron Expression',
+  'pages.strategy.job.timeZone': 'Time Zone',
+  'pages.strategy.job.status': 'Status',
+  'pages.strategy.job.running': 'Running',
+  'pages.strategy.job.create': 'Create Strategy Job',
+  'pages.strategy.job.edit': 'Edit Strategy Job',
+  
+  // Strategy Status
+  'pages.strategy.status.enabled': 'Enabled',
+  'pages.strategy.status.disabled': 'Disabled',
+  'pages.strategy.running.yes': 'Yes',
+  'pages.strategy.running.no': 'No',
+  'pages.strategy.createTime': 'Create Time',
+  
+  // Strategy Stock Relation
+  'pages.strategy.stock.relation.stockCode': 'Stock Code',
+  'pages.strategy.stock.relation.profitRatio': 'Profit Ratio',
+  'pages.strategy.stock.relation.profitRatioTip': 'The profit ratio for take-profit settings',
+  'pages.strategy.stock.relation.status': 'Status',
+  'pages.strategy.stock.relation.create': 'Create Strategy Stock Relation',
+  'pages.strategy.stock.relation.edit': 'Edit Strategy Stock Relation',
+  
+  // Strategy User Stock Relation
+  'pages.strategy.user.stockRelation.account': 'Account',
+  'pages.strategy.user.stockRelation.accountName': 'Account Name',
+  'pages.strategy.user.stockRelation.stockCode': 'Stock Code',
+  'pages.strategy.user.stockRelation.fundPercent': 'Fund Percent',
+  'pages.strategy.user.stockRelation.fundPercentTip': 'Percentage of funds allocated to this stock (mutually exclusive with Max Amount)',
+  'pages.strategy.user.stockRelation.maxAmount': 'Max Amount',
+  'pages.strategy.user.stockRelation.maxAmountTip': 'Maximum amount allocated to this stock (mutually exclusive with Fund Percent)',
+  'pages.strategy.user.stockRelation.status': 'Status',
+  'pages.strategy.user.stockRelation.create': 'Create Strategy User Stock Relation',
+  'pages.strategy.user.stockRelation.edit': 'Edit Strategy User Stock Relation',
+  
+  // Common Operations
+  'pages.common.actions': 'Actions',
+  'pages.common.edit': 'Edit',
+  'pages.common.delete': 'Delete',
+  'pages.common.select': 'Select',
+  'pages.common.new': 'New',
+  'pages.common.yes': 'Yes',
+  'pages.common.no': 'No',
+  'pages.common.deleteConfirm': 'Are you sure you want to delete this item?',
+  
+  // Filter tags
+  'pages.filtered.by.strategy': 'Filtered by Strategy:',
+  
+  // Message Prompts
+  'pages.message.creating': 'Creating...',
+  'pages.message.created': 'Created successfully!',
+  'pages.message.createFailed': 'Failed to create!',
+  'pages.message.updating': 'Updating...',
+  'pages.message.updated': 'Updated successfully!',
+  'pages.message.updateFailed': 'Failed to update!',
+  'pages.message.deleting': 'Deleting...',
+  'pages.message.deleted': 'Deleted successfully!',
+  'pages.message.deleteFailed': 'Failed to delete!',
 };

@@ -28,6 +28,7 @@ export default {
   'menu.list.order-info': '订单查询',
   'menu.list.account-info': '账户管理',
   'menu.list.time-job': '定时任务',
+  'menu.list.strategy': '策略管理',
   'menu.list.power-demo': '系统推荐',
   'menu.list.analysis': '数据分析',
   'menu.list.run-logs': '运行日志',

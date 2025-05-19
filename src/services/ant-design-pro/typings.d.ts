@@ -207,4 +207,72 @@ declare namespace API {
   type AccountExecutionResult = {
     [account: string]: string;
   };
+
+  type StrategyJobItem = {
+    id?: number;
+    name?: string;
+    description?: string;
+    className?: string;
+    cron?: string;
+    timeZone?: string;
+    status?: string;
+    running?: string;
+    deleted?: string;
+    extra?: string;
+    createTime?: string;
+    updateTime?: string;
+  };
+
+  type StrategyJobList = {
+    data?: StrategyJobItem[];
+    /** 列表的内容总数 */
+    total?: number;
+    success?: boolean;
+  };
+
+  type StrategyStockItem = {
+    id?: number;
+    strategyId?: number;
+    strategyName?: string;
+    stockCode?: string;
+    profitRatio?: number;
+    status?: string;
+    createTime?: string;
+    updateTime?: string;
+  };
+
+  type StrategyStockList = {
+    data?: StrategyStockItem[];
+    /** 列表的内容总数 */
+    total?: number;
+    success?: boolean;
+  };
+
+  type StrategyUserStockItem = {
+    id?: number;
+    strategyId?: number;
+    strategyName?: string;
+    account?: string;
+    accountName?: string;
+    stockCode?: string;
+    fundPercent?: number;
+    maxAmount?: number;
+    status?: string;
+    createTime?: string;
+    updateTime?: string;
+  };
+
+  type StrategyUserStockList = {
+    data?: StrategyUserStockItem[];
+    /** 列表的内容总数 */
+    total?: number;
+    success?: boolean;
+  };
+
+  type AccountList = {
+    data?: AccountInfo[];
+    /** 列表的内容总数 */
+    total?: number;
+    success?: boolean;
+  };
 }
