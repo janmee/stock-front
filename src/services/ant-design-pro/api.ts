@@ -437,24 +437,55 @@ export async function upload(file: API.LoginParams, options?: { [key: string]: a
 
 /** 创建策略股票关系 POST /api/strategy/stock */
 export async function createStrategyStock(body: API.StrategyStockItem, options?: { [key: string]: any }) {
+  // 确保传递所有必要字段
+  const requestData: API.StrategyStockItem = {
+    strategyId: body.strategyId,
+    strategyName: body.strategyName,
+    stockCode: body.stockCode,
+    profitRatio: body.profitRatio,
+    maBelowPercent: body.maBelowPercent,
+    maAbovePercent: body.maAbovePercent,
+    levelPercent: body.levelPercent,
+    unsoldStackLimit: body.unsoldStackLimit ?? 4,
+    totalFundShares: body.totalFundShares ?? 18,
+    limitStartShares: body.limitStartShares ?? 9,
+    status: body.status
+  };
+  
   return request<API.Response<void>>('/api/strategy/stock', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    data: body,
+    data: requestData,
     ...(options || {}),
   });
 }
 
 /** 更新策略股票关系 PUT /api/strategy/stock */
 export async function updateStrategyStock(body: API.StrategyStockItem, options?: { [key: string]: any }) {
+  // 确保传递所有必要字段
+  const requestData: API.StrategyStockItem = {
+    id: body.id,
+    strategyId: body.strategyId,
+    strategyName: body.strategyName,
+    stockCode: body.stockCode,
+    profitRatio: body.profitRatio,
+    maBelowPercent: body.maBelowPercent,
+    maAbovePercent: body.maAbovePercent,
+    levelPercent: body.levelPercent,
+    unsoldStackLimit: body.unsoldStackLimit ?? 4,
+    totalFundShares: body.totalFundShares ?? 18,
+    limitStartShares: body.limitStartShares ?? 9,
+    status: body.status
+  };
+  
   return request<API.Response<void>>('/api/strategy/stock', {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
     },
-    data: body,
+    data: requestData,
     ...(options || {}),
   });
 }
@@ -1163,4 +1194,77 @@ export async function listAccount(params?: { [key: string]: any }) {
     console.error('获取账户列表出错:', error);
     return { success: false, data: [] };
   }
+}
+
+/**
+ * 执行策略回归测试
+ * @param stockCode 股票代码
+ * @param strategyId 策略ID
+ * @param strategyClassName 策略类名
+ * @param sellProfitPercentage 卖出盈利百分比
+ * @param dayCount 回测天数
+ * @param initialFunds 初始资金
+ * @param options 配置项
+ * @returns 回归测试结果
+ */
+export async function runStrategyRegression(
+  stockCode: string,
+  strategyId?: number,
+  strategyClassName?: string,
+  sellProfitPercentage: number = 1.5,
+  dayCount: number = 10,
+  initialFunds: number = 100000,
+  options?: { [key: string]: any }
+) {
+  return request<API.Response<any>>('/api/strategy/regression/run', {
+    method: 'GET',
+    params: {
+      stockCode,
+      strategyId,
+      strategyClassName,
+      sellProfitPercentage,
+      dayCount,
+      initialFunds
+    },
+    ...(options || {}),
+  });
+}
+
+/**
+ * 根据策略ID执行回归测试
+ * @param strategyId 策略ID
+ * @param sellProfitPercentage 卖出盈利百分比
+ * @param dayCount 回测天数
+ * @param initialFunds 初始资金
+ * @param options 配置项
+ * @returns 回归测试结果
+ */
+export async function runRegressionByStrategy(
+  strategyId: number,
+  sellProfitPercentage: number = 1.5,
+  dayCount: number = 10,
+  initialFunds: number = 100000,
+  options?: { [key: string]: any }
+) {
+  return request<API.Response<any>>('/api/strategy/regression/run-by-strategy', {
+    method: 'GET',
+    params: {
+      strategyId,
+      sellProfitPercentage,
+      dayCount,
+      initialFunds
+    },
+    ...(options || {}),
+  });
+}
+
+/**
+ * 手动执行策略任务
+ * @param id 策略任务ID
+ * @returns 执行结果
+ */
+export async function executeStrategyJob(id: number) {
+  return request<API.Response<any>>(`/api/strategy/job/execute/${id}`, {
+    method: 'POST',
+  });
 }

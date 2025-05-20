@@ -20,7 +20,7 @@ const StrategyPage: React.FC = () => {
   const intl = useIntl();
   
   // 当前活动标签
-  const [activeTab, setActiveTab] = useState<string>('1');
+  const [activeTab, setActiveTab] = useState<string>('3');
   
   // 策略ID (当用户选择一个策略任务后设置，用于过滤关联的股票和用户股票关系)
   const [selectedStrategyId, setSelectedStrategyId] = useState<number | undefined>(undefined);

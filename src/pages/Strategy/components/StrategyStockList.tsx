@@ -12,7 +12,7 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { FormattedMessage, useIntl } from '@umijs/max';
-import { PlusOutlined, InfoCircleOutlined, FilterOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, InfoCircleOutlined, FilterOutlined, CloseCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { 
   listStrategyStock, 
   createStrategyStock, 
@@ -85,6 +85,20 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     if (fields.profitRatio) {
       fields.profitRatio = fields.profitRatio / 100;
     }
+    if (fields.maBelowPercent) {
+      fields.maBelowPercent = fields.maBelowPercent / 100;
+    }
+    if (fields.maAbovePercent) {
+      fields.maAbovePercent = fields.maAbovePercent / 100;
+    }
+    if (fields.levelPercent) {
+      fields.levelPercent = fields.levelPercent / 100;
+    }
+    
+    // 确保有默认值
+    fields.unsoldStackLimit = fields.unsoldStackLimit || 4;
+    fields.totalFundShares = fields.totalFundShares || 18;
+    fields.limitStartShares = fields.limitStartShares || 9;
     
     try {
       await createStrategyStock(fields);
@@ -111,6 +125,20 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     if (fields.profitRatio) {
       fields.profitRatio = fields.profitRatio / 100;
     }
+    if (fields.maBelowPercent) {
+      fields.maBelowPercent = fields.maBelowPercent / 100;
+    }
+    if (fields.maAbovePercent) {
+      fields.maAbovePercent = fields.maAbovePercent / 100;
+    }
+    if (fields.levelPercent) {
+      fields.levelPercent = fields.levelPercent / 100;
+    }
+    
+    // 确保有默认值
+    fields.unsoldStackLimit = fields.unsoldStackLimit || currentRow.unsoldStackLimit || 4;
+    fields.totalFundShares = fields.totalFundShares || currentRow.totalFundShares || 18;
+    fields.limitStartShares = fields.limitStartShares || currentRow.limitStartShares || 9;
     
     try {
       await updateStrategyStock({
@@ -151,53 +179,141 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       title: 'ID',
       dataIndex: 'id',
       hideInSearch: true,
+      width: 60,
+      sorter: true,
     },
     {
       title: <FormattedMessage id="pages.strategy.job.name" defaultMessage="Strategy" />,
       dataIndex: 'strategyName',
-      sorter: true,
       valueType: 'select',
       fieldProps: {
         options: strategyOptions,
-        showSearch: true,
-        filterOption: (input: string, option: any) => 
-          option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0,
+      },
+      renderFormItem: (_, { type, defaultRender }) => {
+        if (type === 'form') {
+          return null;
+        }
+        return defaultRender(_);
       },
       formItemProps: {
         name: 'strategyId',
       },
+      hideInTable: !!strategyId, // 如果已经选择了策略，隐藏该列
     },
     {
       title: <FormattedMessage id="pages.strategy.stock.relation.stockCode" defaultMessage="Stock Code" />,
       dataIndex: 'stockCode',
+      copyable: true,
       sorter: true,
     },
     {
       title: (
-        <span>
+        <>
           <FormattedMessage id="pages.strategy.stock.relation.profitRatio" defaultMessage="Profit Ratio" />
           <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.profitRatioTip" defaultMessage="The profit ratio for take-profit settings" />}>
-            <InfoCircleOutlined style={{ marginLeft: 4 }} />
+            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
           </Tooltip>
-        </span>
+        </>
       ),
       dataIndex: 'profitRatio',
-      valueType: 'percent',
+      valueType: 'digit',
       hideInSearch: true,
-      render: (_, record) => record.profitRatio ? `${(record.profitRatio * 100).toFixed(2)}%` : '-',
+      width: 120,
+      render: (_, record) => record.profitRatio ? `${(record.profitRatio * 100).toFixed(1)}%` : '-',
+    },
+    {
+      title: (
+        <>
+          <FormattedMessage id="pages.strategy.stock.relation.maBelowPercent" defaultMessage="MA Below Percent" />
+          <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.maBelowPercentTip" defaultMessage="Buy when price is below moving average by this percentage" />}>
+            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </>
+      ),
+      dataIndex: 'maBelowPercent',
+      valueType: 'digit',
+      hideInSearch: true,
+      width: 150,
+      render: (_, record) => record.maBelowPercent ? `${(record.maBelowPercent * 100).toFixed(1)}%` : '-',
+    },
+    {
+      title: (
+        <>
+          <FormattedMessage id="pages.strategy.stock.relation.maAbovePercent" defaultMessage="MA Above Percent" />
+          <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.maAbovePercentTip" defaultMessage="Buy when price is above moving average by this percentage" />}>
+            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </>
+      ),
+      dataIndex: 'maAbovePercent',
+      valueType: 'digit',
+      hideInSearch: true,
+      width: 150,
+      render: (_, record) => record.maAbovePercent ? `${(record.maAbovePercent * 100).toFixed(1)}%` : '-',
+    },
+    {
+      title: (
+        <>
+          <FormattedMessage id="pages.strategy.stock.relation.levelPercent" defaultMessage="Level Percent" />
+          <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.levelPercentTip" defaultMessage="Level percentage for stock trading" />}>
+            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </>
+      ),
+      dataIndex: 'levelPercent',
+      valueType: 'digit',
+      hideInSearch: true,
+      width: 140,
+      render: (_, record) => record.levelPercent ? `${(record.levelPercent * 100).toFixed(1)}%` : '-',
+    },
+    {
+      title: (
+        <>
+          <FormattedMessage id="pages.strategy.stock.relation.unsoldStackLimit" defaultMessage="Unsold Stack Limit" />
+          <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.unsoldStackLimitTip" defaultMessage="Maximum number of open buy orders allowed per day" />}>
+            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </>
+      ),
+      dataIndex: 'unsoldStackLimit',
+      valueType: 'digit',
+      hideInSearch: true,
+      width: 140,
+    },
+    {
+      title: (
+        <>
+          <FormattedMessage id="pages.strategy.stock.relation.totalFundShares" defaultMessage="Total Fund Shares" />
+          <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.totalFundSharesTip" defaultMessage="The total number of shares the fund is divided into for buying, default 18" />}>
+            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </>
+      ),
+      dataIndex: 'totalFundShares',
+      valueType: 'digit',
+      hideInSearch: true,
+      width: 140,
+    },
+    {
+      title: (
+        <>
+          <FormattedMessage id="pages.strategy.stock.relation.limitStartShares" defaultMessage="Limit Start Shares" />
+          <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.limitStartSharesTip" defaultMessage="From which share to start limiting buying, default 9" />}>
+            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </>
+      ),
+      dataIndex: 'limitStartShares',
+      valueType: 'digit',
+      hideInSearch: true,
+      width: 140,
     },
     {
       title: <FormattedMessage id="pages.strategy.stock.relation.status" defaultMessage="Status" />,
       dataIndex: 'status',
       valueEnum: {
-        '0': {
-          text: <FormattedMessage id="pages.strategy.status.disabled" defaultMessage="Disabled" />,
-          status: 'Default',
-        },
-        '1': {
-          text: <FormattedMessage id="pages.strategy.status.enabled" defaultMessage="Enabled" />,
-          status: 'Success',
-        },
+        '0': <FormattedMessage id="pages.strategy.status.disabled" defaultMessage="Disabled" />,
+        '1': <FormattedMessage id="pages.strategy.status.enabled" defaultMessage="Enabled" />,
       },
     },
     {
@@ -206,6 +322,8 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       valueType: 'dateTime',
       hideInSearch: true,
       sorter: true,
+      width: 160,
+      defaultSortOrder: 'descend',
     },
     {
       title: <FormattedMessage id="pages.common.actions" defaultMessage="Actions" />,
@@ -220,6 +338,27 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             if (editItem.profitRatio !== undefined) {
               editItem.profitRatio = editItem.profitRatio * 100;
             }
+            if (editItem.maBelowPercent !== undefined) {
+              editItem.maBelowPercent = editItem.maBelowPercent * 100;
+            }
+            if (editItem.maAbovePercent !== undefined) {
+              editItem.maAbovePercent = editItem.maAbovePercent * 100;
+            }
+            if (editItem.levelPercent !== undefined) {
+              editItem.levelPercent = editItem.levelPercent * 100;
+            }
+            
+            // 确保默认值
+            if (editItem.unsoldStackLimit === undefined) {
+              editItem.unsoldStackLimit = 4; // 默认值
+            }
+            if (editItem.totalFundShares === undefined) {
+              editItem.totalFundShares = 18; // 默认值
+            }
+            if (editItem.limitStartShares === undefined) {
+              editItem.limitStartShares = 9; // 默认值
+            }
+            
             setCurrentRow(editItem);
             setUpdateModalVisible(true);
           }}
@@ -283,7 +422,30 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           if (strategyId) {
             queryParams.strategyId = strategyId;
           }
-          return listStrategyStock(queryParams);
+          
+          return listStrategyStock(queryParams).then(response => {
+            if (response && response.data) {
+              // 处理返回的数据，确保字段有默认值
+              const processedData = response.data.map(item => ({
+                ...item,
+                unsoldStackLimit: item.unsoldStackLimit ?? 4,
+                totalFundShares: item.totalFundShares ?? 18,
+                limitStartShares: item.limitStartShares ?? 9,
+                // 百分比字段保持原样，显示时在render函数中处理
+              }));
+              
+              return {
+                data: processedData,
+                success: true,
+                total: response.total || processedData.length
+              };
+            }
+            return {
+              data: [],
+              success: false,
+              total: 0
+            };
+          });
         }}
         columns={columns}
       />
@@ -355,10 +517,98 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           min={0}
           max={100}
           fieldProps={{
-            step: 1,
-            precision: 2,
+            step: 0.1,
+            precision: 1,
             addonAfter: '%',
           }}
+          initialValue={1}
+          rules={[{ required: true }]}
+        />
+        
+        <ProFormDigit
+          name="maBelowPercent"
+          label={<FormattedMessage id="pages.strategy.stock.relation.maBelowPercent" defaultMessage="MA Below Percent (%)" />}
+          tooltip={<FormattedMessage id="pages.strategy.stock.relation.maBelowPercentTip" defaultMessage="Buy when price is below moving average by this percentage (in percentage, e.g. 3 means 3%)" />}
+          min={0}
+          max={100}
+          fieldProps={{
+            step: 0.1,
+            precision: 1,
+            addonAfter: '%',
+          }}
+          initialValue={1}
+          rules={[{ required: true }]}
+        />
+        
+        <ProFormDigit
+          name="maAbovePercent"
+          label={<FormattedMessage id="pages.strategy.stock.relation.maAbovePercent" defaultMessage="MA Above Percent (%)" />}
+          tooltip={<FormattedMessage id="pages.strategy.stock.relation.maAbovePercentTip" defaultMessage="Buy when price is above moving average by this percentage (in percentage, e.g. 0.2 means 0.2%)" />}
+          min={0}
+          max={100}
+          fieldProps={{
+            step: 0.1,
+            precision: 1,
+            addonAfter: '%',
+          }}
+          initialValue={0.2}
+          rules={[{ required: true }]}
+        />
+        
+        <ProFormDigit
+          name="levelPercent"
+          label={<FormattedMessage id="pages.strategy.stock.relation.levelPercent" defaultMessage="Level Percent (%)" />}
+          tooltip={<FormattedMessage id="pages.strategy.stock.relation.levelPercentTip" defaultMessage="Level percentage for stock trading (in percentage, e.g. 1.5 means 1.5%)" />}
+          min={0}
+          max={100}
+          fieldProps={{
+            step: 0.1,
+            precision: 1,
+            addonAfter: '%',
+          }}
+          initialValue={1.5}
+          rules={[{ required: true }]}
+        />
+        
+        <ProFormDigit
+          name="unsoldStackLimit"
+          label={<FormattedMessage id="pages.strategy.stock.relation.unsoldStackLimit" defaultMessage="Unsold Stack Limit" />}
+          tooltip={<FormattedMessage id="pages.strategy.stock.relation.unsoldStackLimitTip" defaultMessage="Maximum number of open buy orders allowed per day" />}
+          min={1}
+          max={20}
+          fieldProps={{
+            step: 1,
+            precision: 0,
+          }}
+          initialValue={4}
+          rules={[{ required: true }]}
+        />
+        
+        <ProFormDigit
+          name="totalFundShares"
+          label={<FormattedMessage id="pages.strategy.stock.relation.totalFundShares" defaultMessage="Total Fund Shares" />}
+          tooltip={<FormattedMessage id="pages.strategy.stock.relation.totalFundSharesTip" defaultMessage="The total number of shares the fund is divided into for buying, default 18" />}
+          min={1}
+          max={100}
+          fieldProps={{
+            step: 1,
+            precision: 0,
+          }}
+          initialValue={18}
+          rules={[{ required: true }]}
+        />
+        
+        <ProFormDigit
+          name="limitStartShares"
+          label={<FormattedMessage id="pages.strategy.stock.relation.limitStartShares" defaultMessage="Limit Start Shares" />}
+          tooltip={<FormattedMessage id="pages.strategy.stock.relation.limitStartSharesTip" defaultMessage="From which share to start limiting buying, default 9" />}
+          min={1}
+          max={100}
+          fieldProps={{
+            step: 1,
+            precision: 0,
+          }}
+          initialValue={9}
           rules={[{ required: true }]}
         />
         
@@ -400,10 +650,94 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           min={0}
           max={100}
           fieldProps={{
-            step: 1,
-            precision: 2,
+            step: 0.1,
+            precision: 1,
             addonAfter: '%',
           }}
+          rules={[{ required: true }]}
+        />
+        
+        <ProFormDigit
+          name="maBelowPercent"
+          label={<FormattedMessage id="pages.strategy.stock.relation.maBelowPercent" defaultMessage="MA Below Percent (%)" />}
+          tooltip={<FormattedMessage id="pages.strategy.stock.relation.maBelowPercentTip" defaultMessage="Buy when price is below moving average by this percentage (in percentage, e.g. 3 means 3%)" />}
+          min={0}
+          max={100}
+          fieldProps={{
+            step: 0.1,
+            precision: 1,
+            addonAfter: '%',
+          }}
+          rules={[{ required: true }]}
+        />
+        
+        <ProFormDigit
+          name="maAbovePercent"
+          label={<FormattedMessage id="pages.strategy.stock.relation.maAbovePercent" defaultMessage="MA Above Percent (%)" />}
+          tooltip={<FormattedMessage id="pages.strategy.stock.relation.maAbovePercentTip" defaultMessage="Buy when price is above moving average by this percentage (in percentage, e.g. 0.2 means 0.2%)" />}
+          min={0}
+          max={100}
+          fieldProps={{
+            step: 0.1,
+            precision: 1,
+            addonAfter: '%',
+          }}
+          rules={[{ required: true }]}
+        />
+        
+        <ProFormDigit
+          name="levelPercent"
+          label={<FormattedMessage id="pages.strategy.stock.relation.levelPercent" defaultMessage="Level Percent (%)" />}
+          tooltip={<FormattedMessage id="pages.strategy.stock.relation.levelPercentTip" defaultMessage="Level percentage for stock trading (in percentage, e.g. 1.5 means 1.5%)" />}
+          min={0}
+          max={100}
+          fieldProps={{
+            step: 0.1,
+            precision: 1,
+            addonAfter: '%',
+          }}
+          rules={[{ required: true }]}
+        />
+        
+        <ProFormDigit
+          name="unsoldStackLimit"
+          label={<FormattedMessage id="pages.strategy.stock.relation.unsoldStackLimit" defaultMessage="Unsold Stack Limit" />}
+          tooltip={<FormattedMessage id="pages.strategy.stock.relation.unsoldStackLimitTip" defaultMessage="Maximum number of open buy orders allowed per day" />}
+          min={1}
+          max={20}
+          fieldProps={{
+            step: 1,
+            precision: 0,
+          }}
+          initialValue={4}
+          rules={[{ required: true }]}
+        />
+        
+        <ProFormDigit
+          name="totalFundShares"
+          label={<FormattedMessage id="pages.strategy.stock.relation.totalFundShares" defaultMessage="Total Fund Shares" />}
+          tooltip={<FormattedMessage id="pages.strategy.stock.relation.totalFundSharesTip" defaultMessage="The total number of shares the fund is divided into for buying, default 18" />}
+          min={1}
+          max={100}
+          fieldProps={{
+            step: 1,
+            precision: 0,
+          }}
+          initialValue={18}
+          rules={[{ required: true }]}
+        />
+        
+        <ProFormDigit
+          name="limitStartShares"
+          label={<FormattedMessage id="pages.strategy.stock.relation.limitStartShares" defaultMessage="Limit Start Shares" />}
+          tooltip={<FormattedMessage id="pages.strategy.stock.relation.limitStartSharesTip" defaultMessage="From which share to start limiting buying, default 9" />}
+          min={1}
+          max={100}
+          fieldProps={{
+            step: 1,
+            precision: 0,
+          }}
+          initialValue={9}
           rules={[{ required: true }]}
         />
         

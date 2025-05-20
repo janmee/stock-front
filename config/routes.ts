@@ -185,6 +185,12 @@ export default [
     },
   },
   {
+    path: '/strategy-regression',
+    name: 'strategyRegression',
+    icon: 'LineChartOutlined',
+    component: './StrategyRegression',
+  },
+  {
     path: '*',
     layout: false,
     component: './404',

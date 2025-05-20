@@ -70,4 +70,6 @@ export default {
   'pages.modalForm.message.timeZone': '请选择时区',
   'menu.earnings': '财报日历',
   'menu.list.scheduled-orders': '定时订单管理',
+  'menu.stockAnalysis': '股票分析',
+  'menu.strategyRegression': '策略回归',
 };

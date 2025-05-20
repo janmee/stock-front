@@ -191,10 +191,17 @@ const Trade: React.FC = () => {
       title: <FormattedMessage id="pages.searchTable.price" defaultMessage="Stock Price" />,
       dataIndex: 'price',
       width: 100,
-      render: (_, record) => {
-        return record.orderType === 2 ? 
-          <FormattedMessage id="pages.order.marketPrice" defaultMessage="Market Price" /> : 
-          record.price;
+      render: (val, record) => {
+        if (record.orderType === '市价单') {
+          return <span style={{ color: '#1890ff', fontStyle: 'italic' }}>
+            <FormattedMessage id="pages.order.marketPrice" defaultMessage="Market Price" />
+          </span>;
+        }
+        // 数值格式化显示
+        if (val && !isNaN(Number(val))) {
+          return `$${Number(val).toFixed(2)}`;
+        }
+        return val;
       },
       hideInSearch: true,
     },
@@ -203,11 +210,6 @@ const Trade: React.FC = () => {
       dataIndex: 'amount',
       width: 120,
       hideInSearch: true,
-      render: (_, record) => {
-        return record.orderType === 2 ? 
-          <FormattedMessage id="pages.order.marketPrice" defaultMessage="Market Price" /> : 
-          record.amount;
-      },
     },
     {
       title: <FormattedMessage id="pages.searchTable.fillQty" defaultMessage="Fill Quantity" />,

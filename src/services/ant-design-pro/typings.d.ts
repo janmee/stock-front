@@ -236,6 +236,12 @@ declare namespace API {
     strategyName?: string;
     stockCode?: string;
     profitRatio?: number;
+    maBelowPercent?: number;
+    maAbovePercent?: number;
+    levelPercent?: number;
+    unsoldStackLimit?: number;
+    totalFundShares?: number;
+    limitStartShares?: number;
     status?: string;
     createTime?: string;
     updateTime?: string;

@@ -233,7 +233,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       dataIndex: 'fundPercent',
       valueType: 'percent',
       hideInSearch: true,
-      render: (_, record) => record.fundPercent ? `${(record.fundPercent * 100).toFixed(2)}%` : '-',
+      render: (_, record) => record.fundPercent ? `${(record.fundPercent * 100).toFixed(1)}%` : '-',
     },
     {
       title: (
@@ -247,7 +247,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       dataIndex: 'maxAmount',
       valueType: 'money',
       hideInSearch: true,
-      render: (_, record) => record.maxAmount ? `$${record.maxAmount.toFixed(2)}` : '-',
+      render: (_, record) => record.maxAmount ? `$${record.maxAmount.toFixed(0)}` : '-',
     },
     {
       title: <FormattedMessage id="pages.strategy.user.stockRelation.status" defaultMessage="Status" />,
@@ -346,7 +346,20 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           if (strategyId) {
             queryParams.strategyId = strategyId;
           }
-          return listStrategyUserStock(queryParams);
+          return listStrategyUserStock(queryParams).then(response => {
+            if (response && response.data) {
+              return {
+                data: response.data,
+                success: true,
+                total: response.total || response.data.length
+              };
+            }
+            return {
+              data: [],
+              success: false,
+              total: 0
+            };
+          });
         }}
         columns={columns}
       />
@@ -451,8 +464,8 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           min={0}
           max={100}
           fieldProps={{
-            step: 1,
-            precision: 2,
+            step: 0.1,
+            precision: 1,
             addonAfter: '%',
           }}
         />
@@ -464,7 +477,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           min={0}
           fieldProps={{
             step: 100,
-            precision: 2,
+            precision: 0,
           }}
         />
         
@@ -517,8 +530,8 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           min={0}
           max={100}
           fieldProps={{
-            step: 1,
-            precision: 2,
+            step: 0.1,
+            precision: 1,
             addonAfter: '%',
           }}
         />
@@ -530,7 +543,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           min={0}
           fieldProps={{
             step: 100,
-            precision: 2,
+            precision: 0,
           }}
         />
         

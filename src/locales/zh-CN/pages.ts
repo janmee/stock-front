@@ -416,7 +416,7 @@ export default {
   
   // 策略管理页面翻译
   'pages.strategy.tabs.strategyJob': '策略任务',
-  'pages.strategy.tabs.strategyStock': '策略股票关系',
+  'pages.strategy.tabs.strategyStock': '策略标的',
   'pages.strategy.tabs.strategyUserStock': '策略用户股票关系',
   
   // 策略任务
@@ -442,6 +442,18 @@ export default {
   'pages.strategy.stock.relation.stockCode': '股票代码',
   'pages.strategy.stock.relation.profitRatio': '盈利比例',
   'pages.strategy.stock.relation.profitRatioTip': '设置止盈的盈利比例',
+  'pages.strategy.stock.relation.maBelowPercent': '分时平均线下方百分比',
+  'pages.strategy.stock.relation.maBelowPercentTip': '当股价低于分时平均线该百分比时买入（例如：3表示3%）',
+  'pages.strategy.stock.relation.maAbovePercent': '分时平均线上方百分比',
+  'pages.strategy.stock.relation.maAbovePercentTip': '当股价高于分时平均线该百分比时买入（例如：0.2表示0.2%）',
+  'pages.strategy.stock.relation.levelPercent': '档位百分比',
+  'pages.strategy.stock.relation.levelPercentTip': '股票交易的档位百分比（例如：1.5表示1.5%）',
+  'pages.strategy.stock.relation.unsoldStackLimit': '未卖出堆栈值',
+  'pages.strategy.stock.relation.unsoldStackLimitTip': '限制当天同一股票在同一策略下最多允许的未卖出买入订单数量',
+  'pages.strategy.stock.relation.totalFundShares': '总资金份数',
+  'pages.strategy.stock.relation.totalFundSharesTip': '资金分成多少份用于买入，默认18份',
+  'pages.strategy.stock.relation.limitStartShares': '限制开始份数',
+  'pages.strategy.stock.relation.limitStartSharesTip': '从第几份开始限制买入，默认为9',
   'pages.strategy.stock.relation.status': '状态',
   'pages.strategy.stock.relation.create': '创建策略股票关系',
   'pages.strategy.stock.relation.edit': '编辑策略股票关系',
@@ -481,4 +493,8 @@ export default {
   'pages.message.deleting': '正在删除...',
   'pages.message.deleted': '删除成功！',
   'pages.message.deleteFailed': '删除失败！',
+  'pages.message.executing': '正在执行...',
+  'pages.message.executed': '执行成功！',
+  'pages.message.executeFailed': '执行失败！',
+  'pages.common.execute': '立即执行',
 };

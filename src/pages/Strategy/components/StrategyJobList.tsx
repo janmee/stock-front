@@ -1,5 +1,5 @@
 import React, { useImperativeHandle, useRef, forwardRef, useState } from 'react';
-import { Button, message, Popconfirm, Select, Tooltip } from 'antd';
+import { message, Switch } from 'antd';
 import {
   ActionType,
   ModalForm,
@@ -10,12 +10,10 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { FormattedMessage, useIntl } from '@umijs/max';
-import { PlusOutlined } from '@ant-design/icons';
 import { 
   listStrategyJob, 
-  createStrategyJob, 
   updateStrategyJob, 
-  deleteStrategyJob 
+  executeStrategyJob
 } from '@/services/ant-design-pro/api';
 
 interface StrategyJobListProps {
@@ -27,7 +25,6 @@ interface StrategyJobListProps {
  */
 const StrategyJobList = forwardRef((props: StrategyJobListProps, ref) => {
   const { onStrategySelected } = props;
-  const [createModalVisible, setCreateModalVisible] = useState<boolean>(false);
   const [updateModalVisible, setUpdateModalVisible] = useState<boolean>(false);
   const [currentRow, setCurrentRow] = useState<API.StrategyJobItem>();
   const actionRef = useRef<ActionType>();
@@ -39,23 +36,6 @@ const StrategyJobList = forwardRef((props: StrategyJobListProps, ref) => {
       actionRef.current?.reload();
     },
   }));
-
-  // 添加策略任务
-  const handleAdd = async (fields: API.StrategyJobItem) => {
-    const hide = message.loading(intl.formatMessage({ id: 'pages.message.creating' }));
-    
-    try {
-      await createStrategyJob(fields);
-      hide();
-      message.success(intl.formatMessage({ id: 'pages.message.created' }));
-      actionRef.current?.reload();
-      return true;
-    } catch (error) {
-      hide();
-      message.error(intl.formatMessage({ id: 'pages.message.createFailed' }));
-      return false;
-    }
-  };
 
   // 更新策略任务
   const handleUpdate = async (fields: API.StrategyJobItem) => {
@@ -81,19 +61,41 @@ const StrategyJobList = forwardRef((props: StrategyJobListProps, ref) => {
     }
   };
 
-  // 删除策略任务
-  const handleDelete = async (record: API.StrategyJobItem) => {
-    const hide = message.loading(intl.formatMessage({ id: 'pages.message.deleting' }));
+  // 执行策略任务
+  const handleExecute = async (record: API.StrategyJobItem) => {
+    const hide = message.loading(intl.formatMessage({ id: 'pages.message.executing' }, { defaultMessage: '正在执行...' }));
     
     try {
-      await deleteStrategyJob(record);
+      await executeStrategyJob(record.id!);
       hide();
-      message.success(intl.formatMessage({ id: 'pages.message.deleted' }));
+      message.success(intl.formatMessage({ id: 'pages.message.executed' }, { defaultMessage: '执行成功！' }));
       actionRef.current?.reload();
       return true;
     } catch (error) {
       hide();
-      message.error(intl.formatMessage({ id: 'pages.message.deleteFailed' }));
+      message.error(intl.formatMessage({ id: 'pages.message.executeFailed' }, { defaultMessage: '执行失败！' }));
+      return false;
+    }
+  };
+
+  // 启用/禁用策略任务
+  const handleToggleStatus = async (record: API.StrategyJobItem, checked: boolean) => {
+    const newStatus = checked ? '1' : '0';
+    const action = checked ? '启用' : '禁用';
+    const hide = message.loading(`正在${action}...`);
+    
+    try {
+      await updateStrategyJob({
+        ...record,
+        status: newStatus,
+      });
+      hide();
+      message.success(`${action}成功！`);
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error(`${action}失败！`);
       return false;
     }
   };
@@ -180,31 +182,32 @@ const StrategyJobList = forwardRef((props: StrategyJobListProps, ref) => {
             setCurrentRow(record);
             setUpdateModalVisible(true);
           }}
+          style={{ marginRight: 8 }}
         >
           <FormattedMessage id="pages.common.edit" defaultMessage="Edit" />
         </a>,
-        <Popconfirm
-          key="delete"
-          title={<FormattedMessage id="pages.common.deleteConfirm" defaultMessage="Are you sure you want to delete this item?" />}
-          onConfirm={() => handleDelete(record)}
-          okText={<FormattedMessage id="pages.common.yes" defaultMessage="Yes" />}
-          cancelText={<FormattedMessage id="pages.common.no" defaultMessage="No" />}
-        >
-          <a>
-            <FormattedMessage id="pages.common.delete" defaultMessage="Delete" />
-          </a>
-        </Popconfirm>,
         <a
-          key="select"
-          onClick={() => {
-            // 通知父组件选择了当前策略
-            if (onStrategySelected && record.id) {
-              onStrategySelected(record.id, record.name || '');
-            }
-          }}
+          key="execute"
+          onClick={() => handleExecute(record)}
+          style={{ marginRight: 8 }}
         >
-          <FormattedMessage id="pages.common.select" defaultMessage="Select" />
+          <FormattedMessage id="pages.common.execute" defaultMessage="Execute" />
         </a>,
+        <span key="status-wrapper" style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <span style={{ marginRight: 4 }}>
+            <FormattedMessage id="pages.common.status" defaultMessage="状态" />:
+          </span>
+          <Switch
+            key="status"
+            checked={record.status === '1'}
+            onChange={(checked) => handleToggleStatus(record, checked)}
+            checkedChildren={<FormattedMessage id="pages.common.enabled" defaultMessage="启用" />}
+            unCheckedChildren={<FormattedMessage id="pages.common.disabled" defaultMessage="禁用" />}
+            size="small"
+            title={record.status === '1' ? '点击禁用' : '点击启用'}
+            loading={record.running === '1'}
+          />
+        </span>,
       ],
     },
   ];
@@ -217,75 +220,10 @@ const StrategyJobList = forwardRef((props: StrategyJobListProps, ref) => {
         search={{
           labelWidth: 120,
         }}
-        toolBarRender={() => [
-          <Button
-            key="new"
-            type="primary"
-            onClick={() => setCreateModalVisible(true)}
-          >
-            <PlusOutlined /> <FormattedMessage id="pages.common.new" defaultMessage="New" />
-          </Button>,
-        ]}
+        toolBarRender={() => []}
         request={listStrategyJob}
         columns={columns}
       />
-      
-      {/* 新增策略任务表单 */}
-      <ModalForm
-        title={<FormattedMessage id="pages.strategy.job.create" defaultMessage="Create Strategy Job" />}
-        width="550px"
-        modalProps={{
-          destroyOnClose: true,
-        }}
-        open={createModalVisible}
-        onOpenChange={setCreateModalVisible}
-        onFinish={handleAdd}
-      >
-        <ProFormText
-          name="name"
-          label={<FormattedMessage id="pages.strategy.job.name" defaultMessage="Name" />}
-          rules={[{ required: true }]}
-        />
-        
-        <ProFormTextArea
-          name="description"
-          label={<FormattedMessage id="pages.strategy.job.description" defaultMessage="Description" />}
-        />
-        
-        <ProFormText
-          name="className"
-          label={<FormattedMessage id="pages.strategy.job.className" defaultMessage="Class Name" />}
-          rules={[{ required: true }]}
-        />
-        
-        <ProFormText
-          name="cron"
-          label={<FormattedMessage id="pages.strategy.job.cron" defaultMessage="Cron Expression" />}
-          rules={[{ required: true }]}
-        />
-        
-        <ProFormSelect
-          name="timeZone"
-          label={<FormattedMessage id="pages.strategy.job.timeZone" defaultMessage="Time Zone" />}
-          valueEnum={{
-            'Asia/Shanghai': <FormattedMessage id="pages.job.timeZone.shanghai" defaultMessage="Beijing (CST)" />,
-            'America/New_York': <FormattedMessage id="pages.job.timeZone.newyork" defaultMessage="Eastern US (EDT/EST)" />,
-          }}
-          initialValue="Asia/Shanghai"
-          rules={[{ required: true }]}
-        />
-        
-        <ProFormSelect
-          name="status"
-          label={<FormattedMessage id="pages.strategy.job.status" defaultMessage="Status" />}
-          valueEnum={{
-            '0': <FormattedMessage id="pages.strategy.status.disabled" defaultMessage="Disabled" />,
-            '1': <FormattedMessage id="pages.strategy.status.enabled" defaultMessage="Enabled" />,
-          }}
-          initialValue="1"
-          rules={[{ required: true }]}
-        />
-      </ModalForm>
       
       {/* 编辑策略任务表单 */}
       <ModalForm
