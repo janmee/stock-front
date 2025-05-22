@@ -168,10 +168,18 @@ export default [
     hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
   },
   {
-    path: '/Earnings',
     name: 'earnings',
+    path: '/Earnings',
     icon: 'LineChartOutlined',
     component: './Earnings',
+  },
+  {
+    name: 'list.stock-chart',
+    icon: 'StockOutlined',
+    path: '/stock-chart',
+    component: './StockChart',
+    access: 'canAdmin',
+    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
   },
   {
     path: '/',

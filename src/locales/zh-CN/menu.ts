@@ -29,6 +29,7 @@ export default {
   'menu.list.account-info': '账户管理',
   'menu.list.time-job': '定时任务',
   'menu.list.strategy': '策略管理',
+  'menu.strategyRegression': '策略回归',
   'menu.list.power-demo': '系统推荐',
   'menu.list.analysis': '数据分析',
   'menu.list.run-logs': '运行日志',
@@ -71,5 +72,5 @@ export default {
   'menu.earnings': '财报日历',
   'menu.list.scheduled-orders': '定时订单管理',
   'menu.stockAnalysis': '股票分析',
-  'menu.strategyRegression': '策略回归',
+  'menu.list.stock-chart': '股票分时图表',
 };

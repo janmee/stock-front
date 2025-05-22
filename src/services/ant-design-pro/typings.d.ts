@@ -281,4 +281,44 @@ declare namespace API {
     total?: number;
     success?: boolean;
   };
+
+  type StockMinuteData = {
+    current: number;
+    volume: number;
+    avgPrice: number;
+    high: number;
+    low: number;
+    timestamp: number;
+    percent: number;
+  };
+
+  type StockMinuteVO = {
+    stockCode: string;
+    minuteData: StockMinuteData[];
+    buyPoints: {
+      time: string;
+      price: number;
+      orderNo: string;
+      number?: number;
+      fillQty?: number;
+    }[];
+    sellPoints: {
+      time: string;
+      price: number;
+      orderNo: string;
+      number?: number;
+      fillQty?: number;
+    }[];
+    profitStatistics?: {
+      profitOrderCount: number;
+      totalBuyAmount: number;
+      totalSellAmount: number;
+      totalProfit: number;
+      totalProfitPercentage: number;
+    };
+    unfinishedProfitStatistics?: {
+      unfinishedOrderCount: number;
+      totalUnfinishedAmount: number;
+    };
+  };
 }

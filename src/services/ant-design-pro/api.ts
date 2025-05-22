@@ -1268,3 +1268,18 @@ export async function executeStrategyJob(id: number) {
     method: 'POST',
   });
 }
+
+/**
+ * 获取股票分时数据
+ * @param stockCode 股票代码
+ * @param days 天数，默认5
+ */
+export async function getStockMinuteData(stockCode: string, days: number = 5) {
+  return request<API.Response<API.StockMinuteVO>>('/api/stock-minute/data', {
+    method: 'GET',
+    params: {
+      stockCode,
+      days,
+    },
+  });
+}
