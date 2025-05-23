@@ -217,6 +217,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         name: 'strategyId',
       },
       hideInTable: !!strategyId, // 如果已经选择了策略，隐藏该列
+      width: 100,
     },
     {
       title: <FormattedMessage id="pages.strategy.stock.relation.stockCode" defaultMessage="Stock Code" />,
@@ -236,7 +237,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       dataIndex: 'profitRatio',
       valueType: 'digit',
       hideInSearch: true,
-      width: 120,
       render: (_, record) => record.profitRatio ? `${(record.profitRatio * 100).toFixed(1)}%` : '-',
     },
     {
@@ -251,7 +251,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       dataIndex: 'maBelowPercent',
       valueType: 'digit',
       hideInSearch: true,
-      width: 150,
       render: (_, record) => record.maBelowPercent ? `${(record.maBelowPercent * 100).toFixed(1)}%` : '-',
     },
     {
@@ -266,7 +265,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       dataIndex: 'maAbovePercent',
       valueType: 'digit',
       hideInSearch: true,
-      width: 150,
       render: (_, record) => record.maAbovePercent ? `${(record.maAbovePercent * 100).toFixed(1)}%` : '-',
     },
     {
@@ -281,7 +279,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       dataIndex: 'levelPercent',
       valueType: 'digit',
       hideInSearch: true,
-      width: 140,
       render: (_, record) => record.levelPercent ? `${(record.levelPercent * 100).toFixed(1)}%` : '-',
     },
     {
@@ -296,7 +293,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       dataIndex: 'unsoldStackLimit',
       valueType: 'digit',
       hideInSearch: true,
-      width: 140,
     },
     {
       title: (
@@ -310,7 +306,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       dataIndex: 'totalFundShares',
       valueType: 'digit',
       hideInSearch: true,
-      width: 140,
     },
     {
       title: (
@@ -324,7 +319,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       dataIndex: 'limitStartShares',
       valueType: 'digit',
       hideInSearch: true,
-      width: 140,
     },
     {
       title: <FormattedMessage id="pages.strategy.stock.relation.status" defaultMessage="Status" />,

@@ -1282,14 +1282,30 @@ export async function executeStrategyJob(id: number) {
  * @param stockCode 股票代码
  * @param days 天数，默认5
  */
-export async function getStockMinuteData(stockCode: string, days: number = 5) {
-  return request<API.Response<API.StockMinuteVO>>('/api/stock-minute/data', {
+export async function getStockMinuteData(
+  stockCode: string, 
+  days?: number,
+  strategyId?: number,
+  account?: string
+) {
+  // 添加日志输出，打印返回的数据
+  const response = await request<API.Response<API.StockMinuteVO>>('/api/stock-minute/data', {
     method: 'GET',
     params: {
       stockCode,
       days,
+      strategyId,
+      account
     },
   });
+  
+  // 检查买卖点数据是否包含账户名和额外信息
+  if (response.success && response.data) {
+    console.log('买入点数据示例:', response.data.buyPoints?.[0]);
+    console.log('卖出点数据示例:', response.data.sellPoints?.[0]);
+  }
+  
+  return response;
 }
 
 export async function updateStrategyStockStatus(

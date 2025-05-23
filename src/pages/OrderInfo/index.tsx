@@ -101,13 +101,18 @@ const TableList: React.FC = () => {
         '6': { text: <FormattedMessage id="pages.order.source.dingtouProfit" defaultMessage="Investment Profit Order" /> },
         '7': { text: <FormattedMessage id="pages.order.source.maStrategy" defaultMessage="MA Strategy" /> },
         '8': { text: <FormattedMessage id="pages.order.source.strategyProfit" defaultMessage="Strategy Profit Order" /> },
+        '9': { text: <FormattedMessage id="pages.order.source.highOscillationStrategy" defaultMessage="High Oscillation Strategy Order" /> },
       }
     },
     {
       title: <FormattedMessage id="pages.searchTable.trdSide" defaultMessage="Buy Direction" />,
       dataIndex: 'trdSide',
       valueType: 'textarea',
-      hideInSearch: true,
+      hideInSearch: false,
+      valueEnum: {
+        '1': { text: '买入' },
+        '2': { text: '卖出' },
+      }
     },
     {
       title: <FormattedMessage id="pages.searchTable.orderType" defaultMessage="Order Type" />,
@@ -131,7 +136,6 @@ const TableList: React.FC = () => {
     {
       title: <FormattedMessage id="pages.searchTable.price" defaultMessage="Stock Price" />,
       dataIndex: 'price',
-      width: 100,
       render: (_, record) => {
         return record.orderType === '市价单' ? 
           <FormattedMessage id="pages.order.marketPrice" defaultMessage="Market Price" /> : 
@@ -142,7 +146,6 @@ const TableList: React.FC = () => {
     {
       title: <FormattedMessage id="pages.searchTable.amount" defaultMessage="Order Amount" />,
       dataIndex: 'amount',
-      width: 120,
       render: (_, record) => {
         return record.orderType === '市价单' ? 
           <FormattedMessage id="pages.order.marketPrice" defaultMessage="Market Price" /> : 
@@ -186,6 +189,17 @@ const TableList: React.FC = () => {
           text: <FormattedMessage id="pages.order.status.unfilled" defaultMessage="Unfilled" />,
           status: 'Error',
         },
+      },
+    },
+    {
+      title: <FormattedMessage id="pages.searchTable.extra" defaultMessage="Extra Info" />,
+      dataIndex: 'extra',
+      valueType: 'textarea',
+      hideInSearch: true,
+      width: 80,
+      render: (_, record) => {
+        if (!record.extra) return '-';
+        return <div style={{ wordBreak: 'break-all', whiteSpace: 'normal' }}>{record.extra}</div>;
       },
     },
     {

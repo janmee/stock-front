@@ -215,6 +215,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       formItemProps: {
         name: 'strategyId',
       },
+      width: 150,
     },
     {
       title: <FormattedMessage id="pages.strategy.user.stockRelation.account" defaultMessage="Account" />,

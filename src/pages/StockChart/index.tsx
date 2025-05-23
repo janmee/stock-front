@@ -13,14 +13,50 @@ import {
   Form,
   Radio,
   Divider,
-  Tag
+  Tag,
+  Select,
+  Table
 } from 'antd';
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Line } from '@ant-design/plots';
 import { useIntl, FormattedMessage } from '@umijs/max';
 import moment from 'moment';
 import { PageContainer } from '@ant-design/pro-layout';
-import { getStockMinuteData } from '@/services/ant-design-pro/api';
+import { getStockMinuteData, listStrategyJob, listAccount } from '@/services/ant-design-pro/api';
+
+// 在文件顶部添加类型定义
+interface DataPoint {
+  time: string;
+  value: number;
+  type: string;
+  rawTime?: string;
+  orderNo?: string;
+  number?: number;
+  fillQty?: number;
+  accountName?: string;
+  extra?: string;
+  pointId?: string;
+  pointType?: 'buy' | 'sell';
+}
+
+// 买卖点数据接口
+interface TradePoint {
+  time: string;
+  price: number;
+  orderNo: string;
+  number?: number;
+  fillQty?: number;
+  accountName?: string;
+  extra?: string;
+  pointType?: 'buy' | 'sell'; // 添加点类型
+  sellOrderNo?: string;
+  sellOrderTime?: string;
+  buyOrderNo?: string;
+  buyOrderTime?: string;
+  closed?: boolean;
+  profitAmount?: number;
+  profitPercentage?: number;
+}
 
 const StockChart: React.FC = () => {
   const intl = useIntl();
@@ -29,12 +65,17 @@ const StockChart: React.FC = () => {
   const [chartData, setChartData] = useState<any[]>([]);
   const [stockChartData, setStockChartData] = useState<API.StockMinuteVO | null>(null);
   const [days, setDays] = useState<number>(1); // 默认1天
+  const [selectedStrategyId, setSelectedStrategyId] = useState<number | undefined>(undefined);
+  const [selectedAccount, setSelectedAccount] = useState<string | undefined>(undefined);
+  const [strategyOptions, setStrategyOptions] = useState<{label: string, value: number}[]>([]);
+  const [accountOptions, setAccountOptions] = useState<{label: string, value: string}[]>([]);
   const formRef = useRef<any>();
 
   // 常用股票列表
   const popularStocks = [
     { code: 'TSLA', name: 'Tesla' },
     { code: 'PLTR', name: 'Palantir' },
+    { code: 'CRWV', name: 'CRWV' },
     { code: 'CRWD', name: 'CrowdStrike' },
     { code: 'AAPL', name: 'Apple' },
     { code: 'MSFT', name: 'Microsoft' },
@@ -43,16 +84,50 @@ const StockChart: React.FC = () => {
     { code: 'NVDA', name: 'NVIDIA' },
   ];
 
+  // 加载策略和账户选项
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        // 获取策略列表
+        const strategyRes = await listStrategyJob({
+          current: 1,
+          pageSize: 100,
+        });
+        if (strategyRes && strategyRes.data) {
+          const options = strategyRes.data.map((item: any) => ({
+            label: item.name,
+            value: item.id,
+          }));
+          setStrategyOptions([{ label: '全部策略', value: 0 }, ...options]);
+        }
+        
+        // 获取账户列表
+        const accountRes = await listAccount({});
+        if (accountRes && accountRes.data) {
+          const options = accountRes.data.map((item: any) => ({
+            label: `${item.account} (${item.name})`,
+            value: item.account,
+          }));
+          setAccountOptions([{ label: '全部账户', value: '' }, ...options]);
+        }
+      } catch (error) {
+        console.error('获取选项数据失败:', error);
+      }
+    };
+    
+    fetchOptions();
+  }, []);
+
   // 处理股票标签点击
   const handleStockTagClick = (code: string) => {
     // 设置表单字段值
     formRef.current?.setFieldsValue({ stockCode: code });
     setStockCode(code);
     // 立即触发搜索
-    fetchStockMinuteData(code, days);
+    fetchStockMinuteData(code, days, selectedStrategyId, selectedAccount);
   };
 
-  const fetchStockMinuteData = async (code: string, selectedDays: number) => {
+  const fetchStockMinuteData = async (code: string, selectedDays: number, strategyId?: number, account?: string) => {
     if (!code) {
       message.error(intl.formatMessage({ id: 'pages.stockChart.stockCodeRequired' }));
       return;
@@ -60,7 +135,10 @@ const StockChart: React.FC = () => {
     
     setLoading(true);
     try {
-      const response = await getStockMinuteData(code, selectedDays);
+      // 对0值的strategyId进行处理，传undefined表示所有策略
+      const strategyIdParam = strategyId && strategyId > 0 ? strategyId : undefined;
+      
+      const response = await getStockMinuteData(code, selectedDays, strategyIdParam, account);
       if (response && response.data) {
         setStockChartData(response.data);
         transformDataForChart(response.data);
@@ -75,12 +153,28 @@ const StockChart: React.FC = () => {
     }
   };
 
+  // 处理策略选择变化
+  const handleStrategyChange = (value: number) => {
+    setSelectedStrategyId(value);
+    if (stockCode) {
+      fetchStockMinuteData(stockCode, days, value, selectedAccount);
+    }
+  };
+
+  // 处理账户选择变化
+  const handleAccountChange = (value: string) => {
+    setSelectedAccount(value);
+    if (stockCode) {
+      fetchStockMinuteData(stockCode, days, selectedStrategyId, value);
+    }
+  };
+
   const transformDataForChart = (data: API.StockMinuteVO) => {
     // 分开存储不同类型的数据
-    const priceData: any[] = [];
-    const avgPriceData: any[] = [];
-    const buyPointsData: any[] = [];
-    const sellPointsData: any[] = [];
+    const priceData: DataPoint[] = [];
+    const avgPriceData: DataPoint[] = [];
+    const buyPointsData: DataPoint[] = [];
+    const sellPointsData: DataPoint[] = [];
     
     // 添加分时数据和均价
     if (data.minuteData && data.minuteData.length > 0) {
@@ -120,6 +214,9 @@ const StockChart: React.FC = () => {
           orderNo: point.orderNo,
           number: point.number,
           fillQty: point.fillQty,
+          accountName: point.accountName,
+          extra: point.extra,
+          pointType: 'buy',
           // 为每个点添加唯一ID，避免连线
           pointId: `buy_${point.orderNo || point.time}`
         });
@@ -141,6 +238,9 @@ const StockChart: React.FC = () => {
           orderNo: point.orderNo,
           number: point.number,
           fillQty: point.fillQty,
+          accountName: point.accountName,
+          extra: point.extra,
+          pointType: 'sell',
           // 为每个点添加唯一ID，避免连线
           pointId: `sell_${point.orderNo || point.time}`
         });
@@ -156,13 +256,13 @@ const StockChart: React.FC = () => {
     const values = formRef.current?.getFieldsValue();
     if (values && values.stockCode) {
       setStockCode(values.stockCode.toUpperCase());
-      fetchStockMinuteData(values.stockCode.toUpperCase(), days);
+      fetchStockMinuteData(values.stockCode.toUpperCase(), days, selectedStrategyId, selectedAccount);
     }
   };
 
   const handleRefresh = () => {
     if (stockCode) {
-      fetchStockMinuteData(stockCode, days);
+      fetchStockMinuteData(stockCode, days, selectedStrategyId, selectedAccount);
     }
   };
 
@@ -170,7 +270,7 @@ const StockChart: React.FC = () => {
     const selectedDays = e.target.value;
     setDays(selectedDays);
     if (stockCode) {
-      fetchStockMinuteData(stockCode, selectedDays);
+      fetchStockMinuteData(stockCode, selectedDays, selectedStrategyId, selectedAccount);
     }
   };
 
@@ -194,6 +294,7 @@ const StockChart: React.FC = () => {
   const renderStockChart = () => {
     if (!chartData.length) return null;
     
+    // 不再需要提取买入和卖出点
     const config = {
       data: chartData,
       xField: 'time',
@@ -244,6 +345,32 @@ const StockChart: React.FC = () => {
           return ''; // 其他数据点不显示为点
         },
         style: (datum: any) => {
+          // 判断是否是买入点或卖出点，并且有账户名或额外信息
+          const hasBuyInfo = datum.type === intl.formatMessage({ id: 'pages.stockChart.buyPoint' }) && 
+                            (datum.accountName || datum.extra);
+          const hasSellInfo = datum.type === intl.formatMessage({ id: 'pages.stockChart.sellPoint' }) && 
+                             (datum.accountName || datum.extra);
+          
+          if (hasBuyInfo) {
+            return {
+              fill: '#f5222d',
+              r: 6, // 更大的点
+              lineWidth: 3,
+              stroke: '#f5222d',
+              strokeOpacity: 0.8,
+              fillOpacity: 0.8,
+            };
+          }
+          if (hasSellInfo) {
+            return {
+              fill: '#52c41a',
+              r: 6, // 更大的点
+              lineWidth: 3,
+              stroke: '#52c41a',
+              strokeOpacity: 0.8,
+              fillOpacity: 0.8,
+            };
+          }
           if (datum.type === intl.formatMessage({ id: 'pages.stockChart.buyPoint' })) {
             return {
               fill: '#f5222d',
@@ -282,11 +409,63 @@ const StockChart: React.FC = () => {
           };
         },
         size: (datum: any) => {
+          // 判断是否是买入点或卖出点，并且有账户名或额外信息
+          const hasBuyInfo = datum.type === intl.formatMessage({ id: 'pages.stockChart.buyPoint' }) && 
+                            (datum.accountName || datum.extra);
+          const hasSellInfo = datum.type === intl.formatMessage({ id: 'pages.stockChart.sellPoint' }) && 
+                             (datum.accountName || datum.extra);
+                             
+          if (hasBuyInfo || hasSellInfo) {
+            return 10; // 带有账户名或额外信息的点更大一些
+          }
+          
           if (datum.type === intl.formatMessage({ id: 'pages.stockChart.buyPoint' }) ||
               datum.type === intl.formatMessage({ id: 'pages.stockChart.sellPoint' })) {
             return 8; // 买入卖出点大小保持不变
           }
           return 3; // 价格线和均价线上的点设置为较小的尺寸
+        },
+        label: {
+          // 为买入点和卖出点添加标签显示
+          layout: [
+            {
+              type: 'hide-overlap',
+            },
+          ],
+          // 配置文本标签的显示样式
+          style: (datum: any) => {
+            // 根据买入点或卖出点设置不同颜色的标签
+            const isBuyPoint = datum.type === intl.formatMessage({ id: 'pages.stockChart.buyPoint' });
+            const textColor = isBuyPoint ? '#f5222d' : '#52c41a';
+            
+            return {
+              textAlign: 'center',
+              fill: textColor,
+              fontSize: 10,
+              fontWeight: 'bold',
+              textBaseline: isBuyPoint ? 'bottom' : 'top',
+              shadowColor: 'rgba(255, 255, 255, 0.8)',
+              shadowBlur: 2,
+            };
+          },
+          // 根据点的类型设置标签的位置
+          offsetY: (datum: any) => {
+            return datum.type === intl.formatMessage({ id: 'pages.stockChart.buyPoint' }) ? -15 : 15;
+          },
+          formatter: (datum: any) => {
+            // 只为买卖点且带有账户信息的数据点添加标签
+            if ((datum.type === intl.formatMessage({ id: 'pages.stockChart.buyPoint' }) || 
+                datum.type === intl.formatMessage({ id: 'pages.stockChart.sellPoint' })) && 
+                (datum.accountName || datum.extra)) {
+              
+              let content = '';
+              if (datum.accountName) content += datum.accountName;
+              if (datum.extra) content += content ? `(${datum.extra})` : datum.extra;
+              
+              return content;
+            }
+            return '';
+          },
         },
       },
       tooltip: {
@@ -304,11 +483,24 @@ const StockChart: React.FC = () => {
               type === intl.formatMessage({ id: 'pages.stockChart.sellPoint' })) {
             
             if (datum.orderNo) {
+              // 构建包含账户名和额外信息的tooltip内容
+              let tooltipContent = `${value} (${intl.formatMessage({ id: 'pages.stockChart.orderNo' })}: ${datum.orderNo})\n` +
+                        `${intl.formatMessage({ id: 'pages.stockChart.quantity' })}: ${datum.fillQty || datum.number}\n` +
+                        `${intl.formatMessage({ id: 'pages.stockChart.time' })}: ${datum.rawTime}`;
+              
+              // 添加账户名信息，放在开头并用星号标记，确保显著
+              if (datum.accountName) {
+                tooltipContent = `★ ${intl.formatMessage({ id: 'pages.stockChart.account' })}: ${datum.accountName} ★\n` + tooltipContent;
+              }
+              
+              // 添加额外信息，放在账户名后面
+              if (datum.extra) {
+                tooltipContent = `★ ${intl.formatMessage({ id: 'pages.stockChart.extra' })}: ${datum.extra} ★\n` + tooltipContent;
+              }
+              
               return {
                 name: type,
-                value: `${value} (${intl.formatMessage({ id: 'pages.stockChart.orderNo' })}: ${datum.orderNo})\n` +
-                      `${intl.formatMessage({ id: 'pages.stockChart.quantity' })}: ${datum.fillQty || datum.number}\n` +
-                      `${intl.formatMessage({ id: 'pages.stockChart.time' })}: ${datum.rawTime}`
+                value: tooltipContent
               };
             }
           }
@@ -427,7 +619,7 @@ const StockChart: React.FC = () => {
             value={totalProfit || 0}
             precision={2}
             prefix="$"
-            valueStyle={{ color: (totalProfit || 0) >= 0 ? '#3f8600' : '#cf1322' }}
+            valueStyle={{ color: (totalProfit || 0) >= 0 ? '#f5222d' : '#52c41a' }}
             style={{ marginBottom: 0 }}
           />
         </Col>
@@ -437,7 +629,7 @@ const StockChart: React.FC = () => {
             value={totalProfitPercentage || 0}
             precision={2}
             suffix="%"
-            valueStyle={{ color: (totalProfitPercentage || 0) >= 0 ? '#3f8600' : '#cf1322' }}
+            valueStyle={{ color: (totalProfitPercentage || 0) >= 0 ? '#f5222d' : '#52c41a' }}
             style={{ marginBottom: 0 }}
           />
         </Col>
@@ -470,6 +662,7 @@ const StockChart: React.FC = () => {
             value={totalUnfinishedAmount || 0}
             precision={2}
             prefix="$"
+            valueStyle={{ color: '#f5222d' }}
             style={{ marginBottom: 0 }}
           />
         </Col>
@@ -498,6 +691,26 @@ const StockChart: React.FC = () => {
               <Radio.Button value={1}>1天</Radio.Button>
               <Radio.Button value={5}>5天</Radio.Button>
             </Radio.Group>
+          </Form.Item>
+          
+          <Form.Item label="策略">
+            <Select
+              placeholder="选择策略"
+              style={{ width: 180 }}
+              options={strategyOptions}
+              onChange={handleStrategyChange}
+              value={selectedStrategyId}
+            />
+          </Form.Item>
+          
+          <Form.Item label="账户">
+            <Select
+              placeholder="选择账户"
+              style={{ width: 180 }}
+              options={accountOptions}
+              onChange={handleAccountChange}
+              value={selectedAccount}
+            />
           </Form.Item>
           
           <Form.Item>
@@ -555,6 +768,7 @@ const StockChart: React.FC = () => {
                       value={getLatestPrice() || 0}
                       precision={2}
                       prefix="$"
+                      valueStyle={{ color: '#1890ff' }}
                       style={{ marginBottom: 0 }} // 减小统计数据的下边距
                     />
                   </Col>
@@ -563,7 +777,7 @@ const StockChart: React.FC = () => {
                       title="涨跌幅"
                       value={getLatestPercentage() || 0}
                       precision={2}
-                      valueStyle={{ color: (getLatestPercentage() || 0) >= 0 ? '#3f8600' : '#cf1322' }}
+                      valueStyle={{ color: (getLatestPercentage() || 0) >= 0 ? '#f5222d' : '#52c41a' }}
                       suffix="%"
                       style={{ marginBottom: 0 }}
                     />
@@ -595,6 +809,277 @@ const StockChart: React.FC = () => {
                 <Row>
                   <Col span={24} style={{ position: 'relative', width: '100%' }}>
                     {renderStockChart()}
+                  </Col>
+                </Row>
+                
+                {/* 新增买卖点订单列表 */}
+                <Divider orientation="left">{intl.formatMessage({ id: 'pages.stockChart.orderPoints' })}</Divider>
+                <Row>
+                  <Col span={24}>
+                    <div style={{ marginBottom: 8 }}>
+                      <Space>
+                        <Tag color="#f5222d">买入点: {stockChartData?.buyPoints?.length || 0}个</Tag>
+                        <Tag color="#52c41a">卖出点: {stockChartData?.sellPoints?.length || 0}个</Tag>
+                      </Space>
+                    </div>
+                    
+                    {/* 买入点列表 */}
+                    <div style={{ marginBottom: 16 }}>
+                      <h4><Tag color="#f5222d" style={{ marginRight: 8 }}>买入点列表</Tag></h4>
+                      <Table
+                        size="small"
+                        rowKey={(record) => record.orderNo || `${record.time}-${record.price}`}
+                        dataSource={(stockChartData?.buyPoints || []).sort((a, b) => {
+                          const timeA = new Date(a.time).getTime();
+                          const timeB = new Date(b.time).getTime();
+                          return timeA - timeB; // 按时间升序排序
+                        })}
+                        columns={[
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.time' }),
+                            dataIndex: 'time',
+                            key: 'time',
+                            width: 160,
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.account' }),
+                            dataIndex: 'accountName',
+                            key: 'accountName',
+                            width: 120,
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.price' }),
+                            dataIndex: 'price',
+                            key: 'price',
+                            width: 90,
+                            align: 'right',
+                            render: (text) => text?.toFixed(2),
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.quantity' }),
+                            dataIndex: 'fillQty',
+                            key: 'fillQty',
+                            width: 90,
+                            align: 'right',
+                            render: (text, record) => text || record.number,
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.searchTable.amount' }),
+                            dataIndex: 'amount',
+                            key: 'amount',
+                            width: 100,
+                            align: 'right',
+                            render: (_, record) => {
+                              const quantity = record.fillQty || record.number || 0;
+                              const price = record.price || 0;
+                              const amount = quantity * price;
+                              return `$${amount.toFixed(2)}`;
+                            },
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.orderNo' }),
+                            dataIndex: 'orderNo',
+                            key: 'orderNo',
+                            width: 160,
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.isClosed' }),
+                            dataIndex: 'closed',
+                            key: 'closed',
+                            width: 80,
+                            align: 'center',
+                            render: (closed) => (
+                              <Tag color={closed ? '#52c41a' : '#f5222d'}>
+                                {closed ? '已平仓' : '未平仓'}
+                              </Tag>
+                            ),
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.sellOrderNo' }),
+                            dataIndex: 'sellOrderNo',
+                            key: 'sellOrderNo',
+                            width: 160,
+                            render: (sellOrderNo) => sellOrderNo || '-',
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.sellOrderTime' }),
+                            dataIndex: 'sellOrderTime',
+                            key: 'sellOrderTime',
+                            width: 160,
+                            render: (sellOrderTime, record: any) => {
+                              // 更精确的未平仓判断
+                              if (!sellOrderTime || (!record.closed && record.closed !== undefined)) {
+                                return '-'
+                              }
+                              return sellOrderTime;
+                            },
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.profitAmount' }),
+                            dataIndex: 'profitAmount',
+                            key: 'profitAmount',
+                            width: 100,
+                            align: 'right',
+                            render: (profitAmount, record: any) => {
+                              // 如果未平仓(closed不为true)，显示"-"
+                              if (record.closed !== true) {
+                                return '-';
+                              }
+                              if (profitAmount === undefined || profitAmount === null) return '-';
+                              return (
+                                <span style={{ color: profitAmount >= 0 ? '#f5222d' : '#52c41a' }}>
+                                  ${profitAmount.toFixed(2)}
+                                </span>
+                              );
+                            },
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.profitPercentage' }),
+                            dataIndex: 'profitPercentage',
+                            key: 'profitPercentage',
+                            width: 100,
+                            align: 'right',
+                            render: (profitPercentage, record: any) => {
+                              // 如果未平仓(closed不为true)，显示"-"
+                              if (record.closed !== true) {
+                                return '-';
+                              }
+                              if (profitPercentage === undefined || profitPercentage === null) return '-';
+                              return (
+                                <span style={{ color: profitPercentage >= 0 ? '#f5222d' : '#52c41a' }}>
+                                  {profitPercentage.toFixed(2)}%
+                                </span>
+                              );
+                            },
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.extra' }),
+                            dataIndex: 'extra',
+                            key: 'extra',
+                            ellipsis: true,
+                          },
+                        ]}
+                        pagination={false}
+                        bordered
+                        scroll={{ x: true }}
+                      />
+                    </div>
+                    
+                    {/* 卖出点列表 */}
+                    <div>
+                      <h4><Tag color="#52c41a" style={{ marginRight: 8 }}>卖出点列表</Tag></h4>
+                      <Table
+                        size="small"
+                        rowKey={(record) => record.orderNo || `${record.time}-${record.price}`}
+                        dataSource={(stockChartData?.sellPoints || []).sort((a, b) => {
+                          const timeA = new Date(a.time).getTime();
+                          const timeB = new Date(b.time).getTime();
+                          return timeA - timeB; // 按时间升序排序
+                        })}
+                        columns={[
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.time' }),
+                            dataIndex: 'time',
+                            key: 'time',
+                            width: 160,
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.account' }),
+                            dataIndex: 'accountName',
+                            key: 'accountName',
+                            width: 120,
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.price' }),
+                            dataIndex: 'price',
+                            key: 'price',
+                            width: 90,
+                            align: 'right',
+                            render: (text) => text?.toFixed(2),
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.quantity' }),
+                            dataIndex: 'fillQty',
+                            key: 'fillQty',
+                            width: 90,
+                            align: 'right',
+                            render: (text, record) => text || record.number,
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.searchTable.amount' }),
+                            dataIndex: 'amount',
+                            key: 'amount',
+                            width: 100,
+                            align: 'right',
+                            render: (_, record) => {
+                              const quantity = record.fillQty || record.number || 0;
+                              const price = record.price || 0;
+                              const amount = quantity * price;
+                              return `$${amount.toFixed(2)}`;
+                            },
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.orderNo' }),
+                            dataIndex: 'orderNo',
+                            key: 'orderNo',
+                            width: 160,
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.buyOrderNo' }),
+                            dataIndex: 'buyOrderNo',
+                            key: 'buyOrderNo',
+                            width: 160,
+                            render: (buyOrderNo) => buyOrderNo || '-',
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.buyOrderTime' }),
+                            dataIndex: 'buyOrderTime',
+                            key: 'buyOrderTime',
+                            width: 160,
+                            render: (buyOrderTime) => buyOrderTime || '-',
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.profitAmount' }),
+                            dataIndex: 'profitAmount',
+                            key: 'profitAmount',
+                            width: 100,
+                            align: 'right',
+                            render: (profitAmount) => {
+                              if (profitAmount === undefined || profitAmount === null) return '-';
+                              return (
+                                <span style={{ color: profitAmount >= 0 ? '#f5222d' : '#52c41a' }}>
+                                  ${profitAmount.toFixed(2)}
+                                </span>
+                              );
+                            },
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.profitPercentage' }),
+                            dataIndex: 'profitPercentage',
+                            key: 'profitPercentage',
+                            width: 100,
+                            align: 'right',
+                            render: (profitPercentage) => {
+                              if (profitPercentage === undefined || profitPercentage === null) return '-';
+                              return (
+                                <span style={{ color: profitPercentage >= 0 ? '#f5222d' : '#52c41a' }}>
+                                  {profitPercentage.toFixed(2)}%
+                                </span>
+                              );
+                            },
+                          },
+                          {
+                            title: intl.formatMessage({ id: 'pages.stockChart.extra' }),
+                            dataIndex: 'extra',
+                            key: 'extra',
+                            ellipsis: true,
+                          },
+                        ]}
+                        pagination={false}
+                        bordered
+                        scroll={{ x: true }}
+                      />
+                    </div>
                   </Col>
                 </Row>
               </>

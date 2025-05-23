@@ -302,6 +302,8 @@ declare namespace API {
       orderNo: string;
       number?: number;
       fillQty?: number;
+      accountName?: string;
+      extra?: string;
     }[];
     sellPoints: {
       time: string;
@@ -309,6 +311,8 @@ declare namespace API {
       orderNo: string;
       number?: number;
       fillQty?: number;
+      accountName?: string;
+      extra?: string;
     }[];
     profitStatistics?: {
       profitOrderCount: number;

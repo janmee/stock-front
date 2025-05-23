@@ -157,6 +157,7 @@ export default {
   'pages.order.source.dingtouProfit': '定投止盈单',
   'pages.order.source.maStrategy': '分时平均线策略',
   'pages.order.source.strategyProfit': '策略止盈单',
+  'pages.order.source.highOscillationStrategy': '高位震荡策略',
   
   // Trade Table
   'pages.trade.table.stockName': '股票名称',
@@ -521,5 +522,17 @@ export default {
   'pages.stockChart.oneDay': '1日',
   'pages.stockChart.fiveDays': '5日',
   'pages.stockChart.orderNo': '订单号',
-  'pages.stockChart.quantity': '成交数量',
+  'pages.stockChart.quantity': '数量',
+  'pages.stockChart.account': '账户',
+  'pages.stockChart.extra': '备注信息',
+  'pages.stockChart.orderPoints': '买卖点订单列表',
+  'pages.stockChart.pointType': '买卖类型',
+  'pages.stockChart.sellOrderNo': '卖出订单号',
+  'pages.stockChart.buyOrderNo': '买入订单号',
+  'pages.stockChart.buyOrderTime': '买入时间',
+  'pages.stockChart.sellOrderTime': '卖出时间',
+  'pages.stockChart.profitAmount': '盈利金额',
+  'pages.stockChart.profitPercentage': '盈利百分比',
+  'pages.stockChart.isClosed': '是否平仓',
+  'pages.stockChart.amount': '总金额',
 };
