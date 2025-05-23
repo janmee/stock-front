@@ -1089,14 +1089,22 @@ export async function createStrategyJob(body: API.StrategyJobItem, options?: { [
 
 /** 更新策略任务 POST /api/strategyJob/update */
 export async function updateStrategyJob(body: API.StrategyJobItem, options?: { [key: string]: any }) {
-  return request<API.Response<void>>('/api/strategy/job', {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    data: body,
-    ...(options || {}),
-  });
+  console.log('更新策略任务参数:', body); // 添加日志输出查看传递的参数
+  try {
+    const response = await request<API.Response<void>>('/api/strategy/job', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      data: body,
+      ...(options || {}),
+    });
+    console.log('更新策略任务响应:', response);
+    return response;
+  } catch (error) {
+    console.error('更新策略任务错误:', error);
+    throw error;
+  }
 }
 
 /** 删除策略任务 POST /api/strategyJob/delete */
@@ -1281,5 +1289,31 @@ export async function getStockMinuteData(stockCode: string, days: number = 5) {
       stockCode,
       days,
     },
+  });
+}
+
+export async function updateStrategyStockStatus(
+  params: {
+    id: number;
+    status: string;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.ApiResponse>(`/api/strategy/stock/status/${params.id}/${params.status}`, {
+    method: 'POST',
+    ...(options || {}),
+  });
+}
+
+export async function updateStrategyUserStockStatus(
+  params: {
+    id: number;
+    status: string;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.ApiResponse>(`/api/strategy/user-stock/status/${params.id}/${params.status}`, {
+    method: 'POST',
+    ...(options || {}),
   });
 }

@@ -227,8 +227,8 @@ const Trade: React.FC = () => {
       hideInSearch: true,
     },
     {
-      title: <FormattedMessage id="pages.searchTable.createTime" defaultMessage="Creation Time" />,
-      dataIndex: 'createTime',
+      title: <FormattedMessage id="pages.searchTable.updateTime" defaultMessage="Update Time" />,
+      dataIndex: 'updateTime',
       valueType: 'textarea',
       hideInSearch: true,
       sorter: true,

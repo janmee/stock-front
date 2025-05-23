@@ -1,5 +1,5 @@
 import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState } from 'react';
-import { Button, message, Popconfirm, Select, Tooltip, Tag, Space } from 'antd';
+import { Button, message, Popconfirm, Select, Tooltip, Tag, Space, Switch } from 'antd';
 import {
   ActionType,
   ModalForm,
@@ -18,7 +18,8 @@ import {
   createStrategyStock, 
   updateStrategyStock, 
   deleteStrategyStock,
-  listStrategyJob
+  listStrategyJob,
+  updateStrategyStockStatus
 } from '@/services/ant-design-pro/api';
 
 interface StrategyStockListProps {
@@ -173,6 +174,23 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     }
   };
 
+  // 更新策略股票关系状态
+  const handleUpdateStatus = async (id: number, status: string) => {
+    const hide = message.loading(intl.formatMessage({ id: 'pages.message.updating' }));
+    
+    try {
+      await updateStrategyStockStatus({ id, status });
+      hide();
+      message.success(intl.formatMessage({ id: 'pages.message.updated' }));
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error(intl.formatMessage({ id: 'pages.message.updateFailed' }));
+      return false;
+    }
+  };
+
   // 表格列定义
   const columns: ProColumns<API.StrategyStockItem>[] = [
     {
@@ -312,9 +330,25 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       title: <FormattedMessage id="pages.strategy.stock.relation.status" defaultMessage="Status" />,
       dataIndex: 'status',
       valueEnum: {
-        '0': <FormattedMessage id="pages.strategy.status.disabled" defaultMessage="Disabled" />,
-        '1': <FormattedMessage id="pages.strategy.status.enabled" defaultMessage="Enabled" />,
+        '0': {
+          text: <FormattedMessage id="pages.strategy.status.disabled" defaultMessage="Disabled" />,
+          status: 'Default',
+        },
+        '1': {
+          text: <FormattedMessage id="pages.strategy.status.enabled" defaultMessage="Enabled" />,
+          status: 'Success',
+        },
       },
+      render: (_, record) => (
+        <Switch
+          checkedChildren={<FormattedMessage id="pages.strategy.status.enabled" defaultMessage="Enabled" />}
+          unCheckedChildren={<FormattedMessage id="pages.strategy.status.disabled" defaultMessage="Disabled" />}
+          checked={record.status === '1'}
+          onChange={(checked) => {
+            handleUpdateStatus(record.id!, checked ? '1' : '0');
+          }}
+        />
+      ),
     },
     {
       title: <FormattedMessage id="pages.strategy.createTime" defaultMessage="Create Time" />,

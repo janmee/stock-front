@@ -45,6 +45,10 @@ const StrategyJobList = forwardRef((props: StrategyJobListProps, ref) => {
       return false;
     }
     
+    console.log('提交前检查 - currentRow:', currentRow);
+    console.log('提交前检查 - fields:', fields);
+    console.log('提交前检查 - 合并后数据:', {...currentRow, ...fields});
+    
     try {
       await updateStrategyJob({
         ...currentRow,
@@ -56,6 +60,7 @@ const StrategyJobList = forwardRef((props: StrategyJobListProps, ref) => {
       return true;
     } catch (error) {
       hide();
+      console.error('更新策略任务出错:', error);
       message.error(intl.formatMessage({ id: 'pages.message.updateFailed' }));
       return false;
     }
@@ -134,6 +139,15 @@ const StrategyJobList = forwardRef((props: StrategyJobListProps, ref) => {
       dataIndex: 'cron',
       valueType: 'text',
       hideInSearch: true,
+    },
+    {
+      title: <FormattedMessage id="pages.strategy.job.endTime" defaultMessage="End Time" />,
+      dataIndex: 'endTime',
+      valueType: 'text',
+      hideInSearch: true,
+      render: (_, record) => (
+        <span>{record.endTime || '16:00'}</span>
+      ),
     },
     {
       title: <FormattedMessage id="pages.strategy.job.status" defaultMessage="Status" />,
@@ -234,7 +248,16 @@ const StrategyJobList = forwardRef((props: StrategyJobListProps, ref) => {
         }}
         open={updateModalVisible}
         onOpenChange={setUpdateModalVisible}
-        onFinish={handleUpdate}
+        onFinish={async (values) => {
+          console.log('Form values before submit:', values);
+          // 确保endTime字段存在且正确命名
+          const formattedValues = {
+            ...values,
+            endTime: values.endTime || '16:00', // 如果为空则使用默认值
+          };
+          console.log('格式化后的表单数据:', formattedValues);
+          return handleUpdate(formattedValues);
+        }}
         initialValues={currentRow}
       >
         <ProFormText
@@ -268,6 +291,24 @@ const StrategyJobList = forwardRef((props: StrategyJobListProps, ref) => {
             'America/New_York': <FormattedMessage id="pages.job.timeZone.newyork" defaultMessage="Eastern US (EDT/EST)" />,
           }}
           rules={[{ required: true }]}
+        />
+        
+        <ProFormSelect
+          name="endTime"
+          label={<FormattedMessage id="pages.strategy.job.endTime" defaultMessage="End Time" />}
+          placeholder="选择策略每日结束运行时间"
+          rules={[{ required: true, message: '请选择结束运行时间' }]}
+          allowClear={false}
+          showSearch
+          options={[
+            // 生成从00:00到16:00，每半小时一个选项
+            ...[...Array(33)].map((_, index) => {
+              const hour = Math.floor(index / 2);
+              const minute = (index % 2) * 30;
+              const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+              return { label: timeString, value: timeString };
+            })
+          ]}
         />
         
         <ProFormSelect

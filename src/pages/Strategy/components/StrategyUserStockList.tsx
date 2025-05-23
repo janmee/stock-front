@@ -1,5 +1,5 @@
 import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState } from 'react';
-import { Button, message, Popconfirm, Select, Tooltip, Tag, Space } from 'antd';
+import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select } from 'antd';
 import {
   ActionType,
   ModalForm,
@@ -19,7 +19,8 @@ import {
   updateStrategyUserStock, 
   deleteStrategyUserStock,
   listAccount,
-  listStrategyJob
+  listStrategyJob,
+  updateStrategyUserStockStatus
 } from '@/services/ant-design-pro/api';
 
 interface StrategyUserStockListProps {
@@ -176,6 +177,23 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     }
   };
 
+  // 更新策略用户股票关系状态
+  const handleUpdateStatus = async (id: number, status: string) => {
+    const hide = message.loading(intl.formatMessage({ id: 'pages.message.updating' }));
+    
+    try {
+      await updateStrategyUserStockStatus({ id, status });
+      hide();
+      message.success(intl.formatMessage({ id: 'pages.message.updated' }));
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error(intl.formatMessage({ id: 'pages.message.updateFailed' }));
+      return false;
+    }
+  };
+
   // 表格列定义
   const columns: ProColumns<API.StrategyUserStockItem>[] = [
     {
@@ -262,6 +280,16 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           status: 'Success',
         },
       },
+      render: (_, record) => (
+        <Switch
+          checkedChildren={<FormattedMessage id="pages.strategy.status.enabled" defaultMessage="Enabled" />}
+          unCheckedChildren={<FormattedMessage id="pages.strategy.status.disabled" defaultMessage="Disabled" />}
+          checked={record.status === '1'}
+          onChange={(checked) => {
+            handleUpdateStatus(record.id!, checked ? '1' : '0');
+          }}
+        />
+      ),
     },
     {
       title: <FormattedMessage id="pages.strategy.createTime" defaultMessage="Create Time" />,

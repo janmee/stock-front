@@ -215,6 +215,7 @@ declare namespace API {
     className?: string;
     cron?: string;
     timeZone?: string;
+    endTime?: string;
     status?: string;
     running?: string;
     deleted?: string;
