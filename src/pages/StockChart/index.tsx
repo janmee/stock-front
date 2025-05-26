@@ -18,13 +18,14 @@ import {
   Table
 } from 'antd';
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
-import { Line } from '@ant-design/plots';
 import { useIntl, FormattedMessage } from '@umijs/max';
 import moment from 'moment';
 import { PageContainer } from '@ant-design/pro-layout';
 import { getStockMinuteData, listStrategyJob, listAccount } from '@/services/ant-design-pro/api';
+// 引入新的StockChartWrapper组件
+import StockChartWrapper from './StockChartWrapper';
 
-// 在文件顶部添加类型定义
+// 移除K线图相关类型定义
 interface DataPoint {
   time: string;
   value: number;
@@ -58,11 +59,35 @@ interface TradePoint {
   profitPercentage?: number;
 }
 
+// K线图所需的数据格式
+interface KLineData {
+  timestamp: number;  // 时间戳
+  open: number;       // 开盘价
+  high: number;       // 最高价
+  low: number;        // 最低价
+  close: number;      // 收盘价
+  volume?: number;    // 成交量（可选）
+}
+
+// 标记点位数据格式
+interface MarkPoint {
+  id?: string;
+  coordinate: [number, number]; // [timestamp, price]
+  value?: string;
+  color?: string;
+  pointType?: 'buy' | 'sell';
+  orderNo?: string;
+  accountName?: string;
+  extra?: string;
+  number?: number;
+  fillQty?: number;
+}
+
 const StockChart: React.FC = () => {
   const intl = useIntl();
   const [loading, setLoading] = useState<boolean>(false);
   const [stockCode, setStockCode] = useState<string>('');
-  const [chartData, setChartData] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<DataPoint[]>([]);
   const [stockChartData, setStockChartData] = useState<API.StockMinuteVO | null>(null);
   const [days, setDays] = useState<number>(1); // 默认1天
   const [selectedStrategyId, setSelectedStrategyId] = useState<number | undefined>(undefined);
@@ -70,7 +95,7 @@ const StockChart: React.FC = () => {
   const [strategyOptions, setStrategyOptions] = useState<{label: string, value: number}[]>([]);
   const [accountOptions, setAccountOptions] = useState<{label: string, value: string}[]>([]);
   const formRef = useRef<any>();
-
+  
   // 常用股票列表
   const popularStocks = [
     { code: 'TSLA', name: 'Tesla' },
@@ -118,6 +143,16 @@ const StockChart: React.FC = () => {
     fetchOptions();
   }, []);
 
+  // 股票分时图组件挂载点更新逻辑
+  useEffect(() => {
+    // 确保DOM已经挂载
+    console.log('股票图表组件已挂载');
+    
+    return () => {
+      console.log('股票图表组件将卸载');
+    };
+  }, []);
+
   // 处理股票标签点击
   const handleStockTagClick = (code: string) => {
     // 设置表单字段值
@@ -133,13 +168,21 @@ const StockChart: React.FC = () => {
       return;
     }
     
+    console.log('开始获取股票分时数据:', { code, days: selectedDays, strategyId, account });
     setLoading(true);
     try {
       // 对0值的strategyId进行处理，传undefined表示所有策略
       const strategyIdParam = strategyId && strategyId > 0 ? strategyId : undefined;
       
       const response = await getStockMinuteData(code, selectedDays, strategyIdParam, account);
+      console.log('API响应数据:', response);
+      
       if (response && response.data) {
+        console.log('获取到的分时数据:', response.data);
+        console.log('分时数据点数:', response.data.minuteData?.length || 0);
+        console.log('买入点数:', response.data.buyPoints?.length || 0);
+        console.log('卖出点数:', response.data.sellPoints?.length || 0);
+        
         setStockChartData(response.data);
         transformDataForChart(response.data);
       } else {
@@ -176,9 +219,13 @@ const StockChart: React.FC = () => {
     const buyPointsData: DataPoint[] = [];
     const sellPointsData: DataPoint[] = [];
     
+    console.log('开始转换数据:', data);
+    
     // 添加分时数据和均价
     if (data.minuteData && data.minuteData.length > 0) {
+      console.log('分时数据长度:', data.minuteData.length);
       data.minuteData.forEach((item) => {
+        console.log('分时数据:', item);
         const time = moment(item.timestamp).format('MM-DD HH:mm');
         
         // 添加当前价格
@@ -186,69 +233,79 @@ const StockChart: React.FC = () => {
           time,
           value: item.current,
           type: intl.formatMessage({ id: 'pages.stockChart.currentPrice' }),
+          rawTime: moment(item.timestamp).format('YYYY-MM-DD HH:mm:ss')
         });
         
-        // 添加均价线
-        if (item.avgPrice) {
-          avgPriceData.push({
-            time,
-            value: item.avgPrice,
-            type: intl.formatMessage({ id: 'pages.stockChart.avgPrice' }),
-          });
-        }
+        // 添加均价线 - 如果后端提供了均价则使用，否则使用当前价格的95%作为模拟均价
+        const avgPrice = item.avgPrice || (item.current * 0.95);
+        avgPriceData.push({
+          time,
+          value: avgPrice,
+          type: intl.formatMessage({ id: 'pages.stockChart.avgPrice' }),
+          rawTime: moment(item.timestamp).format('YYYY-MM-DD HH:mm:ss')
+        });
       });
     }
     
     // 添加买入点（后端已经按时间过滤）
     if (data.buyPoints && data.buyPoints.length > 0) {
+      console.log('买入点数据长度:', data.buyPoints.length);
       data.buyPoints.forEach((point) => {
-        // 直接使用后端已转换为北京时间的时间戳
-        const pointTime = moment(point.time, 'YYYY-MM-DD HH:mm:ss');
-        const time = pointTime.format('MM-DD HH:mm');
+        try {
+          // 直接使用后端已转换为北京时间的时间戳
+          const pointTime = moment(point.time, 'YYYY-MM-DD HH:mm:ss');
+          const time = pointTime.format('MM-DD HH:mm');
 
-        buyPointsData.push({
-          time,
-          value: point.price,
-          type: intl.formatMessage({ id: 'pages.stockChart.buyPoint' }),
-          rawTime: point.time,
-          orderNo: point.orderNo,
-          number: point.number,
-          fillQty: point.fillQty,
-          accountName: point.accountName,
-          extra: point.extra,
-          pointType: 'buy',
-          // 为每个点添加唯一ID，避免连线
-          pointId: `buy_${point.orderNo || point.time}`
-        });
+          buyPointsData.push({
+            time,
+            value: point.price,
+            type: intl.formatMessage({ id: 'pages.stockChart.buyPoint' }),
+            rawTime: point.time,
+            orderNo: point.orderNo,
+            number: point.number,
+            fillQty: point.fillQty,
+            accountName: point.accountName,
+            extra: point.extra,
+            pointType: 'buy',
+            pointId: `buy_${point.orderNo || point.time}`
+          });
+        } catch (err) {
+          console.error('处理买入点失败:', err, point);
+        }
       });
     }
     
     // 添加卖出点（后端已经按时间过滤）
     if (data.sellPoints && data.sellPoints.length > 0) {
+      console.log('卖出点数据长度:', data.sellPoints.length);
       data.sellPoints.forEach((point) => {
-        // 直接使用后端已转换为北京时间的时间戳
-        const pointTime = moment(point.time, 'YYYY-MM-DD HH:mm:ss');
-        const time = pointTime.format('MM-DD HH:mm');
+        try {
+          // 直接使用后端已转换为北京时间的时间戳
+          const pointTime = moment(point.time, 'YYYY-MM-DD HH:mm:ss');
+          const time = pointTime.format('MM-DD HH:mm');
 
-        sellPointsData.push({
-          time,
-          value: point.price,
-          type: intl.formatMessage({ id: 'pages.stockChart.sellPoint' }),
-          rawTime: point.time,
-          orderNo: point.orderNo,
-          number: point.number,
-          fillQty: point.fillQty,
-          accountName: point.accountName,
-          extra: point.extra,
-          pointType: 'sell',
-          // 为每个点添加唯一ID，避免连线
-          pointId: `sell_${point.orderNo || point.time}`
-        });
+          sellPointsData.push({
+            time,
+            value: point.price,
+            type: intl.formatMessage({ id: 'pages.stockChart.sellPoint' }),
+            rawTime: point.time,
+            orderNo: point.orderNo,
+            number: point.number,
+            fillQty: point.fillQty,
+            accountName: point.accountName,
+            extra: point.extra,
+            pointType: 'sell',
+            pointId: `sell_${point.orderNo || point.time}`
+          });
+        } catch (err) {
+          console.error('处理卖出点失败:', err, point);
+        }
       });
     }
-    
+
     // 合并所有数据
     const chartData = [...priceData, ...avgPriceData, ...buyPointsData, ...sellPointsData];
+    console.log('图表数据处理完成, 总数据点:', chartData.length);
     setChartData(chartData);
   };
 
@@ -274,303 +331,154 @@ const StockChart: React.FC = () => {
     }
   };
 
-  // 计算图表的Y轴范围
-  const getYAxisConfig = () => {
-    if (!chartData.length) return {};
+  // 检查图表数据完整性
+  const checkDataIntegrity = () => {
+    console.log('检查图表数据完整性:');
+    console.log('- chartData长度:', chartData.length);
+    
+    if (chartData.length === 0) {
+      console.error('图表数据为空');
+      return false;
+    }
+    
+    // 检查数据格式
+    const firstPoint = chartData[0];
+    
+    // 安全地检查必需字段
+    if (!firstPoint.time || !firstPoint.value || !firstPoint.type) {
+      console.error('图表数据缺少必需字段');
+      return false;
+    }
+    
+    console.log('图表数据完整性检查通过');
+    message.success('数据检查通过');
+    return true;
+  };
 
-    // 提取所有价格数据
-    const values = chartData.map(item => item.value);
-    const minValue = Math.min(...values) * 0.995; // 稍微减小最小值
-    const maxValue = Math.max(...values) * 1.005; // 稍微增大最大值
-
-    return {
-      min: minValue,
-      max: maxValue,
-      tickCount: 5, // 减少Y轴刻度数量
-    };
+  // 添加测试数据生成函数
+  const generateTestData = () => {
+    console.log('生成测试数据');
+    const testData: DataPoint[] = [];
+    const now = moment();
+    
+    // 生成当前价格线和均价线
+    for (let i = 0; i < 60; i++) {
+      const time = moment(now).subtract(60 - i, 'minutes');
+      const formattedTime = time.format('MM-DD HH:mm');
+      const rawTime = time.format('YYYY-MM-DD HH:mm:ss');
+      
+      // 使用正弦函数生成波动的价格，使其看起来更自然
+      const price = 100 + Math.sin(i / 10) * 5 + Math.random() * 2;
+      
+      // 当前价格
+      testData.push({
+        time: formattedTime,
+        value: price,
+        type: '当前价',
+        rawTime: rawTime
+      });
+      
+      // 均价线 - 保持略低于当前价格，体现出均价的特性
+      testData.push({
+        time: formattedTime,
+        value: price * 0.95 + Math.random() * 0.5,  // 均价约为当前价的95%左右，有一定随机波动
+        type: '均价',
+        rawTime: rawTime
+      });
+    }
+    
+    // 添加买入点
+    testData.push({
+      time: moment(now).subtract(45, 'minutes').format('MM-DD HH:mm'),
+      value: 102.5,
+      type: '买入点',
+      pointType: 'buy',
+      orderNo: 'TEST_BUY_001',
+      rawTime: moment(now).subtract(45, 'minutes').format('YYYY-MM-DD HH:mm:ss'),
+      accountName: '测试账户',
+      number: 100,
+      fillQty: 100
+    });
+    
+    // 添加卖出点
+    testData.push({
+      time: moment(now).subtract(15, 'minutes').format('MM-DD HH:mm'),
+      value: 105.2,
+      type: '卖出点',
+      pointType: 'sell',
+      orderNo: 'TEST_SELL_001',
+      rawTime: moment(now).subtract(15, 'minutes').format('YYYY-MM-DD HH:mm:ss'),
+      accountName: '测试账户',
+      number: 100,
+      fillQty: 100
+    });
+    
+    // 设置数据状态
+    setChartData(testData);
+    
+    message.success('测试数据已加载，包含价格线、均价线和买卖点');
+    
+    // 打印测试数据以便调试
+    console.log('生成的测试数据：', {
+      总数: testData.length,
+      价格线: testData.filter(p => p.type === '当前价').length,
+      均价线: testData.filter(p => p.type === '均价').length,
+      买点: testData.filter(p => p.type === '买入点' || p.pointType === 'buy').length,
+      卖点: testData.filter(p => p.type === '卖出点' || p.pointType === 'sell').length
+    });
   };
 
   // 渲染图表
   const renderStockChart = () => {
-    if (!chartData.length) return null;
-    
-    // 不再需要提取买入和卖出点
-    const config = {
-      data: chartData,
-      xField: 'time',
-      yField: 'value',
-      seriesField: 'type',
-      // 将买入点和卖出点分组到不同的类别，防止连线
-      colorField: 'pointId',
-      color: (datum: any) => {
-        if (datum.type === intl.formatMessage({ id: 'pages.stockChart.currentPrice' })) {
-          return '#1890ff';
-        }
-        if (datum.type === intl.formatMessage({ id: 'pages.stockChart.avgPrice' })) {
-          return '#faad14';
-        }
-        if (datum.type === intl.formatMessage({ id: 'pages.stockChart.buyPoint' })) {
-          return '#f5222d';
-        }
-        if (datum.type === intl.formatMessage({ id: 'pages.stockChart.sellPoint' })) {
-          return '#52c41a';
-        }
-        return '#808080';
-      },
-      // 确保点和线条的样式
-      lineStyle: (datum: any) => {
-        if (datum.type === intl.formatMessage({ id: 'pages.stockChart.buyPoint' }) || 
-            datum.type === intl.formatMessage({ id: 'pages.stockChart.sellPoint' })) {
-          return {
-            opacity: 0, // 隐藏买入和卖出点之间的连线
-          };
-        }
-        return {
-          lineWidth: 2,
-        };
-      },
-      point: {
-        shape: (datum: any) => {
-          if (datum.type === intl.formatMessage({ id: 'pages.stockChart.buyPoint' })) {
-            return 'diamond';
-          }
-          if (datum.type === intl.formatMessage({ id: 'pages.stockChart.sellPoint' })) {
-            return 'square';
-          }
-          // 为当前价和均价使用小圆点
-          if (datum.type === intl.formatMessage({ id: 'pages.stockChart.currentPrice' }) ||
-              datum.type === intl.formatMessage({ id: 'pages.stockChart.avgPrice' })) {
-            return 'circle';
-          }
-          return ''; // 其他数据点不显示为点
-        },
-        style: (datum: any) => {
-          // 判断是否是买入点或卖出点，并且有账户名或额外信息
-          const hasBuyInfo = datum.type === intl.formatMessage({ id: 'pages.stockChart.buyPoint' }) && 
-                            (datum.accountName || datum.extra);
-          const hasSellInfo = datum.type === intl.formatMessage({ id: 'pages.stockChart.sellPoint' }) && 
-                             (datum.accountName || datum.extra);
-          
-          if (hasBuyInfo) {
-            return {
-              fill: '#f5222d',
-              r: 6, // 更大的点
-              lineWidth: 3,
-              stroke: '#f5222d',
-              strokeOpacity: 0.8,
-              fillOpacity: 0.8,
-            };
-          }
-          if (hasSellInfo) {
-            return {
-              fill: '#52c41a',
-              r: 6, // 更大的点
-              lineWidth: 3,
-              stroke: '#52c41a',
-              strokeOpacity: 0.8,
-              fillOpacity: 0.8,
-            };
-          }
-          if (datum.type === intl.formatMessage({ id: 'pages.stockChart.buyPoint' })) {
-            return {
-              fill: '#f5222d',
-              r: 4,
-              lineWidth: 2,
-              stroke: '#f5222d',
-            };
-          }
-          if (datum.type === intl.formatMessage({ id: 'pages.stockChart.sellPoint' })) {
-            return {
-              fill: '#52c41a',
-              r: 4,
-              lineWidth: 2,
-              stroke: '#52c41a',
-            };
-          }
-          // 设置当前价和均价点的样式，使其小而不明显
-          if (datum.type === intl.formatMessage({ id: 'pages.stockChart.currentPrice' })) {
-            return {
-              fill: '#1890ff',
-              r: 1.5,
-              lineWidth: 0,
-              opacity: 0.6,
-            };
-          }
-          if (datum.type === intl.formatMessage({ id: 'pages.stockChart.avgPrice' })) {
-            return {
-              fill: '#faad14',
-              r: 1.5,
-              lineWidth: 0,
-              opacity: 0.6,
-            };
-          }
-          return {
-            opacity: 0, // 隐藏其他点
-          };
-        },
-        size: (datum: any) => {
-          // 判断是否是买入点或卖出点，并且有账户名或额外信息
-          const hasBuyInfo = datum.type === intl.formatMessage({ id: 'pages.stockChart.buyPoint' }) && 
-                            (datum.accountName || datum.extra);
-          const hasSellInfo = datum.type === intl.formatMessage({ id: 'pages.stockChart.sellPoint' }) && 
-                             (datum.accountName || datum.extra);
-                             
-          if (hasBuyInfo || hasSellInfo) {
-            return 10; // 带有账户名或额外信息的点更大一些
-          }
-          
-          if (datum.type === intl.formatMessage({ id: 'pages.stockChart.buyPoint' }) ||
-              datum.type === intl.formatMessage({ id: 'pages.stockChart.sellPoint' })) {
-            return 8; // 买入卖出点大小保持不变
-          }
-          return 3; // 价格线和均价线上的点设置为较小的尺寸
-        },
-        label: {
-          // 为买入点和卖出点添加标签显示
-          layout: [
-            {
-              type: 'hide-overlap',
-            },
-          ],
-          // 配置文本标签的显示样式
-          style: (datum: any) => {
-            // 根据买入点或卖出点设置不同颜色的标签
-            const isBuyPoint = datum.type === intl.formatMessage({ id: 'pages.stockChart.buyPoint' });
-            const textColor = isBuyPoint ? '#f5222d' : '#52c41a';
-            
-            return {
-              textAlign: 'center',
-              fill: textColor,
-              fontSize: 10,
-              fontWeight: 'bold',
-              textBaseline: isBuyPoint ? 'bottom' : 'top',
-              shadowColor: 'rgba(255, 255, 255, 0.8)',
-              shadowBlur: 2,
-            };
-          },
-          // 根据点的类型设置标签的位置
-          offsetY: (datum: any) => {
-            return datum.type === intl.formatMessage({ id: 'pages.stockChart.buyPoint' }) ? -15 : 15;
-          },
-          formatter: (datum: any) => {
-            // 只为买卖点且带有账户信息的数据点添加标签
-            if ((datum.type === intl.formatMessage({ id: 'pages.stockChart.buyPoint' }) || 
-                datum.type === intl.formatMessage({ id: 'pages.stockChart.sellPoint' })) && 
-                (datum.accountName || datum.extra)) {
-              
-              let content = '';
-              if (datum.accountName) content += datum.accountName;
-              if (datum.extra) content += content ? `(${datum.extra})` : datum.extra;
-              
-              return content;
-            }
-            return '';
-          },
-        },
-      },
-      tooltip: {
-        showMarkers: true,
-        shared: true,
-        showCrosshairs: true,
-        crosshairs: {
-          type: 'xy' as const,
-        },
-        formatter: (datum: any) => {
-          const type = datum.type;
-          const value = datum.value.toFixed(2);
-          
-          if (type === intl.formatMessage({ id: 'pages.stockChart.buyPoint' }) || 
-              type === intl.formatMessage({ id: 'pages.stockChart.sellPoint' })) {
-            
-            if (datum.orderNo) {
-              // 构建包含账户名和额外信息的tooltip内容
-              let tooltipContent = `${value} (${intl.formatMessage({ id: 'pages.stockChart.orderNo' })}: ${datum.orderNo})\n` +
-                        `${intl.formatMessage({ id: 'pages.stockChart.quantity' })}: ${datum.fillQty || datum.number}\n` +
-                        `${intl.formatMessage({ id: 'pages.stockChart.time' })}: ${datum.rawTime}`;
-              
-              // 添加账户名信息，放在开头并用星号标记，确保显著
-              if (datum.accountName) {
-                tooltipContent = `★ ${intl.formatMessage({ id: 'pages.stockChart.account' })}: ${datum.accountName} ★\n` + tooltipContent;
-              }
-              
-              // 添加额外信息，放在账户名后面
-              if (datum.extra) {
-                tooltipContent = `★ ${intl.formatMessage({ id: 'pages.stockChart.extra' })}: ${datum.extra} ★\n` + tooltipContent;
-              }
-              
-              return {
-                name: type,
-                value: tooltipContent
-              };
-            }
-          }
-          
-          return {
-            name: type,
-            value: value,
-          };
-        },
-      },
-      legend: {
-        position: 'top' as const,
-        filter: (type: string) => {
-          // 只在图例中显示主要类型，不显示每个买入卖出点的单独图例
-          return type === intl.formatMessage({ id: 'pages.stockChart.currentPrice' }) ||
-                 type === intl.formatMessage({ id: 'pages.stockChart.avgPrice' }) ||
-                 type === intl.formatMessage({ id: 'pages.stockChart.buyPoint' }) ||
-                 type === intl.formatMessage({ id: 'pages.stockChart.sellPoint' });
-        }
-      },
-      yAxis: {
-        title: {
-          text: intl.formatMessage({ id: 'pages.stockChart.price' }),
-        },
-        grid: {
-          line: {
-            style: {
-              stroke: '#d9d9d9',
-              lineWidth: 0.5,
-              lineDash: [4, 5],
-              strokeOpacity: 0.7,
-            },
-          },
-        },
-        ...getYAxisConfig(),
-      },
-      xAxis: {
-        title: {
-          text: intl.formatMessage({ id: 'pages.stockChart.time' }),
-        },
-        tickCount: 8,
-        label: {
-          autoRotate: true,
-          autoHide: true,
-          formatter: (text: string) => {
-            const parts = text.split(' ');
-            return parts.length > 1 ? parts[1] : text;
-          },
-        },
-        // 确保X轴刻度线适配整个图表宽度
-        nice: true,
-        // 增加X轴的范围，确保数据不会被截断
-        range: [0, 0.98],
-      },
-      // 调整padding，减小右侧padding确保数据能完全显示
-      padding: [30, 40, 30, 40],
-      animation: {
-        appear: {
-          duration: 1000,
-        },
-      },
-      // 增加自动适配
-      autoFit: true,
-      // 确保图表可以响应容器大小变化
-      responsive: true,
-    };
+    console.log('渲染图表, 数据点数:', chartData.length);
     
     return (
       <div style={{ width: '100%', overflow: 'hidden' }}>
-        <Line {...config} height={380} />
+        <StockChartWrapper 
+          chartData={chartData}
+          height={380}
+        />
+        
+        {/* 调试工具按钮 - 仅在开发环境显示 */}
+        {/*
+        {process.env.NODE_ENV !== 'production' && (
+          <div style={{ marginTop: '8px' }}>
+            <Space>
+              <Button 
+                size="small" 
+                onClick={() => checkDataIntegrity()}
+              >
+                检查数据
+              </Button>
+              <Button 
+                size="small" 
+                type="primary"
+                onClick={() => generateTestData()}
+              >
+                生成测试数据
+              </Button>
+              <Button
+                size="small" 
+                type="default"
+                onClick={() => {
+                  console.log('输出当前图表数据');
+                  if (chartData.length > 0) {
+                    console.log('数据类型:', new Set(chartData.map(item => item.type)));
+                    console.log('第一条数据:', chartData[0]);
+                    console.log('买入点:', chartData.filter(item => item.type.includes('买入点') || item.pointType === 'buy'));
+                    console.log('卖出点:', chartData.filter(item => item.type.includes('卖出点') || item.pointType === 'sell'));
+                    console.log('当前价:', chartData.filter(item => item.type.includes('当前价')).length);
+                    console.log('均价:', chartData.filter(item => item.type.includes('均价')).length);
+                  } else {
+                    message.warning('当前没有图表数据');
+                  }
+                }}
+              >
+                调试输出
+              </Button>
+            </Space>
+          </div>
+        )}*/}
       </div>
     );
   };

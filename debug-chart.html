@@ -1,0 +1,198 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KLineChart测试</title>
+  <script src="./node_modules/klinecharts/dist/umd/klinecharts.min.js"></script>
+  <style>
+    #chart-container {
+      width: 600px;
+      height: 400px;
+      background-color: #1f1f1f;
+      border-radius: 4px;
+    }
+    body {
+      padding: 20px;
+      font-family: Arial, sans-serif;
+    }
+    .info {
+      margin-top: 20px;
+      color: #333;
+    }
+    .control-panel {
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 8px 16px;
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>KLineChart 调试</h1>
+  <div class="control-panel">
+    <button id="add-data">添加数据</button>
+    <button id="add-mark">添加标记点</button>
+    <button id="clear-data">清除数据</button>
+  </div>
+  <div id="chart-container"></div>
+  <div class="info">
+    <h3>调试信息</h3>
+    <pre id="debug-info"></pre>
+  </div>
+
+  <script>
+    // 初始化图表
+    const chartContainer = document.getElementById('chart-container');
+    const debugInfo = document.getElementById('debug-info');
+    
+    let chart = null;
+    
+    function log(message) {
+      console.log(message);
+      debugInfo.textContent += message + '\n';
+    }
+    
+    try {
+      log('初始化图表...');
+      chart = klinecharts.init(chartContainer);
+      log('图表初始化成功: ' + (chart ? '是' : '否'));
+    } catch(error) {
+      log('图表初始化失败: ' + error.message);
+    }
+    
+    // 生成测试数据
+    function generateTestData(count = 100) {
+      const data = [];
+      let timestamp = new Date().getTime() - count * 60 * 1000;
+      let basePrice = 100;
+      
+      for (let i = 0; i < count; i++) {
+        const random = Math.random() * 2 - 1; // -1 到 1之间的随机数
+        const price = basePrice + random;
+        basePrice = price;
+        
+        data.push({
+          timestamp,
+          open: price,
+          high: price + Math.random(),
+          low: price - Math.random(),
+          close: price + Math.random() * 2 - 1,
+          volume: Math.round(Math.random() * 1000)
+        });
+        
+        timestamp += 60 * 1000; // 增加1分钟
+      }
+      
+      return data;
+    }
+    
+    // 添加数据按钮事件
+    document.getElementById('add-data').addEventListener('click', function() {
+      if (chart) {
+        try {
+          const data = generateTestData();
+          log('生成测试数据: ' + data.length + ' 条');
+          chart.applyNewData(data);
+          log('数据已应用');
+          
+          // 尝试添加指标
+          try {
+            chart.createIndicator('MA');
+            log('均线指标已添加');
+          } catch(err) {
+            log('添加指标失败: ' + err.message);
+          }
+        } catch(error) {
+          log('应用数据失败: ' + error.message);
+        }
+      } else {
+        log('图表未初始化');
+      }
+    });
+    
+    // 添加标记点按钮事件
+    document.getElementById('add-mark').addEventListener('click', function() {
+      if (chart) {
+        try {
+          const dataList = chart.getDataList();
+          if (dataList.length === 0) {
+            log('请先添加数据');
+            return;
+          }
+          
+          // 在随机位置添加买卖点
+          const randomIndex = Math.floor(Math.random() * dataList.length);
+          const point = dataList[randomIndex];
+          
+          log('添加标记点: ' + JSON.stringify({
+            timestamp: point.timestamp,
+            price: point.close
+          }));
+          
+          // 尝试使用两种不同的API格式创建标记
+          try {
+            // 方法1
+            chart.createOverlay({
+              name: 'simpleAnnotation',
+              points: [{ timestamp: point.timestamp, value: point.close }],
+              styles: { 
+                point: { 
+                  backgroundColor: '#f5222d',
+                  borderColor: '#f5222d',
+                  borderSize: 1,
+                  radius: 4
+                }
+              }
+            });
+            log('标记点添加成功 (方法1)');
+          } catch(err) {
+            log('添加标记点失败 (方法1): ' + err.message);
+            
+            // 方法2
+            try {
+              chart.createOverlay('simpleAnnotation', {
+                points: [{ timestamp: point.timestamp, value: point.close }],
+                styles: { 
+                  symbol: { 
+                    color: '#f5222d'
+                  }
+                }
+              });
+              log('标记点添加成功 (方法2)');
+            } catch(err2) {
+              log('添加标记点失败 (方法2): ' + err2.message);
+            }
+          }
+        } catch(error) {
+          log('添加标记点失败: ' + error.message);
+        }
+      } else {
+        log('图表未初始化');
+      }
+    });
+    
+    // 清除数据按钮事件
+    document.getElementById('clear-data').addEventListener('click', function() {
+      if (chart) {
+        try {
+          chart.clearData();
+          chart.removeOverlay();
+          log('数据已清除');
+        } catch(error) {
+          log('清除数据失败: ' + error.message);
+        }
+      } else {
+        log('图表未初始化');
+      }
+    });
+    
+    // 自动执行一次添加数据
+    setTimeout(() => {
+      document.getElementById('add-data').click();
+    }, 500);
+  </script>
+</body>
+</html>
