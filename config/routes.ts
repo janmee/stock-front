@@ -106,18 +106,32 @@ export default [
   //   access: 'canAdmin',
   // },
   {
-    name: 'list.time-job',
-    icon: 'FieldTimeOutlined',
-    path: '/job',
-    component: './JobList',
-    access: 'canAdmin',
-    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
-  },
-  {
     name: 'list.strategy',
     icon: 'RobotOutlined',
     path: '/strategy',
     component: './Strategy',
+    access: 'canAdmin',
+    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
+  },
+  {
+    name: 'list.stock-chart',
+    icon: 'StockOutlined',
+    path: '/stock-chart',
+    component: './StockChart',
+    access: 'canAdmin',
+    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
+  },
+  {
+    path: '/strategy-regression',
+    name: 'strategyRegression',
+    icon: 'LineChartOutlined',
+    component: './StrategyRegression',
+  },
+  {
+    name: 'list.scheduled-orders',
+    icon: 'ScheduleOutlined',
+    path: '/scheduled-orders',
+    component: './ScheduledOrders',
     access: 'canAdmin',
     hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
   },
@@ -152,6 +166,14 @@ export default [
     hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
   },
   {
+    name: 'list.time-job',
+    icon: 'FieldTimeOutlined',
+    path: '/job',
+    component: './JobList',
+    access: 'canAdmin',
+    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
+  },
+  {
     name: 'list.realtime-regression',
     icon: 'LineChartOutlined',
     path: '/realtime-regression',
@@ -160,26 +182,10 @@ export default [
     hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
   },
   {
-    name: 'list.scheduled-orders',
-    icon: 'ScheduleOutlined',
-    path: '/scheduled-orders',
-    component: './ScheduledOrders',
-    access: 'canAdmin',
-    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
-  },
-  {
     name: 'earnings',
     path: '/Earnings',
     icon: 'LineChartOutlined',
     component: './Earnings',
-  },
-  {
-    name: 'list.stock-chart',
-    icon: 'StockOutlined',
-    path: '/stock-chart',
-    component: './StockChart',
-    access: 'canAdmin',
-    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
   },
   {
     path: '/',
@@ -191,12 +197,6 @@ export default [
       }
       return '/Earnings';
     },
-  },
-  {
-    path: '/strategy-regression',
-    name: 'strategyRegression',
-    icon: 'LineChartOutlined',
-    component: './StrategyRegression',
   },
   {
     path: '*',

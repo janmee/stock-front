@@ -133,10 +133,10 @@ const StockChartWrapper: React.FC<StockChartWrapperProps> = ({
         // 禁用滚动
         chart.setScrollEnabled(true);
         // 设置右侧留白
-        chart.setOffsetRightDistance(10);
+        // chart.setOffsetRightDistance(10);
         chart.setMaxOffsetLeftDistance(10);
-        chart.setMaxOffsetRightDistance(10);
-        chart.setBarSpace(2.5);
+        // chart.setMaxOffsetRightDistance(10);
+        chart.setBarSpace(3);
       } catch (e) {
         console.error('设置图表交互属性失败:', e);
       }

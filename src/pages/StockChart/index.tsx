@@ -692,14 +692,14 @@ const StockChart: React.FC = () => {
                   </Col>
                   <Col span={3}>
                     <Statistic
-                      title="买入点数"
+                      title="买入数"
                       value={stockChartData?.buyPoints?.length || 0}
                       style={{ marginBottom: 0 }}
                     />
                   </Col>
                   <Col span={3}>
                     <Statistic
-                      title="卖出点数"
+                      title="卖出数"
                       value={stockChartData?.sellPoints?.length || 0}
                       style={{ marginBottom: 0 }}
                     />
@@ -733,7 +733,7 @@ const StockChart: React.FC = () => {
                     
                     {/* 买入点列表 */}
                     <div style={{ marginBottom: 16 }}>
-                      <h4><Tag color="#f5222d" style={{ marginRight: 8 }}>买入点列表</Tag></h4>
+                      <h4><Tag color="#f5222d" style={{ marginRight: 8 }}>买入列表</Tag></h4>
                       <Table
                         size="small"
                         rowKey={(record) => record.orderNo || `${record.time}-${record.price}`}
@@ -875,7 +875,7 @@ const StockChart: React.FC = () => {
                     
                     {/* 卖出点列表 */}
                     <div>
-                      <h4><Tag color="#52c41a" style={{ marginRight: 8 }}>卖出点列表</Tag></h4>
+                      <h4><Tag color="#52c41a" style={{ marginRight: 8 }}>卖出列表</Tag></h4>
                       <Table
                         size="small"
                         rowKey={(record) => record.orderNo || `${record.time}-${record.price}`}
