@@ -264,6 +264,7 @@ declare namespace API {
     stockCode?: string;
     fundPercent?: number;
     maxAmount?: number;
+    DailyCompletedOrders?: number;
     status?: string;
     createTime?: string;
     updateTime?: string;

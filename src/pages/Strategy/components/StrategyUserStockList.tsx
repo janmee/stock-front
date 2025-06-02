@@ -269,6 +269,25 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       render: (_, record) => record.maxAmount ? `$${record.maxAmount.toFixed(0)}` : '-',
     },
     {
+      title: (
+        <span>
+          <FormattedMessage id="pages.strategy.user.stockRelation.dailyCompletedOrders" defaultMessage="每日最大完成单数" />
+          <Tooltip title={<FormattedMessage id="pages.strategy.user.stockRelation.dailyCompletedOrdersTip" defaultMessage="每天最大完成单数限制，当当天已完成订单数量达到这个值时，将停止下单" />}>
+            <InfoCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </span>
+      ),
+      dataIndex: 'dailyCompletedOrders',
+      valueType: 'digit',
+      hideInSearch: true,
+      render: (text, record) => {
+        if (record.dailyCompletedOrders === null || record.dailyCompletedOrders === undefined) {
+          return '-';
+        }
+        return record.dailyCompletedOrders;
+      },
+    },
+    {
       title: <FormattedMessage id="pages.strategy.user.stockRelation.status" defaultMessage="Status" />,
       dataIndex: 'status',
       valueEnum: {
@@ -377,6 +396,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           }
           return listStrategyUserStock(queryParams).then(response => {
             if (response && response.data) {
+              console.log('Strategy user stock data:', response.data);
               return {
                 data: response.data,
                 success: true,
@@ -483,29 +503,38 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         <ProFormText
           name="stockCode"
           label={<FormattedMessage id="pages.strategy.user.stockRelation.stockCode" defaultMessage="Stock Code" />}
+          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.stockCode.placeholder' })}
           rules={[{ required: true }]}
         />
         
         <ProFormDigit
           name="fundPercent"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.fundPercent" defaultMessage="Fund Percent (%)" />}
-          tooltip={<FormattedMessage id="pages.strategy.user.stockRelation.fundPercentTip" defaultMessage="Percentage of funds allocated to this stock (in percentage, e.g. 10 means 10%, mutually exclusive with Max Amount)" />}
+          label={<FormattedMessage id="pages.strategy.user.stockRelation.fundPercent" defaultMessage="Fund Percent" />}
+          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.fundPercent.placeholder' })}
+          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.fundPercentTip' })}
           min={0}
           max={100}
           fieldProps={{
-            step: 0.1,
             precision: 1,
-            addonAfter: '%',
+            suffix: '%',
           }}
         />
         
         <ProFormDigit
           name="maxAmount"
           label={<FormattedMessage id="pages.strategy.user.stockRelation.maxAmount" defaultMessage="Max Amount" />}
-          tooltip={<FormattedMessage id="pages.strategy.user.stockRelation.maxAmountTip" defaultMessage="Maximum amount allocated to this stock (mutually exclusive with Fund Percent)" />}
+          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmount.placeholder', defaultMessage: 'Leave empty to use Fund Percent' })}
+          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmountTip' })}
+          min={0}
+        />
+        
+        <ProFormDigit
+          name="dailyCompletedOrders"
+          label={<FormattedMessage id="pages.strategy.user.stockRelation.dailyCompletedOrders" defaultMessage="每日最大完成单数" />}
+          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.dailyCompletedOrders.placeholder', defaultMessage: '留空表示不限制' })}
+          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.dailyCompletedOrdersTip', defaultMessage: '每天最大完成单数限制，当当天已完成订单数量达到这个值时，将停止下单' })}
           min={0}
           fieldProps={{
-            step: 100,
             precision: 0,
           }}
         />
@@ -554,24 +583,32 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         
         <ProFormDigit
           name="fundPercent"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.fundPercent" defaultMessage="Fund Percent (%)" />}
-          tooltip={<FormattedMessage id="pages.strategy.user.stockRelation.fundPercentTip" defaultMessage="Percentage of funds allocated to this stock (in percentage, e.g. 10 means 10%, mutually exclusive with Max Amount)" />}
+          label={<FormattedMessage id="pages.strategy.user.stockRelation.fundPercent" defaultMessage="Fund Percent" />}
+          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.fundPercent.placeholder' })}
+          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.fundPercentTip' })}
           min={0}
           max={100}
           fieldProps={{
-            step: 0.1,
             precision: 1,
-            addonAfter: '%',
+            suffix: '%',
           }}
         />
         
         <ProFormDigit
           name="maxAmount"
           label={<FormattedMessage id="pages.strategy.user.stockRelation.maxAmount" defaultMessage="Max Amount" />}
-          tooltip={<FormattedMessage id="pages.strategy.user.stockRelation.maxAmountTip" defaultMessage="Maximum amount allocated to this stock (mutually exclusive with Fund Percent)" />}
+          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmount.placeholder', defaultMessage: 'Leave empty to use Fund Percent' })}
+          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmountTip' })}
+          min={0}
+        />
+        
+        <ProFormDigit
+          name="dailyCompletedOrders"
+          label={<FormattedMessage id="pages.strategy.user.stockRelation.dailyCompletedOrders" defaultMessage="每日最大完成单数" />}
+          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.dailyCompletedOrders.placeholder', defaultMessage: '留空表示不限制' })}
+          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.dailyCompletedOrdersTip', defaultMessage: '每天最大完成单数限制，当当天已完成订单数量达到这个值时，将停止下单' })}
           min={0}
           fieldProps={{
-            step: 100,
             precision: 0,
           }}
         />

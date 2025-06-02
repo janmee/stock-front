@@ -395,6 +395,9 @@ export default {
   'pages.strategy.user.stockRelation.status': 'Status',
   'pages.strategy.user.stockRelation.create': 'Create Strategy User Stock Relation',
   'pages.strategy.user.stockRelation.edit': 'Edit Strategy User Stock Relation',
+  'pages.strategy.user.stockRelation.dailyCompletedOrders': 'Max Completed Orders Per Day',
+  'pages.strategy.user.stockRelation.dailyCompletedOrdersTip': 'Maximum number of completed orders per day. When reached, no more orders will be placed on that day.',
+  'pages.strategy.user.stockRelation.dailyCompletedOrders.placeholder': 'Leave empty for no limit',
   
   // Common Operations
   'pages.common.actions': 'Actions',

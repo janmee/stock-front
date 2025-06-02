@@ -470,6 +470,9 @@ export default {
   'pages.strategy.user.stockRelation.status': '状态',
   'pages.strategy.user.stockRelation.create': '创建策略用户股票关系',
   'pages.strategy.user.stockRelation.edit': '编辑策略用户股票关系',
+  'pages.strategy.user.stockRelation.dailyCompletedOrders': '每日最大完成单数',
+  'pages.strategy.user.stockRelation.dailyCompletedOrdersTip': '每天最大完成单数限制，当当天已完成订单数量达到这个值时，将停止下单',
+  'pages.strategy.user.stockRelation.dailyCompletedOrders.placeholder': '留空表示不限制',
   
   // 通用操作
   'pages.common.actions': '操作',
