@@ -246,6 +246,7 @@ declare namespace API {
     status?: string;
     createTime?: string;
     updateTime?: string;
+    buyRatioConfig?: string;
   };
 
   type StrategyStockList = {
@@ -264,7 +265,10 @@ declare namespace API {
     stockCode?: string;
     fundPercent?: number;
     maxAmount?: number;
-    DailyCompletedOrders?: number;
+    dailyCompletedOrders?: number;
+    startTime?: string;
+    endTime?: string;
+    timeZone?: string;
     status?: string;
     createTime?: string;
     updateTime?: string;

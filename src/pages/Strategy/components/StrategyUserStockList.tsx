@@ -288,6 +288,55 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       },
     },
     {
+      title: (
+        <span>
+          <FormattedMessage id="pages.strategy.user.stockRelation.startTime" defaultMessage="开始时间" />
+          <Tooltip title={<FormattedMessage id="pages.strategy.user.stockRelation.startTimeTip" defaultMessage="策略开始执行时间（基于设置的时区）" />}>
+            <InfoCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </span>
+      ),
+      dataIndex: 'startTime',
+      valueType: 'time',
+      hideInSearch: true,
+      render: (_, record) => record.startTime || '10:00',
+    },
+    {
+      title: (
+        <span>
+          <FormattedMessage id="pages.strategy.user.stockRelation.endTime" defaultMessage="结束时间" />
+          <Tooltip title={<FormattedMessage id="pages.strategy.user.stockRelation.endTimeTip" defaultMessage="策略结束执行时间（基于设置的时区）" />}>
+            <InfoCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </span>
+      ),
+      dataIndex: 'endTime',
+      valueType: 'time',
+      hideInSearch: true,
+      render: (_, record) => record.endTime || '16:00',
+    },
+    {
+      title: (
+        <span>
+          <FormattedMessage id="pages.strategy.user.stockRelation.timeZone" defaultMessage="时区" />
+          <Tooltip title={<FormattedMessage id="pages.strategy.user.stockRelation.timeZoneTip" defaultMessage="策略执行的时区，默认为美东时区" />}>
+            <InfoCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </span>
+      ),
+      dataIndex: 'timeZone',
+      valueType: 'select',
+      hideInSearch: true,
+      valueEnum: {
+        'America/New_York': <FormattedMessage id="pages.strategy.user.stockRelation.timeZone.newyork" defaultMessage="美东时区" />,
+        'Asia/Shanghai': <FormattedMessage id="pages.strategy.user.stockRelation.timeZone.shanghai" defaultMessage="北京时区" />,
+      },
+      render: (_, record) => {
+        const timeZone = record.timeZone || 'America/New_York';
+        return <FormattedMessage id={`pages.strategy.user.stockRelation.timeZone.${timeZone === 'America/New_York' ? 'newyork' : 'shanghai'}`} defaultMessage={timeZone === 'America/New_York' ? '美东时区' : '北京时区'} />;
+      },
+    },
+    {
       title: <FormattedMessage id="pages.strategy.user.stockRelation.status" defaultMessage="Status" />,
       dataIndex: 'status',
       valueEnum: {
@@ -539,6 +588,45 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           }}
         />
         
+        <ProFormText
+          name="startTime"
+          label={<FormattedMessage id="pages.strategy.user.stockRelation.startTime" defaultMessage="开始时间" />}
+          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.startTime.placeholder', defaultMessage: '格式为HH:mm，例如10:00' })}
+          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.startTimeTip', defaultMessage: '策略开始执行时间（基于设置的时区）' })}
+          rules={[
+            { 
+              pattern: /^([01]\d|2[0-3]):([0-5]\d)$/, 
+              message: intl.formatMessage({ id: 'pages.strategy.user.stockRelation.time.invalid', defaultMessage: '时间格式无效，应为HH:mm' }) 
+            }
+          ]}
+          initialValue="10:00"
+        />
+        
+        <ProFormText
+          name="endTime"
+          label={<FormattedMessage id="pages.strategy.user.stockRelation.endTime" defaultMessage="结束时间" />}
+          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.endTime.placeholder', defaultMessage: '格式为HH:mm，例如16:00' })}
+          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.endTimeTip', defaultMessage: '策略结束执行时间（基于设置的时区）' })}
+          rules={[
+            { 
+              pattern: /^([01]\d|2[0-3]):([0-5]\d)$/, 
+              message: intl.formatMessage({ id: 'pages.strategy.user.stockRelation.time.invalid', defaultMessage: '时间格式无效，应为HH:mm' }) 
+            }
+          ]}
+          initialValue="16:00"
+        />
+        
+        <ProFormSelect
+          name="timeZone"
+          label={<FormattedMessage id="pages.strategy.user.stockRelation.timeZone" defaultMessage="时区" />}
+          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.timeZoneTip', defaultMessage: '策略执行的时区，默认为美东时区' })}
+          valueEnum={{
+            'America/New_York': intl.formatMessage({ id: 'pages.strategy.user.stockRelation.timeZone.newyork', defaultMessage: '美东时区' }),
+            'Asia/Shanghai': intl.formatMessage({ id: 'pages.strategy.user.stockRelation.timeZone.shanghai', defaultMessage: '北京时区' }),
+          }}
+          initialValue="America/New_York"
+        />
+        
         <ProFormSelect
           name="status"
           label={<FormattedMessage id="pages.strategy.user.stockRelation.status" defaultMessage="Status" />}
@@ -610,6 +698,42 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           min={0}
           fieldProps={{
             precision: 0,
+          }}
+        />
+        
+        <ProFormText
+          name="startTime"
+          label={<FormattedMessage id="pages.strategy.user.stockRelation.startTime" defaultMessage="开始时间" />}
+          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.startTime.placeholder', defaultMessage: '格式为HH:mm，例如10:00' })}
+          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.startTimeTip', defaultMessage: '策略开始执行时间（基于设置的时区）' })}
+          rules={[
+            { 
+              pattern: /^([01]\d|2[0-3]):([0-5]\d)$/, 
+              message: intl.formatMessage({ id: 'pages.strategy.user.stockRelation.time.invalid', defaultMessage: '时间格式无效，应为HH:mm' }) 
+            }
+          ]}
+        />
+        
+        <ProFormText
+          name="endTime"
+          label={<FormattedMessage id="pages.strategy.user.stockRelation.endTime" defaultMessage="结束时间" />}
+          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.endTime.placeholder', defaultMessage: '格式为HH:mm，例如16:00' })}
+          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.endTimeTip', defaultMessage: '策略结束执行时间（基于设置的时区）' })}
+          rules={[
+            { 
+              pattern: /^([01]\d|2[0-3]):([0-5]\d)$/, 
+              message: intl.formatMessage({ id: 'pages.strategy.user.stockRelation.time.invalid', defaultMessage: '时间格式无效，应为HH:mm' }) 
+            }
+          ]}
+        />
+        
+        <ProFormSelect
+          name="timeZone"
+          label={<FormattedMessage id="pages.strategy.user.stockRelation.timeZone" defaultMessage="时区" />}
+          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.timeZoneTip', defaultMessage: '策略执行的时区，默认为美东时区' })}
+          valueEnum={{
+            'America/New_York': intl.formatMessage({ id: 'pages.strategy.user.stockRelation.timeZone.newyork', defaultMessage: '美东时区' }),
+            'Asia/Shanghai': intl.formatMessage({ id: 'pages.strategy.user.stockRelation.timeZone.shanghai', defaultMessage: '北京时区' }),
           }}
         />
         

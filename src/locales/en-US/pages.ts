@@ -383,6 +383,8 @@ export default {
   'pages.strategy.stock.relation.status': 'Status',
   'pages.strategy.stock.relation.create': 'Create Strategy Stock Relation',
   'pages.strategy.stock.relation.edit': 'Edit Strategy Stock Relation',
+  'pages.strategy.stock.relation.buyRatioConfig': 'Buy Ratio Config',
+  'pages.strategy.stock.relation.buyRatioConfigTip': 'Buy ratio for first limitStartShares orders and additional levels configuration with price drop and buy ratio',
   
   // Strategy User Stock Relation
   'pages.strategy.user.stockRelation.account': 'Account',
@@ -398,6 +400,17 @@ export default {
   'pages.strategy.user.stockRelation.dailyCompletedOrders': 'Max Completed Orders Per Day',
   'pages.strategy.user.stockRelation.dailyCompletedOrdersTip': 'Maximum number of completed orders per day. When reached, no more orders will be placed on that day.',
   'pages.strategy.user.stockRelation.dailyCompletedOrders.placeholder': 'Leave empty for no limit',
+  'pages.strategy.user.stockRelation.startTime': 'Start Time',
+  'pages.strategy.user.stockRelation.startTimeTip': 'Strategy execution start time (based on the selected timezone)',
+  'pages.strategy.user.stockRelation.startTime.placeholder': 'Format: HH:mm, e.g., 10:00',
+  'pages.strategy.user.stockRelation.endTime': 'End Time',
+  'pages.strategy.user.stockRelation.endTimeTip': 'Strategy execution end time (based on the selected timezone)',
+  'pages.strategy.user.stockRelation.endTime.placeholder': 'Format: HH:mm, e.g., 16:00',
+  'pages.strategy.user.stockRelation.timeZone': 'Time Zone',
+  'pages.strategy.user.stockRelation.timeZoneTip': 'Timezone for strategy execution, default is Eastern US Time',
+  'pages.strategy.user.stockRelation.timeZone.newyork': 'Eastern US Time',
+  'pages.strategy.user.stockRelation.timeZone.shanghai': 'Beijing Time',
+  'pages.strategy.user.stockRelation.time.invalid': 'Invalid time format, should be HH:mm',
   
   // Common Operations
   'pages.common.actions': 'Actions',

@@ -1,5 +1,5 @@
 import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState } from 'react';
-import { Button, message, Popconfirm, Select, Tooltip, Tag, Space, Switch } from 'antd';
+import { Button, message, Popconfirm, Select, Tooltip, Tag, Space, Switch, Input, InputNumber, Form } from 'antd';
 import {
   ActionType,
   ModalForm,
@@ -12,7 +12,7 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { FormattedMessage, useIntl } from '@umijs/max';
-import { PlusOutlined, InfoCircleOutlined, FilterOutlined, CloseCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, InfoCircleOutlined, FilterOutlined, CloseCircleOutlined, QuestionCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { 
   listStrategyStock, 
   createStrategyStock, 
@@ -42,6 +42,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
   const updateFormRef = useRef<any>();
   const intl = useIntl();
   
+  const [createForm] = Form.useForm();
+  const [updateForm] = Form.useForm();
+
   // 公开刷新方法
   useImperativeHandle(ref, () => ({
     reload: () => {
@@ -72,6 +75,44 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     fetchStrategyOptions();
   }, []);
 
+  // 默认买入比例配置
+  const defaultFirstShareRatio = 3; // 默认前N档买入比例3%
+  const defaultExtraShares = [
+    { drop: 7, ratio: 3 },
+    { drop: 7, ratio: 3 },
+    { drop: 9, ratio: 4.6 },
+    { drop: 9, ratio: 4.6 },
+    { drop: 9, ratio: 4.6 },
+    { drop: 11, ratio: 6 },
+    { drop: 11, ratio: 7.7 },
+  ];
+
+  // 解析buyRatioConfig字符串
+  const parseBuyRatioConfig = (configString: string | undefined) => {
+    if (!configString) {
+      return {
+        firstShareRatio: defaultFirstShareRatio,
+        extraShares: defaultExtraShares
+      };
+    }
+
+    try {
+      const config = JSON.parse(configString);
+      return {
+        firstShareRatio: config.firstShareRatio ?? defaultFirstShareRatio,
+        extraShares: Array.isArray(config.extraShares) && config.extraShares.length > 0 
+          ? config.extraShares 
+          : defaultExtraShares
+      };
+    } catch (error) {
+      console.error('解析buyRatioConfig失败:', error);
+      return {
+        firstShareRatio: defaultFirstShareRatio,
+        extraShares: defaultExtraShares
+      };
+    }
+  };
+
   // 添加策略股票关系
   const handleAdd = async (fields: API.StrategyStockItem) => {
     const hide = message.loading(intl.formatMessage({ id: 'pages.message.creating' }));
@@ -100,6 +141,13 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     fields.unsoldStackLimit = fields.unsoldStackLimit || 4;
     fields.totalFundShares = fields.totalFundShares || 18;
     fields.limitStartShares = fields.limitStartShares || 9;
+    
+    // 获取表单原始数据，处理buyRatioConfig
+    const formValues = createFormRef.current?.getFieldsValue();
+    if (formValues?.buyRatioConfigInput) {
+      const { firstShareRatio, extraShares } = formValues.buyRatioConfigInput;
+      fields.buyRatioConfig = JSON.stringify({ firstShareRatio, extraShares });
+    }
     
     try {
       await createStrategyStock(fields);
@@ -140,6 +188,13 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     fields.unsoldStackLimit = fields.unsoldStackLimit || currentRow.unsoldStackLimit || 4;
     fields.totalFundShares = fields.totalFundShares || currentRow.totalFundShares || 18;
     fields.limitStartShares = fields.limitStartShares || currentRow.limitStartShares || 9;
+    
+    // 获取表单原始数据，处理buyRatioConfig
+    const formValues = updateFormRef.current?.getFieldsValue();
+    if (formValues?.buyRatioConfigInput) {
+      const { firstShareRatio, extraShares } = formValues.buyRatioConfigInput;
+      fields.buyRatioConfig = JSON.stringify({ firstShareRatio, extraShares });
+    }
     
     try {
       await updateStrategyStock({
@@ -354,6 +409,55 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       defaultSortOrder: 'descend',
     },
     {
+      title: (
+        <>
+          <FormattedMessage id="pages.strategy.stock.relation.buyRatioConfig" defaultMessage="Buy Ratio Config" />
+          <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.buyRatioConfigTip" defaultMessage="Configuration for buy ratio of each level" />}>
+            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </>
+      ),
+      dataIndex: 'buyRatioConfig',
+      valueType: 'text',
+      hideInSearch: true,
+      render: (_, record) => {
+        if (!record.buyRatioConfig) {
+          return '-';
+        }
+        
+        try {
+          const config = JSON.parse(record.buyRatioConfig);
+          const firstRatio = config.firstShareRatio !== undefined ? `${config.firstShareRatio}%` : '-';
+          const extraCount = Array.isArray(config.extraShares) ? config.extraShares.length : 0;
+          
+          return (
+            <Tooltip 
+              title={
+                <div>
+                  <div>前N档: {firstRatio}</div>
+                  <div>后续档位: {extraCount}个</div>
+                  {Array.isArray(config.extraShares) && config.extraShares.length > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      <div>详细配置:</div>
+                      {config.extraShares.map((item: any, index: number) => (
+                        <div key={index}>
+                          档位{index+1}: 跌幅{item.drop}%, 买入{item.ratio}%
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              }
+            >
+              <span>前N档: {firstRatio}, 后续: {extraCount}个档位</span>
+            </Tooltip>
+          );
+        } catch (error) {
+          return '-';
+        }
+      },
+    },
+    {
       title: <FormattedMessage id="pages.common.actions" defaultMessage="Actions" />,
       dataIndex: 'option',
       valueType: 'option',
@@ -483,11 +587,23 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         title={<FormattedMessage id="pages.strategy.stock.relation.create" defaultMessage="Create Strategy Stock Relation" />}
         width="550px"
         formRef={createFormRef}
+        form={createForm}
         modalProps={{
           destroyOnClose: true,
         }}
         open={createModalVisible}
-        onOpenChange={setCreateModalVisible}
+        onOpenChange={(visible) => {
+          setCreateModalVisible(visible);
+          if (visible) {
+            // @ts-ignore
+            createForm.setFieldsValue({
+              buyRatioConfigInput: {
+                firstShareRatio: defaultFirstShareRatio,
+                extraShares: defaultExtraShares,
+              }
+            });
+          }
+        }}
         onFinish={handleAdd}
       >
         {!strategyId && (
@@ -650,6 +766,53 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           initialValue="1"
           rules={[{ required: true }]}
         />
+        
+        <Form.Item
+          label={intl.formatMessage({ id: 'pages.strategy.stock.relation.buyRatioConfig', defaultMessage: '买入比例配置' })}
+          tooltip={intl.formatMessage({ id: 'pages.strategy.stock.relation.buyRatioConfigTip', defaultMessage: '前limitStartShares个买入单买入比例，后续每档跌幅和买入比例，可动态增删' })}
+          required
+        >
+          <Form.Item
+            label={<span>前N档买入比例（%）</span>}
+            name={['buyRatioConfigInput', 'firstShareRatio']}
+            initialValue={defaultFirstShareRatio}
+            rules={[{ required: true, message: '必填' }]}
+            style={{ width: 180 }}
+          >
+            <InputNumber min={0} max={100} precision={2} addonAfter="%" />
+          </Form.Item>
+          
+          <div style={{ margin: '12px 0 4px 0', fontWeight: 500 }}>后续档位（跌幅%/买入比例%）：</div>
+          
+          <Form.List name={['buyRatioConfigInput', 'extraShares']}>
+            {(extraFields, { add: addExtra, remove: removeExtra }) => (
+              <>
+                {extraFields.map((field) => (
+                  <Space key={field.key} align="baseline" style={{ marginBottom: 4 }}>
+                    <Form.Item 
+                      {...field} 
+                      name={[field.name, 'drop']} 
+                      rules={[{ required: true, message: '跌幅必填' }]}
+                      style={{ margin: 0 }}
+                    >
+                      <InputNumber min={0} max={100} precision={2} addonAfter="%" placeholder="跌幅" />
+                    </Form.Item>
+                    <Form.Item 
+                      {...field} 
+                      name={[field.name, 'ratio']} 
+                      rules={[{ required: true, message: '买入比例必填' }]}
+                      style={{ margin: 0 }}
+                    >
+                      <InputNumber min={0} max={100} precision={2} addonAfter="%" placeholder="买入比例" />
+                    </Form.Item>
+                    {extraFields.length > 1 && <MinusCircleOutlined onClick={() => removeExtra(field.name)} />}
+                  </Space>
+                ))}
+                <Button type="dashed" onClick={() => addExtra({ drop: 7, ratio: 3 })} icon={<PlusOutlined />}>添加档位</Button>
+              </>
+            )}
+          </Form.List>
+        </Form.Item>
       </ModalForm>
       
       {/* 编辑策略股票关系表单 */}
@@ -657,13 +820,27 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         title={<FormattedMessage id="pages.strategy.stock.relation.edit" defaultMessage="Edit Strategy Stock Relation" />}
         width="550px"
         formRef={updateFormRef}
+        form={updateForm}
         modalProps={{
           destroyOnClose: true,
         }}
         open={updateModalVisible}
-        onOpenChange={setUpdateModalVisible}
+        onOpenChange={(visible) => {
+          setUpdateModalVisible(visible);
+          if (visible && currentRow) {
+            // 确保正确解析buyRatioConfig
+            const buyRatioConfigInput = parseBuyRatioConfig(currentRow.buyRatioConfig);
+            console.log('解析后的buyRatioConfig:', buyRatioConfigInput);
+            
+            // 设置表单值
+            // @ts-ignore
+            updateForm.setFieldsValue({
+              ...currentRow,
+              buyRatioConfigInput
+            });
+          }
+        }}
         onFinish={handleUpdate}
-        initialValues={currentRow}
       >
         <ProFormText
           name="stockCode"
@@ -778,6 +955,53 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           }}
           rules={[{ required: true }]}
         />
+        
+        <Form.Item
+          label={intl.formatMessage({ id: 'pages.strategy.stock.relation.buyRatioConfig', defaultMessage: '买入比例配置' })}
+          tooltip={intl.formatMessage({ id: 'pages.strategy.stock.relation.buyRatioConfigTip', defaultMessage: '前limitStartShares个买入单买入比例，后续每档跌幅和买入比例，可动态增删' })}
+          required
+        >
+          <Form.Item
+            label={<span>前N档买入比例（%）</span>}
+            name={['buyRatioConfigInput', 'firstShareRatio']}
+            initialValue={defaultFirstShareRatio}
+            rules={[{ required: true, message: '必填' }]}
+            style={{ width: 180 }}
+          >
+            <InputNumber min={0} max={100} precision={2} addonAfter="%" />
+          </Form.Item>
+          
+          <div style={{ margin: '12px 0 4px 0', fontWeight: 500 }}>后续档位（跌幅%/买入比例%）：</div>
+          
+          <Form.List name={['buyRatioConfigInput', 'extraShares']}>
+            {(extraFields, { add: addExtra, remove: removeExtra }) => (
+              <>
+                {extraFields.map((field) => (
+                  <Space key={field.key} align="baseline" style={{ marginBottom: 4 }}>
+                    <Form.Item 
+                      {...field} 
+                      name={[field.name, 'drop']} 
+                      rules={[{ required: true, message: '跌幅必填' }]}
+                      style={{ margin: 0 }}
+                    >
+                      <InputNumber min={0} max={100} precision={2} addonAfter="%" placeholder="跌幅" />
+                    </Form.Item>
+                    <Form.Item 
+                      {...field} 
+                      name={[field.name, 'ratio']} 
+                      rules={[{ required: true, message: '买入比例必填' }]}
+                      style={{ margin: 0 }}
+                    >
+                      <InputNumber min={0} max={100} precision={2} addonAfter="%" placeholder="买入比例" />
+                    </Form.Item>
+                    {extraFields.length > 1 && <MinusCircleOutlined onClick={() => removeExtra(field.name)} />}
+                  </Space>
+                ))}
+                <Button type="dashed" onClick={() => addExtra({ drop: 7, ratio: 3 })} icon={<PlusOutlined />}>添加档位</Button>
+              </>
+            )}
+          </Form.List>
+        </Form.Item>
       </ModalForm>
     </>
   );

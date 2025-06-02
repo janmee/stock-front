@@ -449,6 +449,7 @@ export async function createStrategyStock(body: API.StrategyStockItem, options?:
     unsoldStackLimit: body.unsoldStackLimit ?? 4,
     totalFundShares: body.totalFundShares ?? 18,
     limitStartShares: body.limitStartShares ?? 9,
+    buyRatioConfig: body.buyRatioConfig,
     status: body.status
   };
   
@@ -477,6 +478,7 @@ export async function updateStrategyStock(body: API.StrategyStockItem, options?:
     unsoldStackLimit: body.unsoldStackLimit ?? 4,
     totalFundShares: body.totalFundShares ?? 18,
     limitStartShares: body.limitStartShares ?? 9,
+    buyRatioConfig: body.buyRatioConfig,
     status: body.status
   };
   

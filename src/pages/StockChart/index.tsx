@@ -598,6 +598,12 @@ const StockChart: React.FC = () => {
             <Radio.Group value={days} onChange={handleDaysChange}>
               <Radio.Button value={1}>1天</Radio.Button>
               <Radio.Button value={5}>5天</Radio.Button>
+              <Radio.Button value={10}>10天</Radio.Button>
+              <Radio.Button value={15}>15天</Radio.Button>
+              <Radio.Button value={20}>20天</Radio.Button>
+              <Radio.Button value={30}>30天</Radio.Button>
+              <Radio.Button value={60}>60天</Radio.Button>
+              <Radio.Button value={-1}>全部</Radio.Button>
             </Radio.Group>
           </Form.Item>
           

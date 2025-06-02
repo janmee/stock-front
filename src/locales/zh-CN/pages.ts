@@ -458,6 +458,8 @@ export default {
   'pages.strategy.stock.relation.status': '状态',
   'pages.strategy.stock.relation.create': '创建策略股票关系',
   'pages.strategy.stock.relation.edit': '编辑策略股票关系',
+  'pages.strategy.stock.relation.buyRatioConfig': '买入比例配置',
+  'pages.strategy.stock.relation.buyRatioConfigTip': '前limitStartShares个买入单买入比例，后续每档跌幅和买入比例，可动态增删',
   
   // 策略用户股票关系
   'pages.strategy.user.stockRelation.account': '账户',
@@ -470,9 +472,22 @@ export default {
   'pages.strategy.user.stockRelation.status': '状态',
   'pages.strategy.user.stockRelation.create': '创建策略用户股票关系',
   'pages.strategy.user.stockRelation.edit': '编辑策略用户股票关系',
+  'pages.strategy.user.stockRelation.maxCompletedOrdersPerDayTip': '每天最大完成单数限制，当当天已完成订单数量达到这个值时，将停止下单',
+  'pages.strategy.user.stockRelation.maxCompletedOrders.placeholder': '留空表示不限制',
   'pages.strategy.user.stockRelation.dailyCompletedOrders': '每日最大完成单数',
   'pages.strategy.user.stockRelation.dailyCompletedOrdersTip': '每天最大完成单数限制，当当天已完成订单数量达到这个值时，将停止下单',
   'pages.strategy.user.stockRelation.dailyCompletedOrders.placeholder': '留空表示不限制',
+  'pages.strategy.user.stockRelation.startTime': '开始时间',
+  'pages.strategy.user.stockRelation.startTimeTip': '策略开始执行时间（基于设置的时区）',
+  'pages.strategy.user.stockRelation.startTime.placeholder': '格式为HH:mm，例如10:00',
+  'pages.strategy.user.stockRelation.endTime': '结束时间',
+  'pages.strategy.user.stockRelation.endTimeTip': '策略结束执行时间（基于设置的时区）',
+  'pages.strategy.user.stockRelation.endTime.placeholder': '格式为HH:mm，例如16:00',
+  'pages.strategy.user.stockRelation.timeZone': '时区',
+  'pages.strategy.user.stockRelation.timeZoneTip': '策略执行的时区，默认为美东时区',
+  'pages.strategy.user.stockRelation.timeZone.newyork': '美东时区',
+  'pages.strategy.user.stockRelation.timeZone.shanghai': '北京时区',
+  'pages.strategy.user.stockRelation.time.invalid': '时间格式无效，应为HH:mm',
   
   // 通用操作
   'pages.common.actions': '操作',
