@@ -272,6 +272,8 @@ declare namespace API {
     status?: string;
     createTime?: string;
     updateTime?: string;
+    secondStageEnabled?: boolean; // 是否启动二阶段策略
+    secondStageStartDate?: string; // 启动二阶段策略日期，格式yyyy-MM-dd
   };
 
   type StrategyUserStockList = {

@@ -1,5 +1,5 @@
 import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState } from 'react';
-import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select } from 'antd';
+import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select, DatePicker } from 'antd';
 import {
   ActionType,
   ModalForm,
@@ -9,6 +9,8 @@ import {
   ProFormSelect,
   ProFormText,
   ProFormTextArea,
+  ProFormSwitch,
+  ProFormDatePicker,
   ProTable,
 } from '@ant-design/pro-components';
 import { FormattedMessage, useIntl } from '@umijs/max';
@@ -20,7 +22,8 @@ import {
   deleteStrategyUserStock,
   listAccount,
   listStrategyJob,
-  updateStrategyUserStockStatus
+  updateStrategyUserStockStatus,
+  updateStrategyUserStockSecondStage
 } from '@/services/ant-design-pro/api';
 
 interface StrategyUserStockListProps {
@@ -336,6 +339,50 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         return <FormattedMessage id={`pages.strategy.user.stockRelation.timeZone.${timeZone === 'America/New_York' ? 'newyork' : 'shanghai'}`} defaultMessage={timeZone === 'America/New_York' ? '美东时区' : '北京时区'} />;
       },
     },
+    
+    {
+      title: <FormattedMessage id="pages.strategy.createTime" defaultMessage="Create Time" />,
+      dataIndex: 'createTime',
+      valueType: 'dateTime',
+      hideInSearch: true,
+      sorter: true,
+    },
+    {
+      title: '是否启动二阶段策略',
+      dataIndex: 'secondStageEnabled',
+      valueType: 'switch',
+      hideInSearch: true,
+      render: (_, record) => (
+        <Switch
+          checkedChildren="是"
+          unCheckedChildren="否"
+          checked={!!record.secondStageEnabled}
+          onChange={async (checked) => {
+            const params = {
+              id: record.id!,
+              enabled: checked,
+            };
+            console.log('二阶段开关点击', params);
+            const hide = message.loading(checked ? '启动中...' : '禁用中...');
+            try {
+              await updateStrategyUserStockSecondStage(params);
+              message.success(checked ? '已启动二阶段' : '已禁用二阶段');
+            } catch (e) {
+              message.error('操作失败: ' + (e && typeof e === 'object' && 'message' in e ? (e as any).message : String(e)));
+            } finally {
+              hide();
+              actionRef.current?.reload();
+            }
+          }}
+        />
+      ),
+    },
+    {
+      title: '启动二阶段策略日期',
+      dataIndex: 'secondStageStartDate',
+      hideInSearch: true,
+      render: (text) => text || '-',
+    },
     {
       title: <FormattedMessage id="pages.strategy.user.stockRelation.status" defaultMessage="Status" />,
       dataIndex: 'status',
@@ -359,13 +406,6 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           }}
         />
       ),
-    },
-    {
-      title: <FormattedMessage id="pages.strategy.createTime" defaultMessage="Create Time" />,
-      dataIndex: 'createTime',
-      valueType: 'dateTime',
-      hideInSearch: true,
-      sorter: true,
     },
     {
       title: <FormattedMessage id="pages.common.actions" defaultMessage="Actions" />,
@@ -396,7 +436,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           <a>
             <FormattedMessage id="pages.common.delete" defaultMessage="Delete" />
           </a>
-        </Popconfirm>,
+        </Popconfirm>
       ],
     },
   ];

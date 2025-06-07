@@ -78,13 +78,13 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
   // 默认买入比例配置
   const defaultFirstShareRatio = 3; // 默认前N档买入比例3%
   const defaultExtraShares = [
-    { drop: 7, ratio: 3 },
-    { drop: 7, ratio: 3 },
-    { drop: 9, ratio: 4.6 },
-    { drop: 9, ratio: 4.6 },
-    { drop: 9, ratio: 4.6 },
-    { drop: 11, ratio: 6 },
-    { drop: 11, ratio: 7.7 },
+    { drop: 7, ratio: 3, secondStage: false },
+    { drop: 7, ratio: 3, secondStage: false },
+    { drop: 9, ratio: 4.6, secondStage: false },
+    { drop: 9, ratio: 4.6, secondStage: false },
+    { drop: 9, ratio: 4.6, secondStage: false },
+    { drop: 11, ratio: 6, secondStage: true }, // 只有第6档默认启用二阶段策略
+    { drop: 11, ratio: 7.7, secondStage: false },
   ];
 
   // 解析buyRatioConfig字符串
@@ -98,11 +98,32 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
 
     try {
       const config = JSON.parse(configString);
+      console.log('解析的原始config:', JSON.stringify(config));
+      
+      // 解析extraShares，确保secondStage属性正确
+      const processedExtraShares = Array.isArray(config.extraShares) && config.extraShares.length > 0 
+        ? config.extraShares.map((share: any) => ({
+            ...share,
+            // 确保每个share都有secondStage属性，如果没有则默认为false
+            secondStage: share.secondStage === true
+          })) 
+        : [...defaultExtraShares]; // 使用默认值的复制，避免修改默认值
+      
+      // 确保只有一个档位启用二阶段策略
+      let hasSecondStage = false;
+      processedExtraShares.forEach((share: any) => {
+        if (share.secondStage) {
+          if (hasSecondStage) {
+            share.secondStage = false;
+          } else {
+            hasSecondStage = true;
+          }
+        }
+      });
+      
       return {
         firstShareRatio: config.firstShareRatio ?? defaultFirstShareRatio,
-        extraShares: Array.isArray(config.extraShares) && config.extraShares.length > 0 
-          ? config.extraShares 
-          : defaultExtraShares
+        extraShares: processedExtraShares
       };
     } catch (error) {
       console.error('解析buyRatioConfig失败:', error);
@@ -144,9 +165,33 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     
     // 获取表单原始数据，处理buyRatioConfig
     const formValues = createFormRef.current?.getFieldsValue();
+    console.log('新建表单提交前的数据:', JSON.stringify(formValues?.buyRatioConfigInput));
     if (formValues?.buyRatioConfigInput) {
       const { firstShareRatio, extraShares } = formValues.buyRatioConfigInput;
-      fields.buyRatioConfig = JSON.stringify({ firstShareRatio, extraShares });
+      
+      // 确保每个extraShare都有正确的secondStage值
+      const processedExtraShares = extraShares.map((share: any) => ({
+        ...share,
+        secondStage: !!share.secondStage // 强制转换为布尔值
+      }));
+      
+      // 确保只有一个档位启用二阶段策略
+      let hasSecondStage = false;
+      processedExtraShares.forEach((share: any) => {
+        if (share.secondStage) {
+          if (hasSecondStage) {
+            share.secondStage = false;
+          } else {
+            hasSecondStage = true;
+          }
+        }
+      });
+      
+      fields.buyRatioConfig = JSON.stringify({ 
+        firstShareRatio, 
+        extraShares: processedExtraShares 
+      });
+      console.log('处理后的buyRatioConfig:', fields.buyRatioConfig);
     }
     
     try {
@@ -191,9 +236,33 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     
     // 获取表单原始数据，处理buyRatioConfig
     const formValues = updateFormRef.current?.getFieldsValue();
+    console.log('编辑表单提交前的数据:', JSON.stringify(formValues?.buyRatioConfigInput));
     if (formValues?.buyRatioConfigInput) {
       const { firstShareRatio, extraShares } = formValues.buyRatioConfigInput;
-      fields.buyRatioConfig = JSON.stringify({ firstShareRatio, extraShares });
+      
+      // 确保每个extraShare都有正确的secondStage值
+      const processedExtraShares = extraShares.map((share: any) => ({
+        ...share,
+        secondStage: !!share.secondStage // 强制转换为布尔值
+      }));
+      
+      // 确保只有一个档位启用二阶段策略
+      let hasSecondStage = false;
+      processedExtraShares.forEach((share: any) => {
+        if (share.secondStage) {
+          if (hasSecondStage) {
+            share.secondStage = false;
+          } else {
+            hasSecondStage = true;
+          }
+        }
+      });
+      
+      fields.buyRatioConfig = JSON.stringify({ 
+        firstShareRatio, 
+        extraShares: processedExtraShares 
+      });
+      console.log('处理后的buyRatioConfig:', fields.buyRatioConfig);
     }
     
     try {
@@ -441,7 +510,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
                       <div>详细配置:</div>
                       {config.extraShares.map((item: any, index: number) => (
                         <div key={index}>
-                          档位{index+1}: 跌幅{item.drop}%, 买入{item.ratio}%
+                          档位{index+1}: 跌幅{item.drop}%, 买入{item.ratio}%{item.secondStage ? ', 开启二阶段' : ''}
                         </div>
                       ))}
                     </div>
@@ -661,8 +730,8 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           min={0}
           max={100}
           fieldProps={{
-            step: 0.1,
-            precision: 1,
+            step: 0.01,
+            precision: 2,
             addonAfter: '%',
           }}
           initialValue={1}
@@ -673,11 +742,11 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           name="maBelowPercent"
           label={<FormattedMessage id="pages.strategy.stock.relation.maBelowPercent" defaultMessage="MA Below Percent (%)" />}
           tooltip={<FormattedMessage id="pages.strategy.stock.relation.maBelowPercentTip" defaultMessage="Buy when price is below moving average by this percentage (in percentage, e.g. 3 means 3%)" />}
-          min={0}
+          min={-100}
           max={100}
           fieldProps={{
-            step: 0.1,
-            precision: 1,
+            step: 0.01,
+            precision: 2,
             addonAfter: '%',
           }}
           initialValue={1}
@@ -688,11 +757,11 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           name="maAbovePercent"
           label={<FormattedMessage id="pages.strategy.stock.relation.maAbovePercent" defaultMessage="MA Above Percent (%)" />}
           tooltip={<FormattedMessage id="pages.strategy.stock.relation.maAbovePercentTip" defaultMessage="Buy when price is above moving average by this percentage (in percentage, e.g. 0.2 means 0.2%)" />}
-          min={0}
+          min={-100}
           max={100}
           fieldProps={{
-            step: 0.1,
-            precision: 1,
+            step: 0.01,
+            precision: 2,
             addonAfter: '%',
           }}
           initialValue={0.2}
@@ -706,8 +775,8 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           min={0}
           max={100}
           fieldProps={{
-            step: 0.1,
-            precision: 1,
+            step: 0.01,
+            precision: 2,
             addonAfter: '%',
           }}
           initialValue={1.5}
@@ -769,7 +838,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         
         <Form.Item
           label={intl.formatMessage({ id: 'pages.strategy.stock.relation.buyRatioConfig', defaultMessage: '买入比例配置' })}
-          tooltip={intl.formatMessage({ id: 'pages.strategy.stock.relation.buyRatioConfigTip', defaultMessage: '前limitStartShares个买入单买入比例，后续每档跌幅和买入比例，可动态增删' })}
+          tooltip={intl.formatMessage({ id: 'pages.strategy.stock.relation.buyRatioConfigTip', defaultMessage: '前limitStartShares个买入单买入比例，后续每档跌幅和买入比例以及是否开启二阶段策略，可动态增删' })}
           required
         >
           <Form.Item
@@ -793,7 +862,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
                       {...field} 
                       name={[field.name, 'drop']} 
                       rules={[{ required: true, message: '跌幅必填' }]}
-                      style={{ margin: 0 }}
+                      style={{ margin: 0, width: 100 }}
                     >
                       <InputNumber min={0} max={100} precision={2} addonAfter="%" placeholder="跌幅" />
                     </Form.Item>
@@ -801,14 +870,67 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
                       {...field} 
                       name={[field.name, 'ratio']} 
                       rules={[{ required: true, message: '买入比例必填' }]}
-                      style={{ margin: 0 }}
+                      style={{ margin: 0, width: 100 }}
                     >
                       <InputNumber min={0} max={100} precision={2} addonAfter="%" placeholder="买入比例" />
+                    </Form.Item>
+                    <Form.Item 
+                      {...field} 
+                      name={[field.name, 'secondStage']} 
+                      valuePropName="checked"
+                      initialValue={false}
+                      style={{ margin: 0, width: 160 }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <span style={{ marginRight: '8px' }}>{intl.formatMessage({ id: 'pages.strategy.stock.relation.secondStage', defaultMessage: '二阶段:' })}</span>
+                        <Tooltip title={intl.formatMessage({ id: 'pages.strategy.stock.relation.secondStageTip', defaultMessage: '该档位盈利卖出后是否启动二阶段策略' })}>
+                          <Switch 
+                            size="small" 
+                            checked={createForm.getFieldValue(['buyRatioConfigInput', 'extraShares', field.name, 'secondStage']) || false}
+                            onChange={(checked) => {
+                              // 手动设置表单的值
+                              const currentExtraShares = createForm.getFieldValue(['buyRatioConfigInput', 'extraShares']) || [];
+                              
+                              if (checked) {
+                                // 如果选中当前档位，需要取消其他档位的选中状态
+                                currentExtraShares.forEach((share: any, index: number) => {
+                                  if (share && index !== field.name) {
+                                    share.secondStage = false;
+                                  }
+                                });
+                              }
+                              
+                              // 设置当前档位状态
+                              if (currentExtraShares[field.name]) {
+                                currentExtraShares[field.name].secondStage = checked;
+                              }
+                              
+                              // 更新表单数据
+                              createForm.setFieldsValue({
+                                buyRatioConfigInput: {
+                                  ...createForm.getFieldValue('buyRatioConfigInput'),
+                                  extraShares: currentExtraShares
+                                }
+                              });
+                              
+                              console.log('设置新建表单二阶段值:', field.name, checked, 
+                                '互斥模式，当前所有档位状态:', 
+                                currentExtraShares.map((s: any, i: number) => 
+                                  `档位${i}: ${s?.secondStage ? '开启' : '关闭'}`).join(', ')
+                              );
+                            }}
+                          />
+                        </Tooltip>
+                      </div>
                     </Form.Item>
                     {extraFields.length > 1 && <MinusCircleOutlined onClick={() => removeExtra(field.name)} />}
                   </Space>
                 ))}
-                <Button type="dashed" onClick={() => addExtra({ drop: 7, ratio: 3 })} icon={<PlusOutlined />}>添加档位</Button>
+                <Button type="dashed" onClick={() => {
+                  const newItem = { drop: 7, ratio: 3, secondStage: false };
+                  console.log('添加新档位默认值:', JSON.stringify(newItem));
+                  addExtra(newItem);
+                }} icon={<PlusOutlined />}>添加档位</Button>
               </>
             )}
           </Form.List>
@@ -830,7 +952,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           if (visible && currentRow) {
             // 确保正确解析buyRatioConfig
             const buyRatioConfigInput = parseBuyRatioConfig(currentRow.buyRatioConfig);
-            console.log('解析后的buyRatioConfig:', buyRatioConfigInput);
             
             // 设置表单值
             // @ts-ignore
@@ -855,8 +976,8 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           min={0}
           max={100}
           fieldProps={{
-            step: 0.1,
-            precision: 1,
+            step: 0.01,
+            precision: 2,
             addonAfter: '%',
           }}
           rules={[{ required: true }]}
@@ -866,11 +987,11 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           name="maBelowPercent"
           label={<FormattedMessage id="pages.strategy.stock.relation.maBelowPercent" defaultMessage="MA Below Percent (%)" />}
           tooltip={<FormattedMessage id="pages.strategy.stock.relation.maBelowPercentTip" defaultMessage="Buy when price is below moving average by this percentage (in percentage, e.g. 3 means 3%)" />}
-          min={0}
+          min={-100}
           max={100}
           fieldProps={{
-            step: 0.1,
-            precision: 1,
+            step: 0.01,
+            precision: 2,
             addonAfter: '%',
           }}
           rules={[{ required: true }]}
@@ -880,11 +1001,11 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           name="maAbovePercent"
           label={<FormattedMessage id="pages.strategy.stock.relation.maAbovePercent" defaultMessage="MA Above Percent (%)" />}
           tooltip={<FormattedMessage id="pages.strategy.stock.relation.maAbovePercentTip" defaultMessage="Buy when price is above moving average by this percentage (in percentage, e.g. 0.2 means 0.2%)" />}
-          min={0}
+          min={-100}
           max={100}
           fieldProps={{
-            step: 0.1,
-            precision: 1,
+            step: 0.01,
+            precision: 2,
             addonAfter: '%',
           }}
           rules={[{ required: true }]}
@@ -897,8 +1018,8 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           min={0}
           max={100}
           fieldProps={{
-            step: 0.1,
-            precision: 1,
+            step: 0.01,
+            precision: 2,
             addonAfter: '%',
           }}
           rules={[{ required: true }]}
@@ -958,7 +1079,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         
         <Form.Item
           label={intl.formatMessage({ id: 'pages.strategy.stock.relation.buyRatioConfig', defaultMessage: '买入比例配置' })}
-          tooltip={intl.formatMessage({ id: 'pages.strategy.stock.relation.buyRatioConfigTip', defaultMessage: '前limitStartShares个买入单买入比例，后续每档跌幅和买入比例，可动态增删' })}
+          tooltip={intl.formatMessage({ id: 'pages.strategy.stock.relation.buyRatioConfigTip', defaultMessage: '前limitStartShares个买入单买入比例，后续每档跌幅和买入比例以及是否开启二阶段策略，可动态增删' })}
           required
         >
           <Form.Item
@@ -982,7 +1103,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
                       {...field} 
                       name={[field.name, 'drop']} 
                       rules={[{ required: true, message: '跌幅必填' }]}
-                      style={{ margin: 0 }}
+                      style={{ margin: 0, width: 100 }}
                     >
                       <InputNumber min={0} max={100} precision={2} addonAfter="%" placeholder="跌幅" />
                     </Form.Item>
@@ -990,14 +1111,67 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
                       {...field} 
                       name={[field.name, 'ratio']} 
                       rules={[{ required: true, message: '买入比例必填' }]}
-                      style={{ margin: 0 }}
+                      style={{ margin: 0, width: 100 }}
                     >
                       <InputNumber min={0} max={100} precision={2} addonAfter="%" placeholder="买入比例" />
+                    </Form.Item>
+                    <Form.Item 
+                      {...field} 
+                      name={[field.name, 'secondStage']} 
+                      valuePropName="checked"
+                      initialValue={false}
+                      style={{ margin: 0, width: 160 }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <span style={{ marginRight: '8px' }}>{intl.formatMessage({ id: 'pages.strategy.stock.relation.secondStage', defaultMessage: '二阶段:' })}</span>
+                        <Tooltip title={intl.formatMessage({ id: 'pages.strategy.stock.relation.secondStageTip', defaultMessage: '该档位盈利卖出后是否启动二阶段策略' })}>
+                          <Switch 
+                            size="small" 
+                            checked={updateForm.getFieldValue(['buyRatioConfigInput', 'extraShares', field.name, 'secondStage']) || false}
+                            onChange={(checked) => {
+                              // 手动设置表单的值
+                              const currentExtraShares = updateForm.getFieldValue(['buyRatioConfigInput', 'extraShares']) || [];
+                              
+                              if (checked) {
+                                // 如果选中当前档位，需要取消其他档位的选中状态
+                                currentExtraShares.forEach((share: any, index: number) => {
+                                  if (share && index !== field.name) {
+                                    share.secondStage = false;
+                                  }
+                                });
+                              }
+                              
+                              // 设置当前档位状态
+                              if (currentExtraShares[field.name]) {
+                                currentExtraShares[field.name].secondStage = checked;
+                              }
+                              
+                              // 更新表单数据
+                              updateForm.setFieldsValue({
+                                buyRatioConfigInput: {
+                                  ...updateForm.getFieldValue('buyRatioConfigInput'),
+                                  extraShares: currentExtraShares
+                                }
+                              });
+                              
+                              console.log('设置编辑表单二阶段值:', field.name, checked, 
+                                '互斥模式，当前所有档位状态:', 
+                                currentExtraShares.map((s: any, i: number) => 
+                                  `档位${i}: ${s?.secondStage ? '开启' : '关闭'}`).join(', ')
+                              );
+                            }}
+                          />
+                        </Tooltip>
+                      </div>
                     </Form.Item>
                     {extraFields.length > 1 && <MinusCircleOutlined onClick={() => removeExtra(field.name)} />}
                   </Space>
                 ))}
-                <Button type="dashed" onClick={() => addExtra({ drop: 7, ratio: 3 })} icon={<PlusOutlined />}>添加档位</Button>
+                <Button type="dashed" onClick={() => {
+                  const newItem = { drop: 7, ratio: 3, secondStage: false };
+                  console.log('添加新档位默认值:', JSON.stringify(newItem));
+                  addExtra(newItem);
+                }} icon={<PlusOutlined />}>添加档位</Button>
               </>
             )}
           </Form.List>

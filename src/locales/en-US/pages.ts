@@ -384,7 +384,9 @@ export default {
   'pages.strategy.stock.relation.create': 'Create Strategy Stock Relation',
   'pages.strategy.stock.relation.edit': 'Edit Strategy Stock Relation',
   'pages.strategy.stock.relation.buyRatioConfig': 'Buy Ratio Config',
-  'pages.strategy.stock.relation.buyRatioConfigTip': 'Buy ratio for first limitStartShares orders and additional levels configuration with price drop and buy ratio',
+  'pages.strategy.stock.relation.buyRatioConfigTip': 'The ratio for first N shares and follow-up levels',
+  'pages.strategy.stock.relation.secondStage': 'Second Stage',
+  'pages.strategy.stock.relation.secondStageTip': 'Enable second stage strategy after this level profit is sold',
   
   // Strategy User Stock Relation
   'pages.strategy.user.stockRelation.account': 'Account',

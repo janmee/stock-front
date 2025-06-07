@@ -1179,6 +1179,14 @@ export async function deleteStrategyUserStock(body: API.StrategyUserStockItem, o
   });
 }
 
+/** 更新策略用户股票关系二阶段策略状态 POST /api/strategy/user-stock/second-stage */
+export async function updateStrategyUserStockSecondStage(params: { id: number; enabled: boolean }) {
+  return request<API.Response<any>>('/api/strategy/user-stock/second-stage', {
+    method: 'POST',
+    data: params,
+  });
+}
+
 // 获取账户列表 (简易版，用于下拉选择)
 export async function listAccount(params?: { [key: string]: any }) {
   try {

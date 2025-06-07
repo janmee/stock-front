@@ -460,6 +460,8 @@ export default {
   'pages.strategy.stock.relation.edit': '编辑策略股票关系',
   'pages.strategy.stock.relation.buyRatioConfig': '买入比例配置',
   'pages.strategy.stock.relation.buyRatioConfigTip': '前limitStartShares个买入单买入比例，后续每档跌幅和买入比例，可动态增删',
+  'pages.strategy.stock.relation.secondStage': '二阶段策略',
+  'pages.strategy.stock.relation.secondStageTip': '该档位盈利卖出后是否启动二阶段策略',
   
   // 策略用户股票关系
   'pages.strategy.user.stockRelation.account': '账户',
