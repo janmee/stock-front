@@ -240,6 +240,8 @@ declare namespace API {
     maBelowPercent?: number;
     maAbovePercent?: number;
     levelPercent?: number;
+    intraUpPullbackPercent?: number;
+    intraDnBelowAvgPercent?: number;
     unsoldStackLimit?: number;
     totalFundShares?: number;
     limitStartShares?: number;
@@ -274,6 +276,7 @@ declare namespace API {
     updateTime?: string;
     secondStageEnabled?: boolean; // 是否启动二阶段策略
     secondStageStartDate?: string; // 启动二阶段策略日期，格式yyyy-MM-dd
+    cooldownTime?: number; // 相邻买入冷却时间（分钟）
   };
 
   type StrategyUserStockList = {
@@ -332,5 +335,29 @@ declare namespace API {
       unfinishedOrderCount: number;
       totalUnfinishedAmount: number;
     };
+  };
+
+  // 策略统计数据类型
+  type StrategyStatisticsVO = {
+    strategyId?: number;
+    strategyName?: string;
+    account?: string;
+    stockCode?: string;
+    buyOrderCount: number;
+    sellOrderCount: number;
+    profitOrderCount: number;
+    totalProfit: number;
+    totalProfitPercentage: number;
+    unfinishedOrderCount: number;
+    totalUnfinishedAmount: number;
+    averageBuyAmount: number;
+    qqqGainPercentage?: number;
+    stockGainPercentage?: number;
+    gainStartTime?: string;
+    gainEndTime?: string;
+    buyOrders: any[];
+    sellOrders: any[];
+    startTime?: string;
+    endTime?: string;
   };
 }

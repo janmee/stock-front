@@ -33,6 +33,7 @@ export default {
   'menu.list.power-demo': '系统推荐',
   'menu.list.analysis': '数据分析',
   'menu.list.run-logs': '运行日志',
+  'menu.list.logs-management': '日志管理',
   'menu.list.basic-list': '标准列表',
   'menu.list.card-list': '卡片列表',
   'menu.list.search-list': '搜索列表',
@@ -73,4 +74,5 @@ export default {
   'menu.list.scheduled-orders': '定时订单管理',
   'menu.stockAnalysis': '股票分析',
   'menu.list.stock-chart': '股票分时图表',
+  'menu.list.strategy-statistics': '策略统计',
 };

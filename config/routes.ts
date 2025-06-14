@@ -122,6 +122,14 @@ export default [
     hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
   },
   {
+    name: 'list.strategy-statistics',
+    icon: 'BarChart',
+    path: '/strategy-statistics',
+    component: './StrategyStatistics',
+    access: 'canAdmin',
+    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
+  },
+  {
     path: '/strategy-regression',
     name: 'strategyRegression',
     icon: 'LineChartOutlined',
@@ -135,13 +143,14 @@ export default [
     access: 'canAdmin',
     hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
   },
-  // {
-  //   name: 'list.run-logs',
-  //   icon: 'OrderedListOutlined',
-  //   path: '/logs',
-  //   component: './LogsInfo',
-  //   access: 'canAdmin',
-  // },
+  {
+    name: 'list.logs-management',
+    icon: 'FileTextOutlined',
+    path: '/logs-management',
+    component: './LogsManagement',
+    access: 'canAdmin',
+    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
+  },
   // {
   //   name: 'list.upload-image',
   //   icon: 'upload',

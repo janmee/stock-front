@@ -293,6 +293,25 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     {
       title: (
         <span>
+          <FormattedMessage id="pages.strategy.user.stockRelation.cooldownTime" defaultMessage="买入冷却时间(分钟)" />
+          <Tooltip title={<FormattedMessage id="pages.strategy.user.stockRelation.cooldownTimeTip" defaultMessage="两次相邻买入之间的冷却时间，单位分钟，默认30分钟" />}>
+            <InfoCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </span>
+      ),
+      dataIndex: 'cooldownTime',
+      valueType: 'digit',
+      hideInSearch: true,
+      render: (text, record) => {
+        if (record.cooldownTime === null || record.cooldownTime === undefined) {
+          return '30';
+        }
+        return record.cooldownTime;
+      },
+    },
+    {
+      title: (
+        <span>
           <FormattedMessage id="pages.strategy.user.stockRelation.startTime" defaultMessage="开始时间" />
           <Tooltip title={<FormattedMessage id="pages.strategy.user.stockRelation.startTimeTip" defaultMessage="策略开始执行时间（基于设置的时区）" />}>
             <InfoCircleOutlined style={{ marginLeft: 4 }} />
@@ -505,7 +524,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       {/* 新增策略用户股票关系表单 */}
       <ModalForm
         title={<FormattedMessage id="pages.strategy.user.stockRelation.create" defaultMessage="Create Strategy User Stock Relation" />}
-        width="550px"
+        width="650px"
         formRef={createFormRef}
         modalProps={{
           destroyOnClose: true,
@@ -514,175 +533,211 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         onOpenChange={setCreateModalVisible}
         onFinish={handleAdd}
       >
-        {!strategyId && (
-          <ProFormSelect
-            name="strategyId"
-            label={<FormattedMessage id="pages.strategy.job.id" defaultMessage="Strategy ID" />}
-            rules={[{ required: true }]}
-            request={async () => {
-              // 获取策略任务列表
-              const res = await listStrategyJob({
-                current: 1,
-                pageSize: 100,
-                status: '1', // 只获取启用状态的策略
-              });
-              if (res && res.data) {
-                return res.data.map((item: any) => ({
-                  label: `${item.name} (ID: ${item.id})`,
-                  value: item.id,
-                  strategyName: item.name,
-                }));
-              }
-              return [];
-            }}
-            fieldProps={{
-              onChange: (value, option: any) => {
-                if (createFormRef.current && option?.strategyName) {
-                  createFormRef.current.setFieldsValue({
-                    strategyName: option.strategyName,
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {!strategyId && (
+            <div style={{ width: '100%' }}>
+              <ProFormSelect
+                name="strategyId"
+                label={<FormattedMessage id="pages.strategy.job.id" defaultMessage="Strategy ID" />}
+                rules={[{ required: true }]}
+                request={async () => {
+                  // 获取策略任务列表
+                  const res = await listStrategyJob({
+                    current: 1,
+                    pageSize: 100,
+                    status: '1', // 只获取启用状态的策略
                   });
+                  if (res && res.data) {
+                    return res.data.map((item: any) => ({
+                      label: `${item.name} (ID: ${item.id})`,
+                      value: item.id,
+                      strategyName: item.name,
+                    }));
+                  }
+                  return [];
+                }}
+                fieldProps={{
+                  onChange: (value, option: any) => {
+                    if (createFormRef.current && option?.strategyName) {
+                      createFormRef.current.setFieldsValue({
+                        strategyName: option.strategyName,
+                      });
+                    }
+                  },
+                }}
+              />
+            </div>
+          )}
+          
+          {!strategyId && (
+            <ProFormText
+              name="strategyName"
+              label={<FormattedMessage id="pages.strategy.job.name" defaultMessage="Strategy Name" />}
+              rules={[{ required: true }]}
+              hidden
+            />
+          )}
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormSelect
+              name="account"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.account" defaultMessage="Account" />}
+              rules={[{ required: true }]}
+              request={async () => {
+                // 获取账户列表
+                const res = await listAccount({});
+                if (res && res.data) {
+                  return res.data.map((item: any) => ({
+                    label: `${item.account} (${item.name})`,
+                    value: item.account,
+                    accountName: item.name,
+                  }));
                 }
-              },
-            }}
-          />
-        )}
-        
-        {!strategyId && (
+                return [];
+              }}
+              fieldProps={{
+                onChange: (value, option: any) => {
+                  if (createFormRef.current && option?.accountName) {
+                    createFormRef.current.setFieldsValue({
+                      accountName: option.accountName,
+                    });
+                  }
+                },
+              }}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormText
+              name="stockCode"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.stockCode" defaultMessage="Stock Code" />}
+              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.stockCode.placeholder' })}
+              rules={[{ required: true }]}
+            />
+          </div>
+          
           <ProFormText
-            name="strategyName"
-            label={<FormattedMessage id="pages.strategy.job.name" defaultMessage="Strategy Name" />}
-            rules={[{ required: true }]}
+            name="accountName"
+            label={<FormattedMessage id="pages.strategy.user.stockRelation.accountName" defaultMessage="Account Name" />}
             hidden
           />
-        )}
-        
-        <ProFormSelect
-          name="account"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.account" defaultMessage="Account" />}
-          rules={[{ required: true }]}
-          request={async () => {
-            // 获取账户列表
-            const res = await listAccount({});
-            if (res && res.data) {
-              return res.data.map((item: any) => ({
-                label: `${item.account} (${item.name})`,
-                value: item.account,
-                accountName: item.name,
-              }));
-            }
-            return [];
-          }}
-          fieldProps={{
-            onChange: (value, option: any) => {
-              if (createFormRef.current && option?.accountName) {
-                createFormRef.current.setFieldsValue({
-                  accountName: option.accountName,
-                });
-              }
-            },
-          }}
-        />
-        
-        <ProFormText
-          name="accountName"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.accountName" defaultMessage="Account Name" />}
-          hidden
-        />
-        
-        <ProFormText
-          name="stockCode"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.stockCode" defaultMessage="Stock Code" />}
-          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.stockCode.placeholder' })}
-          rules={[{ required: true }]}
-        />
-        
-        <ProFormDigit
-          name="fundPercent"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.fundPercent" defaultMessage="Fund Percent" />}
-          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.fundPercent.placeholder' })}
-          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.fundPercentTip' })}
-          min={0}
-          max={100}
-          fieldProps={{
-            precision: 1,
-            suffix: '%',
-          }}
-        />
-        
-        <ProFormDigit
-          name="maxAmount"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.maxAmount" defaultMessage="Max Amount" />}
-          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmount.placeholder', defaultMessage: 'Leave empty to use Fund Percent' })}
-          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmountTip' })}
-          min={0}
-        />
-        
-        <ProFormDigit
-          name="dailyCompletedOrders"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.dailyCompletedOrders" defaultMessage="每日最大完成单数" />}
-          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.dailyCompletedOrders.placeholder', defaultMessage: '留空表示不限制' })}
-          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.dailyCompletedOrdersTip', defaultMessage: '每天最大完成单数限制，当当天已完成订单数量达到这个值时，将停止下单' })}
-          min={0}
-          fieldProps={{
-            precision: 0,
-          }}
-        />
-        
-        <ProFormText
-          name="startTime"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.startTime" defaultMessage="开始时间" />}
-          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.startTime.placeholder', defaultMessage: '格式为HH:mm，例如10:00' })}
-          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.startTimeTip', defaultMessage: '策略开始执行时间（基于设置的时区）' })}
-          rules={[
-            { 
-              pattern: /^([01]\d|2[0-3]):([0-5]\d)$/, 
-              message: intl.formatMessage({ id: 'pages.strategy.user.stockRelation.time.invalid', defaultMessage: '时间格式无效，应为HH:mm' }) 
-            }
-          ]}
-          initialValue="10:00"
-        />
-        
-        <ProFormText
-          name="endTime"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.endTime" defaultMessage="结束时间" />}
-          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.endTime.placeholder', defaultMessage: '格式为HH:mm，例如16:00' })}
-          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.endTimeTip', defaultMessage: '策略结束执行时间（基于设置的时区）' })}
-          rules={[
-            { 
-              pattern: /^([01]\d|2[0-3]):([0-5]\d)$/, 
-              message: intl.formatMessage({ id: 'pages.strategy.user.stockRelation.time.invalid', defaultMessage: '时间格式无效，应为HH:mm' }) 
-            }
-          ]}
-          initialValue="16:00"
-        />
-        
-        <ProFormSelect
-          name="timeZone"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.timeZone" defaultMessage="时区" />}
-          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.timeZoneTip', defaultMessage: '策略执行的时区，默认为美东时区' })}
-          valueEnum={{
-            'America/New_York': intl.formatMessage({ id: 'pages.strategy.user.stockRelation.timeZone.newyork', defaultMessage: '美东时区' }),
-            'Asia/Shanghai': intl.formatMessage({ id: 'pages.strategy.user.stockRelation.timeZone.shanghai', defaultMessage: '北京时区' }),
-          }}
-          initialValue="America/New_York"
-        />
-        
-        <ProFormSelect
-          name="status"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.status" defaultMessage="Status" />}
-          valueEnum={{
-            '0': <FormattedMessage id="pages.strategy.status.disabled" defaultMessage="Disabled" />,
-            '1': <FormattedMessage id="pages.strategy.status.enabled" defaultMessage="Enabled" />,
-          }}
-          initialValue="1"
-          rules={[{ required: true }]}
-        />
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormDigit
+              name="fundPercent"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.fundPercent" defaultMessage="Fund Percent" />}
+              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.fundPercent.placeholder' })}
+              tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.fundPercentTip' })}
+              min={0}
+              max={100}
+              fieldProps={{
+                precision: 1,
+                suffix: '%',
+              }}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormDigit
+              name="maxAmount"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.maxAmount" defaultMessage="Max Amount" />}
+              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmount.placeholder', defaultMessage: 'Leave empty to use Fund Percent' })}
+              tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmountTip' })}
+              min={0}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormDigit
+              name="dailyCompletedOrders"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.dailyCompletedOrders" defaultMessage="每日最大完成单数" />}
+              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.dailyCompletedOrders.placeholder', defaultMessage: '留空表示不限制' })}
+              tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.dailyCompletedOrdersTip', defaultMessage: '每天最大完成单数限制，当当天已完成订单数量达到这个值时，将停止下单' })}
+              min={0}
+              fieldProps={{
+                precision: 0,
+              }}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormDigit
+              name="cooldownTime"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.cooldownTime" defaultMessage="买入冷却时间(分钟)" />}
+              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.cooldownTime.placeholder', defaultMessage: '留空使用默认值30分钟' })}
+              tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.cooldownTimeTip', defaultMessage: '两次相邻买入之间的冷却时间，单位分钟，默认30分钟' })}
+              min={1}
+              initialValue={30}
+              fieldProps={{
+                precision: 0,
+              }}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormText
+              name="startTime"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.startTime" defaultMessage="开始时间" />}
+              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.startTime.placeholder', defaultMessage: '格式为HH:mm，例如10:00' })}
+              tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.startTimeTip', defaultMessage: '策略开始执行时间（基于设置的时区）' })}
+              rules={[
+                { 
+                  pattern: /^([01]\d|2[0-3]):([0-5]\d)$/, 
+                  message: intl.formatMessage({ id: 'pages.strategy.user.stockRelation.time.invalid', defaultMessage: '时间格式无效，应为HH:mm' }) 
+                }
+              ]}
+              initialValue="10:00"
+            />
+          </div>
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormText
+              name="endTime"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.endTime" defaultMessage="结束时间" />}
+              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.endTime.placeholder', defaultMessage: '格式为HH:mm，例如16:00' })}
+              tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.endTimeTip', defaultMessage: '策略结束执行时间（基于设置的时区）' })}
+              rules={[
+                { 
+                  pattern: /^([01]\d|2[0-3]):([0-5]\d)$/, 
+                  message: intl.formatMessage({ id: 'pages.strategy.user.stockRelation.time.invalid', defaultMessage: '时间格式无效，应为HH:mm' }) 
+                }
+              ]}
+              initialValue="16:00"
+            />
+          </div>
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormSelect
+              name="timeZone"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.timeZone" defaultMessage="时区" />}
+              tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.timeZoneTip', defaultMessage: '策略执行的时区，默认为美东时区' })}
+              valueEnum={{
+                'America/New_York': intl.formatMessage({ id: 'pages.strategy.user.stockRelation.timeZone.newyork', defaultMessage: '美东时区' }),
+                'Asia/Shanghai': intl.formatMessage({ id: 'pages.strategy.user.stockRelation.timeZone.shanghai', defaultMessage: '北京时区' }),
+              }}
+              initialValue="America/New_York"
+            />
+          </div>
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormSelect
+              name="status"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.status" defaultMessage="Status" />}
+              valueEnum={{
+                '0': <FormattedMessage id="pages.strategy.status.disabled" defaultMessage="Disabled" />,
+                '1': <FormattedMessage id="pages.strategy.status.enabled" defaultMessage="Enabled" />,
+              }}
+              initialValue="1"
+              rules={[{ required: true }]}
+            />
+          </div>
+        </div>
       </ModalForm>
       
       {/* 编辑策略用户股票关系表单 */}
       <ModalForm
         title={<FormattedMessage id="pages.strategy.user.stockRelation.edit" defaultMessage="Edit Strategy User Stock Relation" />}
-        width="550px"
+        width="650px"
         formRef={updateFormRef}
         modalProps={{
           destroyOnClose: true,
@@ -692,100 +747,139 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         onFinish={handleUpdate}
         initialValues={currentRow}
       >
-        <ProFormText
-          name="account"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.account" defaultMessage="Account" />}
-          rules={[{ required: true }]}
-        />
-        
-        <ProFormText
-          name="accountName"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.accountName" defaultMessage="Account Name" />}
-        />
-        
-        <ProFormText
-          name="stockCode"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.stockCode" defaultMessage="Stock Code" />}
-          rules={[{ required: true }]}
-        />
-        
-        <ProFormDigit
-          name="fundPercent"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.fundPercent" defaultMessage="Fund Percent" />}
-          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.fundPercent.placeholder' })}
-          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.fundPercentTip' })}
-          min={0}
-          max={100}
-          fieldProps={{
-            precision: 1,
-            suffix: '%',
-          }}
-        />
-        
-        <ProFormDigit
-          name="maxAmount"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.maxAmount" defaultMessage="Max Amount" />}
-          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmount.placeholder', defaultMessage: 'Leave empty to use Fund Percent' })}
-          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmountTip' })}
-          min={0}
-        />
-        
-        <ProFormDigit
-          name="dailyCompletedOrders"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.dailyCompletedOrders" defaultMessage="每日最大完成单数" />}
-          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.dailyCompletedOrders.placeholder', defaultMessage: '留空表示不限制' })}
-          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.dailyCompletedOrdersTip', defaultMessage: '每天最大完成单数限制，当当天已完成订单数量达到这个值时，将停止下单' })}
-          min={0}
-          fieldProps={{
-            precision: 0,
-          }}
-        />
-        
-        <ProFormText
-          name="startTime"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.startTime" defaultMessage="开始时间" />}
-          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.startTime.placeholder', defaultMessage: '格式为HH:mm，例如10:00' })}
-          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.startTimeTip', defaultMessage: '策略开始执行时间（基于设置的时区）' })}
-          rules={[
-            { 
-              pattern: /^([01]\d|2[0-3]):([0-5]\d)$/, 
-              message: intl.formatMessage({ id: 'pages.strategy.user.stockRelation.time.invalid', defaultMessage: '时间格式无效，应为HH:mm' }) 
-            }
-          ]}
-        />
-        
-        <ProFormText
-          name="endTime"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.endTime" defaultMessage="结束时间" />}
-          placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.endTime.placeholder', defaultMessage: '格式为HH:mm，例如16:00' })}
-          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.endTimeTip', defaultMessage: '策略结束执行时间（基于设置的时区）' })}
-          rules={[
-            { 
-              pattern: /^([01]\d|2[0-3]):([0-5]\d)$/, 
-              message: intl.formatMessage({ id: 'pages.strategy.user.stockRelation.time.invalid', defaultMessage: '时间格式无效，应为HH:mm' }) 
-            }
-          ]}
-        />
-        
-        <ProFormSelect
-          name="timeZone"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.timeZone" defaultMessage="时区" />}
-          tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.timeZoneTip', defaultMessage: '策略执行的时区，默认为美东时区' })}
-          valueEnum={{
-            'America/New_York': intl.formatMessage({ id: 'pages.strategy.user.stockRelation.timeZone.newyork', defaultMessage: '美东时区' }),
-            'Asia/Shanghai': intl.formatMessage({ id: 'pages.strategy.user.stockRelation.timeZone.shanghai', defaultMessage: '北京时区' }),
-          }}
-        />
-        
-        <ProFormSelect
-          name="status"
-          label={<FormattedMessage id="pages.strategy.user.stockRelation.status" defaultMessage="Status" />}
-          valueEnum={{
-            '0': <FormattedMessage id="pages.strategy.status.disabled" defaultMessage="Disabled" />,
-            '1': <FormattedMessage id="pages.strategy.status.enabled" defaultMessage="Enabled" />,
-          }}
-          rules={[{ required: true }]}
-        />
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormText
+              name="account"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.account" defaultMessage="Account" />}
+              rules={[{ required: true }]}
+              disabled
+            />
+          </div>
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormText
+              name="stockCode"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.stockCode" defaultMessage="Stock Code" />}
+              rules={[{ required: true }]}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormText
+              name="accountName"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.accountName" defaultMessage="Account Name" />}
+              disabled
+            />
+          </div>
+          
+          <div style={{ width: 'calc(50% - 4px)' }}></div>
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormDigit
+              name="fundPercent"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.fundPercent" defaultMessage="Fund Percent" />}
+              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.fundPercent.placeholder' })}
+              tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.fundPercentTip' })}
+              min={0}
+              max={100}
+              fieldProps={{
+                precision: 1,
+                suffix: '%',
+              }}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormDigit
+              name="maxAmount"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.maxAmount" defaultMessage="Max Amount" />}
+              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmount.placeholder', defaultMessage: 'Leave empty to use Fund Percent' })}
+              tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmountTip' })}
+              min={0}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormDigit
+              name="dailyCompletedOrders"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.dailyCompletedOrders" defaultMessage="每日最大完成单数" />}
+              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.dailyCompletedOrders.placeholder', defaultMessage: '留空表示不限制' })}
+              tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.dailyCompletedOrdersTip', defaultMessage: '每天最大完成单数限制，当当天已完成订单数量达到这个值时，将停止下单' })}
+              min={0}
+              fieldProps={{
+                precision: 0,
+              }}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormDigit
+              name="cooldownTime"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.cooldownTime" defaultMessage="买入冷却时间(分钟)" />}
+              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.cooldownTime.placeholder', defaultMessage: '留空使用默认值30分钟' })}
+              tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.cooldownTimeTip', defaultMessage: '两次相邻买入之间的冷却时间，单位分钟，默认30分钟' })}
+              min={1}
+              fieldProps={{
+                precision: 0,
+              }}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormText
+              name="startTime"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.startTime" defaultMessage="开始时间" />}
+              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.startTime.placeholder', defaultMessage: '格式为HH:mm，例如10:00' })}
+              tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.startTimeTip', defaultMessage: '策略开始执行时间（基于设置的时区）' })}
+              rules={[
+                { 
+                  pattern: /^([01]\d|2[0-3]):([0-5]\d)$/, 
+                  message: intl.formatMessage({ id: 'pages.strategy.user.stockRelation.time.invalid', defaultMessage: '时间格式无效，应为HH:mm' }) 
+                }
+              ]}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormText
+              name="endTime"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.endTime" defaultMessage="结束时间" />}
+              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.endTime.placeholder', defaultMessage: '格式为HH:mm，例如16:00' })}
+              tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.endTimeTip', defaultMessage: '策略结束执行时间（基于设置的时区）' })}
+              rules={[
+                { 
+                  pattern: /^([01]\d|2[0-3]):([0-5]\d)$/, 
+                  message: intl.formatMessage({ id: 'pages.strategy.user.stockRelation.time.invalid', defaultMessage: '时间格式无效，应为HH:mm' }) 
+                }
+              ]}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormSelect
+              name="timeZone"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.timeZone" defaultMessage="时区" />}
+              tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.timeZoneTip', defaultMessage: '策略执行的时区，默认为美东时区' })}
+              valueEnum={{
+                'America/New_York': intl.formatMessage({ id: 'pages.strategy.user.stockRelation.timeZone.newyork', defaultMessage: '美东时区' }),
+                'Asia/Shanghai': intl.formatMessage({ id: 'pages.strategy.user.stockRelation.timeZone.shanghai', defaultMessage: '北京时区' }),
+              }}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormSelect
+              name="status"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.status" defaultMessage="Status" />}
+              valueEnum={{
+                '0': <FormattedMessage id="pages.strategy.status.disabled" defaultMessage="Disabled" />,
+                '1': <FormattedMessage id="pages.strategy.status.enabled" defaultMessage="Enabled" />,
+              }}
+              rules={[{ required: true }]}
+            />
+          </div>
+        </div>
       </ModalForm>
     </>
   );

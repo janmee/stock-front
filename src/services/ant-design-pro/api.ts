@@ -1343,3 +1343,19 @@ export async function updateStrategyUserStockStatus(
     ...(options || {}),
   });
 }
+
+/** 获取策略统计数据 GET /api/strategy-statistics/data */
+export async function getStrategyStatisticsData(params: {
+  strategyId?: number;
+  account?: string;
+  stockCode?: string;
+  startDate?: string;
+  endDate?: string;
+}) {
+  return request<API.Response<any>>('/api/strategy-statistics/data', {
+    method: 'GET',
+    params: {
+      ...params,
+    },
+  });
+}

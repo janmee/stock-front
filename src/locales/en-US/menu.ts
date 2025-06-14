@@ -35,6 +35,7 @@ export default {
   'menu.list.trade': 'Stock Trading',
   'menu.list.time-job': 'Scheduled Tasks',
   'menu.list.strategy': 'Strategy Management',
+  'menu.list.logs-management': 'Logs Management',
   'menu.strategyRegression': 'Strategy Regression',
   'menu.list.stock-chart': 'Stock Time Chart',
   'menu.list.backtest': 'Strategy Backtest',

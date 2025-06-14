@@ -44,26 +44,43 @@ interface TradingStats {
   dingtouStats: {
     count: number;
     profit: number;
+    realizedProfit: number;
+    unrealizedProfit: number;
     successRate: number;
   };
   regularDingtou?: {
     count: number;
     profit: number;
+    realizedProfit: number;
+    unrealizedProfit: number;
     successRate: number;
   };
   callbackDingtou?: {
     count: number;
     profit: number;
+    realizedProfit: number;
+    unrealizedProfit: number;
     successRate: number;
   };
   manualStats: {
     count: number;
     profit: number;
+    realizedProfit: number;
+    unrealizedProfit: number;
     successRate: number;
   };
   avgStrategyStats: {
     count: number;
     profit: number;
+    realizedProfit: number;
+    unrealizedProfit: number;
+    successRate: number;
+  };
+  highVolatilityStats?: {
+    count: number;
+    profit: number;
+    realizedProfit: number;
+    unrealizedProfit: number;
     successRate: number;
   };
   unrealizedProfits?: {
@@ -319,8 +336,11 @@ const DashboardList: React.FC = () => {
                 prefix={<SlidersOutlined />}
                 suffix={
                   <Space>
-                    <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.dingtouStats.profit >= 0 ? '#3f8600' : '#cf1322' }}>
-                      {tradingStats.dingtouStats.profit >= 0 ? '+' : ''}{tradingStats.dingtouStats.profit.toFixed(2)}$
+                    <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.dingtouStats.realizedProfit >= 0 ? '#3f8600' : '#cf1322' }}>
+                      {intl.formatMessage({ id: 'dashboard.stats.realized.profit', defaultMessage: '已实现盈利' })}: {tradingStats.dingtouStats.realizedProfit >= 0 ? '+' : ''}{tradingStats.dingtouStats.realizedProfit.toFixed(2)}$
+                    </span>
+                    <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.dingtouStats.unrealizedProfit >= 0 ? '#3f8600' : '#cf1322' }}>
+                      {intl.formatMessage({ id: 'dashboard.stats.unrealized.profit', defaultMessage: '持仓盈亏' })}: {tradingStats.dingtouStats.unrealizedProfit >= 0 ? '+' : ''}{tradingStats.dingtouStats.unrealizedProfit.toFixed(2)}$
                     </span>
                     <Tag color={tradingStats.dingtouStats.successRate > 50 ? 'green' : 'orange'}>
                       {intl.formatMessage({ id: 'dashboard.stats.success.rate' })} {tradingStats.dingtouStats.successRate.toFixed(1)}%
@@ -339,8 +359,11 @@ const DashboardList: React.FC = () => {
                     prefix={<SlidersOutlined />}
                     suffix={
                       <Space>
-                        <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.regularDingtou.profit >= 0 ? '#3f8600' : '#cf1322' }}>
-                          {tradingStats.regularDingtou.profit >= 0 ? '+' : ''}{tradingStats.regularDingtou.profit.toFixed(2)}$
+                        <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.regularDingtou.realizedProfit >= 0 ? '#3f8600' : '#cf1322' }}>
+                          {intl.formatMessage({ id: 'dashboard.stats.realized.profit', defaultMessage: '已实现盈利' })}: {tradingStats.regularDingtou.realizedProfit >= 0 ? '+' : ''}{tradingStats.regularDingtou.realizedProfit.toFixed(2)}$
+                        </span>
+                        <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.regularDingtou.unrealizedProfit >= 0 ? '#3f8600' : '#cf1322' }}>
+                          {intl.formatMessage({ id: 'dashboard.stats.unrealized.profit', defaultMessage: '持仓盈亏' })}: {tradingStats.regularDingtou.unrealizedProfit >= 0 ? '+' : ''}{tradingStats.regularDingtou.unrealizedProfit.toFixed(2)}$
                         </span>
                         <Tag color={tradingStats.regularDingtou.successRate > 50 ? 'green' : 'orange'}>
                           {intl.formatMessage({ id: 'dashboard.stats.success.rate' })} {tradingStats.regularDingtou.successRate.toFixed(1)}%
@@ -361,8 +384,11 @@ const DashboardList: React.FC = () => {
                     prefix={<SlidersOutlined />}
                     suffix={
                       <Space>
-                        <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.callbackDingtou.profit >= 0 ? '#3f8600' : '#cf1322' }}>
-                          {tradingStats.callbackDingtou.profit >= 0 ? '+' : ''}{tradingStats.callbackDingtou.profit.toFixed(2)}$
+                        <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.callbackDingtou.realizedProfit >= 0 ? '#3f8600' : '#cf1322' }}>
+                          {intl.formatMessage({ id: 'dashboard.stats.realized.profit', defaultMessage: '已实现盈利' })}: {tradingStats.callbackDingtou.realizedProfit >= 0 ? '+' : ''}{tradingStats.callbackDingtou.realizedProfit.toFixed(2)}$
+                        </span>
+                        <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.callbackDingtou.unrealizedProfit >= 0 ? '#3f8600' : '#cf1322' }}>
+                          {intl.formatMessage({ id: 'dashboard.stats.unrealized.profit', defaultMessage: '持仓盈亏' })}: {tradingStats.callbackDingtou.unrealizedProfit >= 0 ? '+' : ''}{tradingStats.callbackDingtou.unrealizedProfit.toFixed(2)}$
                         </span>
                         <Tag color={tradingStats.callbackDingtou.successRate > 50 ? 'green' : 'orange'}>
                           {intl.formatMessage({ id: 'dashboard.stats.success.rate' })} {tradingStats.callbackDingtou.successRate.toFixed(1)}%
@@ -381,8 +407,11 @@ const DashboardList: React.FC = () => {
                 prefix={<SlidersOutlined />}
                 suffix={
                   <Space>
-                    <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.avgStrategyStats.profit >= 0 ? '#3f8600' : '#cf1322' }}>
-                      {tradingStats.avgStrategyStats.profit >= 0 ? '+' : ''}{tradingStats.avgStrategyStats.profit.toFixed(2)}$
+                    <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.avgStrategyStats.realizedProfit >= 0 ? '#3f8600' : '#cf1322' }}>
+                      {intl.formatMessage({ id: 'dashboard.stats.realized.profit', defaultMessage: '已实现盈利' })}: {tradingStats.avgStrategyStats.realizedProfit >= 0 ? '+' : ''}{tradingStats.avgStrategyStats.realizedProfit.toFixed(2)}$
+                    </span>
+                    <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.avgStrategyStats.unrealizedProfit >= 0 ? '#3f8600' : '#cf1322' }}>
+                      {intl.formatMessage({ id: 'dashboard.stats.unrealized.profit', defaultMessage: '持仓盈亏' })}: {tradingStats.avgStrategyStats.unrealizedProfit >= 0 ? '+' : ''}{tradingStats.avgStrategyStats.unrealizedProfit.toFixed(2)}$
                     </span>
                     <Tag color={tradingStats.avgStrategyStats.successRate > 50 ? 'green' : 'orange'}>
                       {intl.formatMessage({ id: 'dashboard.stats.success.rate' })} {tradingStats.avgStrategyStats.successRate.toFixed(1)}%
@@ -390,6 +419,30 @@ const DashboardList: React.FC = () => {
                   </Space>
                 }
               />
+              {tradingStats.highVolatilityStats && (
+                <>
+                  <Divider style={{ margin: '12px 0' }} />
+                  <Statistic
+                    title={intl.formatMessage({ id: 'dashboard.stats.high.volatility.strategy', defaultMessage: '高位震荡策略' })}
+                    value={tradingStats.highVolatilityStats.count}
+                    precision={0}
+                    prefix={<SlidersOutlined />}
+                    suffix={
+                      <Space>
+                        <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.highVolatilityStats.realizedProfit >= 0 ? '#3f8600' : '#cf1322' }}>
+                          {intl.formatMessage({ id: 'dashboard.stats.realized.profit', defaultMessage: '已实现盈利' })}: {tradingStats.highVolatilityStats.realizedProfit >= 0 ? '+' : ''}{tradingStats.highVolatilityStats.realizedProfit.toFixed(2)}$
+                        </span>
+                        <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.highVolatilityStats.unrealizedProfit >= 0 ? '#3f8600' : '#cf1322' }}>
+                          {intl.formatMessage({ id: 'dashboard.stats.unrealized.profit', defaultMessage: '持仓盈亏' })}: {tradingStats.highVolatilityStats.unrealizedProfit >= 0 ? '+' : ''}{tradingStats.highVolatilityStats.unrealizedProfit.toFixed(2)}$
+                        </span>
+                        <Tag color={tradingStats.highVolatilityStats.successRate > 50 ? 'green' : 'orange'}>
+                          {intl.formatMessage({ id: 'dashboard.stats.success.rate' })} {tradingStats.highVolatilityStats.successRate.toFixed(1)}%
+                        </Tag>
+                      </Space>
+                    }
+                  />
+                </>
+              )}
             </Card>
           </Col>
           
@@ -400,6 +453,19 @@ const DashboardList: React.FC = () => {
                 value={tradingStats.manualStats.count}
                 precision={0}
                 prefix={<SlidersOutlined />}
+                suffix={
+                  <Space>
+                    <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.manualStats.realizedProfit >= 0 ? '#3f8600' : '#cf1322' }}>
+                      {intl.formatMessage({ id: 'dashboard.stats.realized.profit', defaultMessage: '已实现盈利' })}: {tradingStats.manualStats.realizedProfit >= 0 ? '+' : ''}{tradingStats.manualStats.realizedProfit.toFixed(2)}$
+                    </span>
+                    <span style={{ fontSize: '14px', marginLeft: '5px', color: tradingStats.manualStats.unrealizedProfit >= 0 ? '#3f8600' : '#cf1322' }}>
+                      {intl.formatMessage({ id: 'dashboard.stats.unrealized.profit', defaultMessage: '持仓盈亏' })}: {tradingStats.manualStats.unrealizedProfit >= 0 ? '+' : ''}{tradingStats.manualStats.unrealizedProfit.toFixed(2)}$
+                    </span>
+                    <Tag color={tradingStats.manualStats.successRate > 50 ? 'green' : 'orange'}>
+                      {intl.formatMessage({ id: 'dashboard.stats.success.rate' })} {tradingStats.manualStats.successRate.toFixed(1)}%
+                    </Tag>
+                  </Space>
+                }
               />
               <Divider />
               <Statistic

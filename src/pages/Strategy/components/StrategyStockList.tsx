@@ -157,6 +157,12 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     if (fields.levelPercent) {
       fields.levelPercent = fields.levelPercent / 100;
     }
+    if (fields.intraUpPullbackPercent) {
+      fields.intraUpPullbackPercent = fields.intraUpPullbackPercent / 100;
+    }
+    if (fields.intraDnBelowAvgPercent) {
+      fields.intraDnBelowAvgPercent = fields.intraDnBelowAvgPercent / 100;
+    }
     
     // 确保有默认值
     fields.unsoldStackLimit = fields.unsoldStackLimit || 4;
@@ -227,6 +233,12 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     }
     if (fields.levelPercent) {
       fields.levelPercent = fields.levelPercent / 100;
+    }
+    if (fields.intraUpPullbackPercent) {
+      fields.intraUpPullbackPercent = fields.intraUpPullbackPercent / 100;
+    }
+    if (fields.intraDnBelowAvgPercent) {
+      fields.intraDnBelowAvgPercent = fields.intraDnBelowAvgPercent / 100;
     }
     
     // 确保有默认值
@@ -408,6 +420,34 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     {
       title: (
         <>
+          <>日内持续上涨并高位回调百分比(%)</>
+          <Tooltip title="当股票日内持续上涨后从高点回调该百分比时触发买入信号（如3表示3%）">
+            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </>
+      ),
+      dataIndex: 'intraUpPullbackPercent',
+      valueType: 'digit',
+      hideInSearch: true,
+      render: (_, record) => record.intraUpPullbackPercent ? `${(record.intraUpPullbackPercent * 100).toFixed(1)}%` : '-',
+    },
+    {
+      title: (
+        <>
+          <>日内持续下跌并低于分时均价百分比(%)</>
+          <Tooltip title="当股票日内持续下跌且低于分时均价该百分比时触发买入信号（如1表示1%）">
+            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </>
+      ),
+      dataIndex: 'intraDnBelowAvgPercent',
+      valueType: 'digit',
+      hideInSearch: true,
+      render: (_, record) => record.intraDnBelowAvgPercent ? `${(record.intraDnBelowAvgPercent * 100).toFixed(1)}%` : '-',
+    },
+    {
+      title: (
+        <>
           <FormattedMessage id="pages.strategy.stock.relation.unsoldStackLimit" defaultMessage="Unsold Stack Limit" />
           <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.unsoldStackLimitTip" defaultMessage="Maximum number of open buy orders allowed per day" />}>
             <QuestionCircleOutlined style={{ marginLeft: 4 }} />
@@ -548,6 +588,12 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             if (editItem.levelPercent !== undefined) {
               editItem.levelPercent = editItem.levelPercent * 100;
             }
+            if (editItem.intraUpPullbackPercent !== undefined) {
+              editItem.intraUpPullbackPercent = editItem.intraUpPullbackPercent * 100;
+            }
+            if (editItem.intraDnBelowAvgPercent !== undefined) {
+              editItem.intraDnBelowAvgPercent = editItem.intraDnBelowAvgPercent * 100;
+            }
             
             // 确保默认值
             if (editItem.unsoldStackLimit === undefined) {
@@ -654,7 +700,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       {/* 新增策略股票关系表单 */}
       <ModalForm
         title={<FormattedMessage id="pages.strategy.stock.relation.create" defaultMessage="Create Strategy Stock Relation" />}
-        width="550px"
+        width="650px"
         formRef={createFormRef}
         form={createForm}
         modalProps={{
@@ -675,7 +721,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         }}
         onFinish={handleAdd}
       >
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
         {!strategyId && (
+          <div style={{ width: '100%' }}>
           <ProFormSelect
             name="strategyId"
             label={<FormattedMessage id="pages.strategy.job.id" defaultMessage="Strategy ID" />}
@@ -706,6 +754,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
               },
             }}
           />
+          </div>
         )}
         
         {!strategyId && (
@@ -717,12 +766,15 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           />
         )}
         
+        <div style={{ width: 'calc(50% - 4px)' }}>
         <ProFormText
           name="stockCode"
           label={<FormattedMessage id="pages.strategy.stock.relation.stockCode" defaultMessage="Stock Code" />}
           rules={[{ required: true }]}
         />
+        </div>
         
+        <div style={{ width: 'calc(50% - 4px)' }}>
         <ProFormDigit
           name="profitRatio"
           label={<FormattedMessage id="pages.strategy.stock.relation.profitRatio" defaultMessage="Profit Ratio (%)" />}
@@ -737,7 +789,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           initialValue={1}
           rules={[{ required: true }]}
         />
+        </div>
         
+        <div style={{ width: 'calc(50% - 4px)' }}>
         <ProFormDigit
           name="maBelowPercent"
           label={<FormattedMessage id="pages.strategy.stock.relation.maBelowPercent" defaultMessage="MA Below Percent (%)" />}
@@ -752,7 +806,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           initialValue={1}
           rules={[{ required: true }]}
         />
+        </div>
         
+        <div style={{ width: 'calc(50% - 4px)' }}>
         <ProFormDigit
           name="maAbovePercent"
           label={<FormattedMessage id="pages.strategy.stock.relation.maAbovePercent" defaultMessage="MA Above Percent (%)" />}
@@ -767,11 +823,13 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           initialValue={0.2}
           rules={[{ required: true }]}
         />
+        </div>
         
+        <div style={{ width: 'calc(50% - 4px)' }}>
         <ProFormDigit
           name="levelPercent"
-          label={<FormattedMessage id="pages.strategy.stock.relation.levelPercent" defaultMessage="Level Percent (%)" />}
-          tooltip={<FormattedMessage id="pages.strategy.stock.relation.levelPercentTip" defaultMessage="Level percentage for stock trading (in percentage, e.g. 1.5 means 1.5%)" />}
+          label="开盘矩阵单档位百分比(%)"
+          tooltip="开盘矩阵单每档买入的百分比，例如1.5表示1.5%"
           min={0}
           max={100}
           fieldProps={{
@@ -782,7 +840,11 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           initialValue={1.5}
           rules={[{ required: true }]}
         />
+        </div>
         
+        
+        
+        <div style={{ width: 'calc(50% - 4px)' }}>
         <ProFormDigit
           name="unsoldStackLimit"
           label={<FormattedMessage id="pages.strategy.stock.relation.unsoldStackLimit" defaultMessage="Unsold Stack Limit" />}
@@ -796,7 +858,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           initialValue={4}
           rules={[{ required: true }]}
         />
+        </div>
         
+        <div style={{ width: 'calc(50% - 4px)' }}>
         <ProFormDigit
           name="totalFundShares"
           label={<FormattedMessage id="pages.strategy.stock.relation.totalFundShares" defaultMessage="Total Fund Shares" />}
@@ -810,7 +874,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           initialValue={18}
           rules={[{ required: true }]}
         />
+        </div>
         
+        <div style={{ width: 'calc(50% - 4px)' }}>
         <ProFormDigit
           name="limitStartShares"
           label={<FormattedMessage id="pages.strategy.stock.relation.limitStartShares" defaultMessage="Limit Start Shares" />}
@@ -824,25 +890,62 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           initialValue={9}
           rules={[{ required: true }]}
         />
+        </div>
+
+        <div style={{ width: 'calc(50% - 4px)' }}>
+        <ProFormDigit
+          name="intraUpPullbackPercent"
+          label="日内持续上涨并高位回调百分比(%)"
+          tooltip="当股票日内持续上涨后从高点回调该百分比时触发买入信号（如3表示3%）"
+          min={0}
+          max={100}
+          fieldProps={{
+            step: 0.01,
+            precision: 2,
+            addonAfter: '%',
+          }}
+          initialValue={3}
+        />
+        </div>
         
+        <div style={{ width: 'calc(50% - 4px)' }}>
+        <ProFormDigit
+          name="intraDnBelowAvgPercent"
+          label="日内持续下跌并低于分时均价百分比(%)"
+          tooltip="当股票日内持续下跌且低于分时均价该百分比时触发买入信号（如1表示1%）"
+          min={0}
+          max={100}
+          fieldProps={{
+            step: 0.01,
+            precision: 2,
+            addonAfter: '%',
+          }}
+          initialValue={1}
+        />
+        </div>
+        
+        <div style={{ width: 'calc(50% - 4px)' }}>
         <ProFormSelect
           name="status"
-          label={<FormattedMessage id="pages.strategy.stock.relation.status" defaultMessage="Status" />}
+          label="状态"
           valueEnum={{
-            '0': <FormattedMessage id="pages.strategy.status.disabled" defaultMessage="Disabled" />,
-            '1': <FormattedMessage id="pages.strategy.status.enabled" defaultMessage="Enabled" />,
+            '0': '禁用',
+            '1': '启用',
           }}
           initialValue="1"
           rules={[{ required: true }]}
         />
+        </div>
+        </div>
         
+        <div style={{ marginTop: '16px' }}>
         <Form.Item
           label={intl.formatMessage({ id: 'pages.strategy.stock.relation.buyRatioConfig', defaultMessage: '买入比例配置' })}
           tooltip={intl.formatMessage({ id: 'pages.strategy.stock.relation.buyRatioConfigTip', defaultMessage: '前limitStartShares个买入单买入比例，后续每档跌幅和买入比例以及是否开启二阶段策略，可动态增删' })}
           required
         >
           <Form.Item
-            label={<span>前N档买入比例（%）</span>}
+            label={<span>前N档买入资金比例（%）</span>}
             name={['buyRatioConfigInput', 'firstShareRatio']}
             initialValue={defaultFirstShareRatio}
             rules={[{ required: true, message: '必填' }]}
@@ -851,7 +954,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             <InputNumber min={0} max={100} precision={2} addonAfter="%" />
           </Form.Item>
           
-          <div style={{ margin: '12px 0 4px 0', fontWeight: 500 }}>后续档位（跌幅%/买入比例%）：</div>
+          <div style={{ margin: '12px 0 4px 0', fontWeight: 500 }}>后续档位（跌幅%/买入资金比例%）：</div>
           
           <Form.List name={['buyRatioConfigInput', 'extraShares']}>
             {(extraFields, { add: addExtra, remove: removeExtra }) => (
@@ -935,12 +1038,13 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             )}
           </Form.List>
         </Form.Item>
+        </div>
       </ModalForm>
       
       {/* 编辑策略股票关系表单 */}
       <ModalForm
         title={<FormattedMessage id="pages.strategy.stock.relation.edit" defaultMessage="Edit Strategy Stock Relation" />}
-        width="550px"
+        width="650px"
         formRef={updateFormRef}
         form={updateForm}
         modalProps={{
@@ -963,12 +1067,16 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         }}
         onFinish={handleUpdate}
       >
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+        <div style={{ width: 'calc(50% - 4px)' }}>
         <ProFormText
           name="stockCode"
           label={<FormattedMessage id="pages.strategy.stock.relation.stockCode" defaultMessage="Stock Code" />}
           rules={[{ required: true }]}
         />
+        </div>
         
+        <div style={{ width: 'calc(50% - 4px)' }}>
         <ProFormDigit
           name="profitRatio"
           label={<FormattedMessage id="pages.strategy.stock.relation.profitRatio" defaultMessage="Profit Ratio (%)" />}
@@ -982,7 +1090,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           }}
           rules={[{ required: true }]}
         />
+        </div>
         
+        <div style={{ width: 'calc(50% - 4px)' }}>
         <ProFormDigit
           name="maBelowPercent"
           label={<FormattedMessage id="pages.strategy.stock.relation.maBelowPercent" defaultMessage="MA Below Percent (%)" />}
@@ -996,7 +1106,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           }}
           rules={[{ required: true }]}
         />
+        </div>
         
+        <div style={{ width: 'calc(50% - 4px)' }}>
         <ProFormDigit
           name="maAbovePercent"
           label={<FormattedMessage id="pages.strategy.stock.relation.maAbovePercent" defaultMessage="MA Above Percent (%)" />}
@@ -1010,11 +1122,13 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           }}
           rules={[{ required: true }]}
         />
+        </div>
         
+        <div style={{ width: 'calc(50% - 4px)' }}>
         <ProFormDigit
           name="levelPercent"
-          label={<FormattedMessage id="pages.strategy.stock.relation.levelPercent" defaultMessage="Level Percent (%)" />}
-          tooltip={<FormattedMessage id="pages.strategy.stock.relation.levelPercentTip" defaultMessage="Level percentage for stock trading (in percentage, e.g. 1.5 means 1.5%)" />}
+          label="开盘矩阵单档位百分比(%)"
+          tooltip="开盘矩阵单每档买入的百分比，例如1.5表示1.5%"
           min={0}
           max={100}
           fieldProps={{
@@ -1024,7 +1138,11 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           }}
           rules={[{ required: true }]}
         />
+        </div>
         
+        
+        
+        <div style={{ width: 'calc(50% - 4px)' }}>
         <ProFormDigit
           name="unsoldStackLimit"
           label={<FormattedMessage id="pages.strategy.stock.relation.unsoldStackLimit" defaultMessage="Unsold Stack Limit" />}
@@ -1038,7 +1156,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           initialValue={4}
           rules={[{ required: true }]}
         />
+        </div>
         
+        <div style={{ width: 'calc(50% - 4px)' }}>
         <ProFormDigit
           name="totalFundShares"
           label={<FormattedMessage id="pages.strategy.stock.relation.totalFundShares" defaultMessage="Total Fund Shares" />}
@@ -1052,7 +1172,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           initialValue={18}
           rules={[{ required: true }]}
         />
+        </div>
         
+        <div style={{ width: 'calc(50% - 4px)' }}>
         <ProFormDigit
           name="limitStartShares"
           label={<FormattedMessage id="pages.strategy.stock.relation.limitStartShares" defaultMessage="Limit Start Shares" />}
@@ -1066,17 +1188,52 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           initialValue={9}
           rules={[{ required: true }]}
         />
+        </div>
+
+        <div style={{ width: 'calc(50% - 4px)' }}>
+        <ProFormDigit
+          name="intraUpPullbackPercent"
+          label="日内持续上涨并高位回调百分比(%)"
+          tooltip="当股票日内持续上涨后从高点回调该百分比时触发买入信号（如3表示3%）"
+          min={0}
+          max={100}
+          fieldProps={{
+            step: 0.01,
+            precision: 2,
+            addonAfter: '%',
+          }}
+        />
+        </div>
         
+        <div style={{ width: 'calc(50% - 4px)' }}>
+        <ProFormDigit
+          name="intraDnBelowAvgPercent"
+          label="日内持续下跌并低于分时均价百分比(%)"
+          tooltip="当股票日内持续下跌且低于分时均价该百分比时触发买入信号（如1表示1%）"
+          min={0}
+          max={100}
+          fieldProps={{
+            step: 0.01,
+            precision: 2,
+            addonAfter: '%',
+          }}
+        />
+        </div>
+        
+        <div style={{ width: 'calc(50% - 4px)' }}>
         <ProFormSelect
           name="status"
-          label={<FormattedMessage id="pages.strategy.stock.relation.status" defaultMessage="Status" />}
+          label="状态"
           valueEnum={{
-            '0': <FormattedMessage id="pages.strategy.status.disabled" defaultMessage="Disabled" />,
-            '1': <FormattedMessage id="pages.strategy.status.enabled" defaultMessage="Enabled" />,
+            '0': '禁用',
+            '1': '启用',
           }}
           rules={[{ required: true }]}
         />
+        </div>
+        </div>
         
+        <div style={{ marginTop: '16px' }}>
         <Form.Item
           label={intl.formatMessage({ id: 'pages.strategy.stock.relation.buyRatioConfig', defaultMessage: '买入比例配置' })}
           tooltip={intl.formatMessage({ id: 'pages.strategy.stock.relation.buyRatioConfigTip', defaultMessage: '前limitStartShares个买入单买入比例，后续每档跌幅和买入比例以及是否开启二阶段策略，可动态增删' })}
@@ -1092,7 +1249,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             <InputNumber min={0} max={100} precision={2} addonAfter="%" />
           </Form.Item>
           
-          <div style={{ margin: '12px 0 4px 0', fontWeight: 500 }}>后续档位（跌幅%/买入比例%）：</div>
+          <div style={{ margin: '12px 0 4px 0', fontWeight: 500 }}>后续档位（跌幅%/买入资金比例%）：</div>
           
           <Form.List name={['buyRatioConfigInput', 'extraShares']}>
             {(extraFields, { add: addExtra, remove: removeExtra }) => (
@@ -1176,6 +1333,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             )}
           </Form.List>
         </Form.Item>
+        </div>
       </ModalForm>
     </>
   );

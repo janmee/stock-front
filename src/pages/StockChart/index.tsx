@@ -107,6 +107,9 @@ const StockChart: React.FC = () => {
     { code: 'AMZN', name: 'Amazon' },
     { code: 'GOOGL', name: 'Google' },
     { code: 'NVDA', name: 'NVIDIA' },
+    { code: 'META', name: 'META' },
+    { code: 'NBIS', name: 'NBIS' },
+    { code: 'CRCL', name: 'CRCL' },
   ];
 
   // 加载策略和账户选项
