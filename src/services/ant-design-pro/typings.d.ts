@@ -282,6 +282,7 @@ declare namespace API {
     unsoldStackLimit?: number; // 未卖出堆栈值
     totalFundShares?: number; // 总资金份数
     limitStartShares?: number; // 限制开始份数
+    profitRatio?: number; // 盈利比例
   };
 
   type StrategyUserStockList = {

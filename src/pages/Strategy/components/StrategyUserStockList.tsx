@@ -103,6 +103,11 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       fields.fundPercent = fields.fundPercent / 100;
     }
     
+    // 将盈利比例百分比值转换为小数
+    if (fields.profitRatio) {
+      fields.profitRatio = fields.profitRatio / 100;
+    }
+    
     // 根据设置的字段设置相应的null值
     if (fields.maxAmount && fields.maxAmount > 0) {
       // 如果设置了最大金额，将资金百分比设为undefined
@@ -136,6 +141,11 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     // 将百分比值转换为小数
     if (fields.fundPercent) {
       fields.fundPercent = fields.fundPercent / 100;
+    }
+    
+    // 将盈利比例百分比值转换为小数
+    if (fields.profitRatio) {
+      fields.profitRatio = fields.profitRatio / 100;
     }
     
     // 根据设置的字段设置相应的null值
@@ -293,25 +303,6 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     {
       title: (
         <span>
-          <FormattedMessage id="pages.strategy.user.stockRelation.cooldownTime" defaultMessage="买入冷却时间(分钟)" />
-          <Tooltip title={<FormattedMessage id="pages.strategy.user.stockRelation.cooldownTimeTip" defaultMessage="两次相邻买入之间的冷却时间，单位分钟，默认30分钟" />}>
-            <InfoCircleOutlined style={{ marginLeft: 4 }} />
-          </Tooltip>
-        </span>
-      ),
-      dataIndex: 'cooldownTime',
-      valueType: 'digit',
-      hideInSearch: true,
-      render: (text, record) => {
-        if (record.cooldownTime === null || record.cooldownTime === undefined) {
-          return '30';
-        }
-        return record.cooldownTime;
-      },
-    },
-    {
-      title: (
-        <span>
           <>未卖出堆栈值</>
           <Tooltip title="限制当天同一股票在同一策略下最多允许的未卖出买入订单数">
             <InfoCircleOutlined style={{ marginLeft: 4 }} />
@@ -326,25 +317,6 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           return '4';
         }
         return record.unsoldStackLimit;
-      },
-    },
-    {
-      title: (
-        <span>
-          <>总资金份数</>
-          <Tooltip title="资金分成多少份用于买入，默认18份">
-            <InfoCircleOutlined style={{ marginLeft: 4 }} />
-          </Tooltip>
-        </span>
-      ),
-      dataIndex: 'totalFundShares',
-      valueType: 'digit',
-      hideInSearch: true,
-      render: (text, record) => {
-        if (record.totalFundShares === null || record.totalFundShares === undefined) {
-          return '18';
-        }
-        return record.totalFundShares;
       },
     },
     {
@@ -365,6 +337,58 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         }
         return record.limitStartShares;
       },
+    },
+    {
+      title: (
+        <span>
+          <>最大持有买入单数</>
+          <Tooltip title="最大持有买入单数">
+            <InfoCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </span>
+      ),
+      dataIndex: 'totalFundShares',
+      valueType: 'digit',
+      hideInSearch: true,
+      render: (text, record) => {
+        if (record.totalFundShares === null || record.totalFundShares === undefined) {
+          return '18';
+        }
+        return record.totalFundShares;
+      },
+    },
+    {
+      title: (
+        <span>
+          <FormattedMessage id="pages.strategy.user.stockRelation.cooldownTime" defaultMessage="买入冷却时间(分钟)" />
+          <Tooltip title={<FormattedMessage id="pages.strategy.user.stockRelation.cooldownTimeTip" defaultMessage="两次相邻买入之间的冷却时间，单位分钟，默认30分钟" />}>
+            <InfoCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </span>
+      ),
+      dataIndex: 'cooldownTime',
+      valueType: 'digit',
+      hideInSearch: true,
+      render: (text, record) => {
+        if (record.cooldownTime === null || record.cooldownTime === undefined) {
+          return '30';
+        }
+        return record.cooldownTime;
+      },
+    },
+    {
+      title: (
+        <span>
+          <FormattedMessage id="pages.strategy.user.stockRelation.profitRatio" defaultMessage="盈利比例" />
+          <Tooltip title={<FormattedMessage id="pages.strategy.user.stockRelation.profitRatioTip" defaultMessage="用户自定义的盈利比例，如果设置了该值，策略将优先使用此比例进行止盈" />}>
+            <InfoCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </span>
+      ),
+      dataIndex: 'profitRatio',
+      valueType: 'percent',
+      hideInSearch: true,
+      render: (_, record) => record.profitRatio ? `${(record.profitRatio * 100).toFixed(2)}%` : '-',
     },
     {
       title: (
@@ -668,7 +692,6 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             <ProFormText
               name="stockCode"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.stockCode" defaultMessage="Stock Code" />}
-              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.stockCode.placeholder' })}
               rules={[{ required: true }]}
             />
           </div>
@@ -685,7 +708,6 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             <ProFormDigit
               name="fundPercent"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.fundPercent" defaultMessage="Fund Percent" />}
-              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.fundPercent.placeholder' })}
               tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.fundPercentTip' })}
               min={0}
               max={100}
@@ -700,7 +722,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             <ProFormDigit
               name="maxAmount"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.maxAmount" defaultMessage="Max Amount" />}
-              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmount.placeholder', defaultMessage: 'Leave empty to use Fund Percent' })}
+              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmount.placeholder', defaultMessage: '填入最大资金' })}
               tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmountTip' })}
               min={0}
             />
@@ -721,20 +743,6 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           
           <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormDigit
-              name="cooldownTime"
-              label={<FormattedMessage id="pages.strategy.user.stockRelation.cooldownTime" defaultMessage="买入冷却时间(分钟)" />}
-              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.cooldownTime.placeholder', defaultMessage: '留空使用默认值30分钟' })}
-              tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.cooldownTimeTip', defaultMessage: '两次相邻买入之间的冷却时间，单位分钟，默认30分钟' })}
-              min={1}
-              initialValue={30}
-              fieldProps={{
-                precision: 0,
-              }}
-            />
-          </div>
-          
-          <div style={{ width: 'calc(33.33% - 8px)' }}>
-            <ProFormDigit
               name="unsoldStackLimit"
               label="未卖出堆栈值"
               tooltip="限制当天同一股票在同一策略下最多允许的未卖出买入订单数"
@@ -747,22 +755,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               rules={[{ required: true }]}
             />
           </div>
-          
-          <div style={{ width: 'calc(33.33% - 8px)' }}>
-            <ProFormDigit
-              name="totalFundShares"
-              label="总资金份数"
-              tooltip="资金分成多少份用于买入，默认18份"
-              min={1}
-              max={100}
-              initialValue={18}
-              fieldProps={{
-                precision: 0,
-              }}
-              rules={[{ required: true }]}
-            />
-          </div>
-          
+
           <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormDigit
               name="limitStartShares"
@@ -777,6 +770,22 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               rules={[{ required: true }]}
             />
           </div>
+          
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormDigit
+              name="totalFundShares"
+              label="最大持有买入单数"
+              tooltip="最大持有买入单数"
+              min={1}
+              max={100}
+              initialValue={18}
+              fieldProps={{
+                precision: 0,
+              }}
+              rules={[{ required: true }]}
+            />
+          </div>
+          
           
           <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormText
@@ -808,8 +817,8 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               ]}
               initialValue="16:00"
             />
-          </div>
-          
+          </div>   
+
           <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormSelect
               name="timeZone"
@@ -821,7 +830,38 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               }}
               initialValue="America/New_York"
             />
+          </div>   
+
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormDigit
+              name="cooldownTime"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.cooldownTime" defaultMessage="买入冷却时间(分钟)" />}
+              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.cooldownTime.placeholder', defaultMessage: '留空使用默认值30分钟' })}
+              tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.cooldownTimeTip', defaultMessage: '两次相邻买入之间的冷却时间，单位分钟，默认30分钟' })}
+              min={1}
+              initialValue={30}
+              fieldProps={{
+                precision: 0,
+              }}
+            />
           </div>
+
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormDigit
+              name="profitRatio"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.profitRatio" defaultMessage="盈利比例" />}
+              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.profitRatio.placeholder', defaultMessage: '留空使用策略默认值' })}
+              tooltip={<FormattedMessage id="pages.strategy.user.stockRelation.profitRatioTip" defaultMessage="用户自定义的盈利比例，如果设置了该值，策略将优先使用此比例进行止盈" />}
+              min={0}
+              max={1000}
+              initialValue={1}
+              fieldProps={{
+                precision: 2,
+                addonAfter: '%',
+              }}
+            />
+          </div>
+          
           
           <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormSelect
@@ -849,7 +889,12 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         open={updateModalVisible}
         onOpenChange={setUpdateModalVisible}
         onFinish={handleUpdate}
-        initialValues={currentRow}
+        initialValues={{
+          ...currentRow,
+          // 将数据库中的小数值转换为百分比显示
+          fundPercent: currentRow?.fundPercent ? currentRow.fundPercent * 100 : undefined,
+          profitRatio: currentRow?.profitRatio ? currentRow.profitRatio * 100 : undefined,
+        }}
       >
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
           <div style={{ width: 'calc(33.33% - 8px)' }}>
@@ -917,20 +962,6 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           
           <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormDigit
-              name="cooldownTime"
-              label={<FormattedMessage id="pages.strategy.user.stockRelation.cooldownTime" defaultMessage="买入冷却时间(分钟)" />}
-              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.cooldownTime.placeholder', defaultMessage: '留空使用默认值30分钟' })}
-              tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.cooldownTimeTip', defaultMessage: '两次相邻买入之间的冷却时间，单位分钟，默认30分钟' })}
-              min={1}
-              initialValue={30}
-              fieldProps={{
-                precision: 0,
-              }}
-            />
-          </div>
-          
-          <div style={{ width: 'calc(33.33% - 8px)' }}>
-            <ProFormDigit
               name="unsoldStackLimit"
               label="未卖出堆栈值"
               tooltip="限制当天同一股票在同一策略下最多允许的未卖出买入订单数"
@@ -946,27 +977,27 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           
           <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormDigit
-              name="totalFundShares"
-              label="总资金份数"
-              tooltip="资金分成多少份用于买入，默认18份"
-              min={1}
-              max={100}
-              initialValue={18}
-              fieldProps={{
-                precision: 0,
-              }}
-              rules={[{ required: true }]}
-            />
-          </div>
-          
-          <div style={{ width: 'calc(33.33% - 8px)' }}>
-            <ProFormDigit
               name="limitStartShares"
               label="限制开始份数"
               tooltip="从第几份开始限制买入，默认为9"
               min={1}
               max={100}
               initialValue={9}
+              fieldProps={{
+                precision: 0,
+              }}
+              rules={[{ required: true }]}
+            />
+          </div>
+
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormDigit
+              name="totalFundShares"
+              label="最大持有买入单数"
+              tooltip="最大持有买入单数"
+              min={1}
+              max={100}
+              initialValue={18}
               fieldProps={{
                 precision: 0,
               }}
@@ -1005,7 +1036,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               initialValue="16:00"
             />
           </div>
-          
+
           <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormSelect
               name="timeZone"
@@ -1017,6 +1048,37 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               }}
             />
           </div>
+
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormDigit
+              name="cooldownTime"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.cooldownTime" defaultMessage="买入冷却时间(分钟)" />}
+              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.cooldownTime.placeholder', defaultMessage: '留空使用默认值30分钟' })}
+              tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.cooldownTimeTip', defaultMessage: '两次相邻买入之间的冷却时间，单位分钟，默认30分钟' })}
+              min={1}
+              initialValue={30}
+              fieldProps={{
+                precision: 0,
+              }}
+            />
+          </div>
+
+                    
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormDigit
+              name="profitRatio"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.profitRatio" defaultMessage="盈利比例" />}
+              placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.profitRatio.placeholder', defaultMessage: '留空使用策略默认值' })}
+              tooltip={<FormattedMessage id="pages.strategy.user.stockRelation.profitRatioTip" defaultMessage="用户自定义的盈利比例，如果设置了该值，策略将优先使用此比例进行止盈" />}
+              min={0}
+              max={100}
+              fieldProps={{
+                precision: 2,
+                addonAfter: '%',
+              }}
+            />
+          </div>
+        
           
           <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormSelect
