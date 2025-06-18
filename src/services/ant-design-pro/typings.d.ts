@@ -242,6 +242,8 @@ declare namespace API {
     levelPercent?: number;
     intraUpPullbackPercent?: number;
     intraDnBelowAvgPercent?: number;
+    intraDnDurationMinutes?: number;
+    intraUpDurationMinutes?: number;
     unsoldStackLimit?: number;
     totalFundShares?: number;
     limitStartShares?: number;
@@ -277,6 +279,9 @@ declare namespace API {
     secondStageEnabled?: boolean; // 是否启动二阶段策略
     secondStageStartDate?: string; // 启动二阶段策略日期，格式yyyy-MM-dd
     cooldownTime?: number; // 相邻买入冷却时间（分钟）
+    unsoldStackLimit?: number; // 未卖出堆栈值
+    totalFundShares?: number; // 总资金份数
+    limitStartShares?: number; // 限制开始份数
   };
 
   type StrategyUserStockList = {

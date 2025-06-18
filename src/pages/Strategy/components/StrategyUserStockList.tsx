@@ -312,6 +312,63 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     {
       title: (
         <span>
+          <>未卖出堆栈值</>
+          <Tooltip title="限制当天同一股票在同一策略下最多允许的未卖出买入订单数">
+            <InfoCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </span>
+      ),
+      dataIndex: 'unsoldStackLimit',
+      valueType: 'digit',
+      hideInSearch: true,
+      render: (text, record) => {
+        if (record.unsoldStackLimit === null || record.unsoldStackLimit === undefined) {
+          return '4';
+        }
+        return record.unsoldStackLimit;
+      },
+    },
+    {
+      title: (
+        <span>
+          <>总资金份数</>
+          <Tooltip title="资金分成多少份用于买入，默认18份">
+            <InfoCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </span>
+      ),
+      dataIndex: 'totalFundShares',
+      valueType: 'digit',
+      hideInSearch: true,
+      render: (text, record) => {
+        if (record.totalFundShares === null || record.totalFundShares === undefined) {
+          return '18';
+        }
+        return record.totalFundShares;
+      },
+    },
+    {
+      title: (
+        <span>
+          <>限制开始份数</>
+          <Tooltip title="从第几份开始限制买入，默认为9">
+            <InfoCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </span>
+      ),
+      dataIndex: 'limitStartShares',
+      valueType: 'digit',
+      hideInSearch: true,
+      render: (text, record) => {
+        if (record.limitStartShares === null || record.limitStartShares === undefined) {
+          return '9';
+        }
+        return record.limitStartShares;
+      },
+    },
+    {
+      title: (
+        <span>
           <FormattedMessage id="pages.strategy.user.stockRelation.startTime" defaultMessage="开始时间" />
           <Tooltip title={<FormattedMessage id="pages.strategy.user.stockRelation.startTimeTip" defaultMessage="策略开始执行时间（基于设置的时区）" />}>
             <InfoCircleOutlined style={{ marginLeft: 4 }} />
@@ -578,7 +635,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             />
           )}
           
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormSelect
               name="account"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.account" defaultMessage="Account" />}
@@ -607,7 +664,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             />
           </div>
           
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormText
               name="stockCode"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.stockCode" defaultMessage="Stock Code" />}
@@ -616,13 +673,15 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             />
           </div>
           
-          <ProFormText
-            name="accountName"
-            label={<FormattedMessage id="pages.strategy.user.stockRelation.accountName" defaultMessage="Account Name" />}
-            hidden
-          />
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormText
+              name="accountName"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.accountName" defaultMessage="Account Name" />}
+              hidden
+            />
+          </div>
           
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormDigit
               name="fundPercent"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.fundPercent" defaultMessage="Fund Percent" />}
@@ -637,7 +696,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             />
           </div>
           
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormDigit
               name="maxAmount"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.maxAmount" defaultMessage="Max Amount" />}
@@ -647,7 +706,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             />
           </div>
           
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormDigit
               name="dailyCompletedOrders"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.dailyCompletedOrders" defaultMessage="每日最大完成单数" />}
@@ -660,7 +719,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             />
           </div>
           
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormDigit
               name="cooldownTime"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.cooldownTime" defaultMessage="买入冷却时间(分钟)" />}
@@ -674,7 +733,52 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             />
           </div>
           
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormDigit
+              name="unsoldStackLimit"
+              label="未卖出堆栈值"
+              tooltip="限制当天同一股票在同一策略下最多允许的未卖出买入订单数"
+              min={1}
+              max={20}
+              initialValue={4}
+              fieldProps={{
+                precision: 0,
+              }}
+              rules={[{ required: true }]}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormDigit
+              name="totalFundShares"
+              label="总资金份数"
+              tooltip="资金分成多少份用于买入，默认18份"
+              min={1}
+              max={100}
+              initialValue={18}
+              fieldProps={{
+                precision: 0,
+              }}
+              rules={[{ required: true }]}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormDigit
+              name="limitStartShares"
+              label="限制开始份数"
+              tooltip="从第几份开始限制买入，默认为9"
+              min={1}
+              max={100}
+              initialValue={9}
+              fieldProps={{
+                precision: 0,
+              }}
+              rules={[{ required: true }]}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormText
               name="startTime"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.startTime" defaultMessage="开始时间" />}
@@ -690,7 +794,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             />
           </div>
           
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormText
               name="endTime"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.endTime" defaultMessage="结束时间" />}
@@ -706,7 +810,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             />
           </div>
           
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormSelect
               name="timeZone"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.timeZone" defaultMessage="时区" />}
@@ -719,7 +823,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             />
           </div>
           
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormSelect
               name="status"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.status" defaultMessage="Status" />}
@@ -748,7 +852,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         initialValues={currentRow}
       >
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormText
               name="account"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.account" defaultMessage="Account" />}
@@ -757,7 +861,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             />
           </div>
           
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormText
               name="stockCode"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.stockCode" defaultMessage="Stock Code" />}
@@ -765,7 +869,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             />
           </div>
           
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormText
               name="accountName"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.accountName" defaultMessage="Account Name" />}
@@ -773,9 +877,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             />
           </div>
           
-          <div style={{ width: 'calc(50% - 4px)' }}></div>
-          
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormDigit
               name="fundPercent"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.fundPercent" defaultMessage="Fund Percent" />}
@@ -790,7 +892,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             />
           </div>
           
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormDigit
               name="maxAmount"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.maxAmount" defaultMessage="Max Amount" />}
@@ -800,7 +902,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             />
           </div>
           
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormDigit
               name="dailyCompletedOrders"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.dailyCompletedOrders" defaultMessage="每日最大完成单数" />}
@@ -813,20 +915,66 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             />
           </div>
           
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormDigit
               name="cooldownTime"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.cooldownTime" defaultMessage="买入冷却时间(分钟)" />}
               placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.cooldownTime.placeholder', defaultMessage: '留空使用默认值30分钟' })}
               tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.cooldownTimeTip', defaultMessage: '两次相邻买入之间的冷却时间，单位分钟，默认30分钟' })}
               min={1}
+              initialValue={30}
               fieldProps={{
                 precision: 0,
               }}
             />
           </div>
           
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormDigit
+              name="unsoldStackLimit"
+              label="未卖出堆栈值"
+              tooltip="限制当天同一股票在同一策略下最多允许的未卖出买入订单数"
+              min={1}
+              max={20}
+              initialValue={4}
+              fieldProps={{
+                precision: 0,
+              }}
+              rules={[{ required: true }]}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormDigit
+              name="totalFundShares"
+              label="总资金份数"
+              tooltip="资金分成多少份用于买入，默认18份"
+              min={1}
+              max={100}
+              initialValue={18}
+              fieldProps={{
+                precision: 0,
+              }}
+              rules={[{ required: true }]}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormDigit
+              name="limitStartShares"
+              label="限制开始份数"
+              tooltip="从第几份开始限制买入，默认为9"
+              min={1}
+              max={100}
+              initialValue={9}
+              fieldProps={{
+                precision: 0,
+              }}
+              rules={[{ required: true }]}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormText
               name="startTime"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.startTime" defaultMessage="开始时间" />}
@@ -838,10 +986,11 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                   message: intl.formatMessage({ id: 'pages.strategy.user.stockRelation.time.invalid', defaultMessage: '时间格式无效，应为HH:mm' }) 
                 }
               ]}
+              initialValue="10:00"
             />
           </div>
           
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormText
               name="endTime"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.endTime" defaultMessage="结束时间" />}
@@ -853,10 +1002,11 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                   message: intl.formatMessage({ id: 'pages.strategy.user.stockRelation.time.invalid', defaultMessage: '时间格式无效，应为HH:mm' }) 
                 }
               ]}
+              initialValue="16:00"
             />
           </div>
           
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormSelect
               name="timeZone"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.timeZone" defaultMessage="时区" />}
@@ -868,7 +1018,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             />
           </div>
           
-          <div style={{ width: 'calc(50% - 4px)' }}>
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormSelect
               name="status"
               label={<FormattedMessage id="pages.strategy.user.stockRelation.status" defaultMessage="Status" />}
