@@ -8,6 +8,7 @@ import { FormattedMessage, useIntl } from '@umijs/max';
 import { getLocale } from '@umijs/max';
 import moment from 'moment';
 import { request } from 'umi';
+import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
 
 interface TradeFormData {
   code: string;
@@ -39,6 +40,7 @@ const Trade: React.FC = () => {
   const [scheduledTime, setScheduledTime] = useState<moment.Moment | null>(null);
   const [timezone, setTimezone] = useState<string>('Asia/Shanghai');
   const [timezones] = useState<string[]>(['America/New_York', 'Asia/Shanghai']);
+  const [showSensitiveInfo, setShowSensitiveInfo] = useState<boolean>(false);
 
   // 获取当前语言环境
   const currentLocale = getLocale();
@@ -62,6 +64,9 @@ const Trade: React.FC = () => {
       fixed: 'left',
       sorter: true,
       hideInSearch: true,
+      render: (_, record) => {
+        return showSensitiveInfo ? record.account : '****';
+      },
     },
     {
       title: <FormattedMessage id="pages.trade.account.name" defaultMessage="Account Name" />,
@@ -78,6 +83,9 @@ const Trade: React.FC = () => {
         locale: 'en-US',
       },
       hideInSearch: true,
+      render: (_, record) => {
+        return showSensitiveInfo ? `$${record.availableAmount?.toFixed(2) || '0.00'}` : '****';
+      },
     },
     {
       title: <FormattedMessage id="pages.trade.account.totalAmount" defaultMessage="Total Funds" />,
@@ -88,6 +96,9 @@ const Trade: React.FC = () => {
         locale: 'en-US',
       },
       hideInSearch: true,
+      render: (_, record) => {
+        return showSensitiveInfo ? `$${record.totalAmount?.toFixed(2) || '0.00'}` : '****';
+      },
     },
     {
       title: <FormattedMessage id="pages.searchTable.marketValue" defaultMessage="Market Value" />,
@@ -98,6 +109,9 @@ const Trade: React.FC = () => {
         locale: 'en-US',
       },
       hideInSearch: true,
+      render: (_, record) => {
+        return showSensitiveInfo ? `$${record.marketVal?.toFixed(2) || '0.00'}` : '****';
+      },
     },
     {
       title: <FormattedMessage id="pages.searchTable.maxBuyingPower" defaultMessage="Max Buying Power" />,
@@ -108,6 +122,38 @@ const Trade: React.FC = () => {
         locale: 'en-US',
       },
       hideInSearch: true,
+      render: (_, record) => {
+        return showSensitiveInfo ? `$${record.power?.toFixed(2) || '0.00'}` : '****';
+      },
+    },
+    {
+      title: <FormattedMessage id="pages.trade.account.cashAmount" defaultMessage="Cash Amount" />,
+      dataIndex: 'cashAmount',
+      width: 150,
+      valueType: {
+        type: 'money',
+        locale: 'en-US',
+      },
+      hideInSearch: true,
+      render: (_, record) => {
+        if (!showSensitiveInfo) return '****';
+        const cashAmount = (record.totalAmount || 0) - (record.marketVal || 0);
+        return `$${cashAmount.toFixed(2)}`;
+      },
+    },
+    {
+      title: <FormattedMessage id="pages.trade.account.stockRatio" defaultMessage="Stock Ratio" />,
+      dataIndex: 'stockRatio',
+      width: 120,
+      hideInSearch: true,
+      render: (_, record) => {
+        if (!showSensitiveInfo) return '****';
+        const totalAmount = record.totalAmount || 0;
+        const marketVal = record.marketVal || 0;
+        const stockRatio = totalAmount > 0 ? (marketVal / totalAmount) * 100 : 0;
+        const color = stockRatio > 80 ? '#ff4d4f' : stockRatio > 60 ? '#faad14' : '#52c41a';
+        return <span style={{ color }}>{stockRatio.toFixed(2)}%</span>;
+      },
     },
     {
       title: <FormattedMessage id="pages.searchTable.riskLevel" defaultMessage="Risk Level" />,
@@ -492,35 +538,48 @@ const Trade: React.FC = () => {
       title: <FormattedMessage id="pages.trade.position.quantity" defaultMessage="Position Quantity" />,
       dataIndex: 'qty',
       key: 'qty',
+      render: (val: number) => {
+        return showSensitiveInfo ? val : '****';
+      },
     },
     {
       title: <FormattedMessage id="pages.trade.position.availableQty" defaultMessage="Available Quantity" />,
       dataIndex: 'canSellQty',
       key: 'canSellQty',
+      render: (val: number) => {
+        return showSensitiveInfo ? val : '****';
+      },
     },
     {
       title: <FormattedMessage id="pages.trade.position.costPrice" defaultMessage="Cost Price" />,
       dataIndex: 'costPrice',
       key: 'costPrice',
-      render: (val: number) => val?.toFixed(2),
+      render: (val: number) => {
+        return showSensitiveInfo ? val?.toFixed(2) : '****';
+      },
     },
     {
       title: <FormattedMessage id="pages.trade.position.currentPrice" defaultMessage="Current Price" />,
       dataIndex: 'price',
       key: 'price',
-      render: (val: number) => val?.toFixed(2),
+      render: (val: number) => {
+        return showSensitiveInfo ? val?.toFixed(2) : '****';
+      },
     },
     {
       title: <FormattedMessage id="pages.trade.position.marketValue" defaultMessage="Market Value" />,
       dataIndex: 'val',
       key: 'val',
-      render: (val: number) => val?.toFixed(2),
+      render: (val: number) => {
+        return showSensitiveInfo ? val?.toFixed(2) : '****';
+      },
     },
     {
       title: <FormattedMessage id="pages.trade.position.plRatio" defaultMessage="P/L Ratio" />,
       dataIndex: 'plRatio',
       key: 'plRatio',
       render: (val: number) => {
+        if (!showSensitiveInfo) return '****';
         const color = val >= 0 ? '#52c41a' : '#ff4d4f';
         return <span style={{ color }}>{(val * 100).toFixed(2)}%</span>;
       },
@@ -662,6 +721,15 @@ const Trade: React.FC = () => {
           },
         }}
         toolBarRender={() => [
+          <Button
+            key="toggleSensitive"
+            icon={showSensitiveInfo ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+            onClick={() => setShowSensitiveInfo(!showSensitiveInfo)}
+          >
+            {showSensitiveInfo ? 
+              intl.formatMessage({ id: 'pages.account.hideSensitiveInfo', defaultMessage: 'Hide Sensitive Info' }) : 
+              intl.formatMessage({ id: 'pages.account.showSensitiveInfo', defaultMessage: 'Show Sensitive Info' })}
+          </Button>,
           <Button
             key="buy"
             type="primary"

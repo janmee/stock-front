@@ -555,31 +555,30 @@ export async function listAccountInfo(
   options?: { [key: string]: any },
 ) {
   try {
-    const response = await request<API.Response<{
-      list: API.AccountInfo[];
-      total: number;
-    }>>('/api/accountInfo/list', {
-    method: 'GET',
-    params: {
-      ...params,
-      sortKey: sort ? Object.keys(sort)[0] : '',
-      sortOrder: sort ? Object.values(sort)[0] : '',
-    },
-    ...(options || {}),
-  });
+    const response = await request<API.Response<API.AccountInfo[]>>('/api/accountInfo/list', {
+      method: 'GET',
+      params: {
+        ...params,
+        sortKey: sort ? Object.keys(sort)[0] : '',
+        sortOrder: sort ? Object.values(sort)[0] : '',
+      },
+      ...(options || {}),
+    });
     
     // 打印响应结果以进行调试
     console.log('账户列表API返回数据:', response);
     
-    // 确保返回正确的数据结构
+    // 后端直接返回列表数据，需要包装成ProTable期望的格式
     return {
-      data: response.data,
+      data: response.data || [],
+      total: response.total || 0,
       success: response.success || true,
     };
   } catch (error) {
     console.error('获取账户列表出错:', error);
     return {
-      data: { list: [], total: 0 },
+      data: [],
+      total: 0,
       success: false,
     };
   }

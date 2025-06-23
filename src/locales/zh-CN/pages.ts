@@ -401,6 +401,13 @@ export default {
   'pages.account.form.followPlaceholder': '请输入跟单账户ID',
   'pages.account.form.accIdPlaceholder': '请输入资金账户ID',
   'pages.account.form.accIdTooltip': '资金账户ID为可选字段',
+  'pages.account.form.accIdRequired': '请输入资金账户ID',
+  
+  // 敏感信息显示控制
+  'pages.account.showSensitiveInfo': '显示敏感信息',
+  'pages.account.hideSensitiveInfo': '隐藏敏感信息',
+  'pages.account.cashAmount': '现金总值',
+  'pages.account.stockRatio': '股票占比',
   
   // 财报页面翻译
   'pages.earnings.pageTitle': '财报日历',
@@ -576,4 +583,8 @@ export default {
   'pages.stockChart.profitPercentage': '盈利百分比',
   'pages.stockChart.isClosed': '是否平仓',
   'pages.stockChart.amount': '总金额',
+  
+  // 交易页面账户信息
+  'pages.trade.account.cashAmount': '现金总值',
+  'pages.trade.account.stockRatio': '股票占比',
 };

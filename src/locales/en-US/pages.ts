@@ -320,6 +320,16 @@ export default {
   'pages.account.form.accIdPlaceholder': 'Please enter fund account ID',
   'pages.account.form.accIdTooltip': 'Fund account ID is optional',
   
+  // Sensitive information display control
+  'pages.account.showSensitiveInfo': 'Show Sensitive Info',
+  'pages.account.hideSensitiveInfo': 'Hide Sensitive Info',
+  'pages.account.cashAmount': 'Cash Amount',
+  'pages.account.stockRatio': 'Stock Ratio',
+  
+  // Trading page account information
+  'pages.trade.account.cashAmount': 'Cash Amount',
+  'pages.trade.account.stockRatio': 'Stock Ratio',
+  
   // Earnings Report Page
   'pages.earnings.pageTitle': 'Earnings Calendar',
   'pages.earnings.pageDescription': 'U.S. Listed Companies Earnings Release Calendar and Historical Data',

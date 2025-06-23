@@ -9,10 +9,11 @@ import {
   ProFormSwitch,
   ProTable,
 } from '@ant-design/pro-components';
-import {useIntl} from '@umijs/max';
+import {useIntl, FormattedMessage} from '@umijs/max';
 import {Button, Form, Modal, Switch, message} from 'antd';
 import React, {useRef, useState} from 'react';
 import { md5 } from '@/utils/crypto';
+import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
 
 const TableList: React.FC = () => {
   const actionRef = useRef<ActionType>();
@@ -21,6 +22,7 @@ const TableList: React.FC = () => {
   const [createModalVisible, setCreateModalVisible] = useState<boolean>(false);
   const [currentAccount, setCurrentAccount] = useState<API.AccountInfo | undefined>(undefined);
   const [form] = Form.useForm();
+  const [showSensitiveInfo, setShowSensitiveInfo] = useState<boolean>(false);
 
   /**
    * 国际化配置
@@ -216,6 +218,9 @@ const TableList: React.FC = () => {
       dataIndex: 'account',
       valueType: 'text',
       sorter: true,
+      render: (_, record) => {
+        return showSensitiveInfo ? record.account : '****';
+      },
     },
     {
       title: intl.formatMessage({ id: 'pages.account.accountName' }),
@@ -245,6 +250,9 @@ const TableList: React.FC = () => {
       dataIndex: 'accId',
       valueType: 'text',
       hideInSearch: true,
+      render: (_, record) => {
+        return showSensitiveInfo ? record.accId : '****';
+      },
     },
 
     {
@@ -256,6 +264,11 @@ const TableList: React.FC = () => {
       },
       hideInSearch: true,
       sorter: true,
+      render: (_, record) => {
+        return showSensitiveInfo ? 
+          `$${record.availableAmount?.toFixed(2) || '0.00'}` : 
+          '****';
+      },
     },
     {
       title: intl.formatMessage({ id: 'pages.account.totalAmount' }),
@@ -266,6 +279,11 @@ const TableList: React.FC = () => {
       },
       hideInSearch: true,
       sorter: true,
+      render: (_, record) => {
+        return showSensitiveInfo ? 
+          `$${record.totalAmount?.toFixed(2) || '0.00'}` : 
+          '****';
+      },
     },
     {
       title: intl.formatMessage({ id: 'pages.account.marketValue' }),
@@ -276,6 +294,11 @@ const TableList: React.FC = () => {
       },
       hideInSearch: true,
       sorter: true,
+      render: (_, record) => {
+        return showSensitiveInfo ? 
+          `$${record.marketVal?.toFixed(2) || '0.00'}` : 
+          '****';
+      },
     },
     {
       title: intl.formatMessage({ id: 'pages.account.initialAmount' }),
@@ -286,6 +309,11 @@ const TableList: React.FC = () => {
       },
       hideInSearch: true,
       sorter: true,
+      render: (_, record) => {
+        return showSensitiveInfo ? 
+          `$${record.initAmount?.toFixed(2) || '0.00'}` : 
+          '****';
+      },
     },
     {
       title: intl.formatMessage({ id: 'pages.account.maxUsageRatio' }),
@@ -296,14 +324,43 @@ const TableList: React.FC = () => {
       render: (_, record) => `${(record.overPercent * 100).toFixed(2)}%`,
     },
     {
-      title: intl.formatMessage({ id: 'pages.account.buyingPower' }),
+      title: intl.formatMessage({ id: 'pages.account.power', defaultMessage: '最大购买力' }),
       dataIndex: 'power',
       valueType: {
         type: 'money',
         locale: 'en-US',
       },
       hideInSearch: true,
-      sorter: true,
+      render: (_, record) => {
+        return showSensitiveInfo ? `$${record.power?.toFixed(2) || '0.00'}` : '****';
+      },
+    },
+    {
+      title: intl.formatMessage({ id: 'pages.account.cashAmount', defaultMessage: '现金总值' }),
+      dataIndex: 'cashAmount',
+      valueType: {
+        type: 'money',
+        locale: 'en-US',
+      },
+      hideInSearch: true,
+      render: (_, record) => {
+        if (!showSensitiveInfo) return '****';
+        const cashAmount = (record.totalAmount || 0) - (record.marketVal || 0);
+        return `$${cashAmount.toFixed(2)}`;
+      },
+    },
+    {
+      title: intl.formatMessage({ id: 'pages.account.stockRatio', defaultMessage: '股票占比' }),
+      dataIndex: 'stockRatio',
+      hideInSearch: true,
+      render: (_, record) => {
+        if (!showSensitiveInfo) return '****';
+        const totalAmount = record.totalAmount || 0;
+        const marketVal = record.marketVal || 0;
+        const stockRatio = totalAmount > 0 ? (marketVal / totalAmount) * 100 : 0;
+        const color = stockRatio > 80 ? '#ff4d4f' : stockRatio > 60 ? '#faad14' : '#52c41a';
+        return <span style={{ color }}>{stockRatio.toFixed(2)}%</span>;
+      },
     },
     {
       title: intl.formatMessage({ id: 'pages.account.riskLevel' }),
@@ -387,7 +444,31 @@ const TableList: React.FC = () => {
           master: false,
           follow: false
         }}
-        request={listAccountInfo}
+        request={async (params, sort, filter) => {
+          try {
+            const response = await listAccountInfo(params, sort);
+            console.log('ProTable收到的响应:', response);
+            if (response && response.success) {
+              return {
+                data: response.data || [],
+                total: response.total || 0,
+                success: true,
+              };
+            }
+            return {
+              data: [],
+              total: 0,
+              success: false,
+            };
+          } catch (error) {
+            console.error('获取账户列表失败:', error);
+            return {
+              data: [],
+              total: 0,
+              success: false,
+            };
+          }
+        }}
         columns={columns}
         rowSelection={{
           onChange: (_, selectedRows) => {
@@ -395,6 +476,15 @@ const TableList: React.FC = () => {
           },
         }}
         toolBarRender={() => [
+          <Button
+            key="toggleSensitive"
+            icon={showSensitiveInfo ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+            onClick={() => setShowSensitiveInfo(!showSensitiveInfo)}
+          >
+            {showSensitiveInfo ? 
+              intl.formatMessage({ id: 'pages.account.hideSensitiveInfo' }) : 
+              intl.formatMessage({ id: 'pages.account.showSensitiveInfo' })}
+          </Button>,
           <Button
             type="primary"
             key="primary"

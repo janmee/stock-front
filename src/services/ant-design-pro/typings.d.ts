@@ -137,6 +137,7 @@ declare namespace API {
     id: number;
     account: string;
     name: string;
+    accId?: string;  // 资金账户ID
     host: string;
     port: number;
     tradePassword?: string;
@@ -152,6 +153,7 @@ declare namespace API {
     riskLevel: number;  // 风险等级
     overPercent: number;  // 最大使用资金占总资产百分比
     initAmount: number;   // 初始资金
+    connected?: boolean;  // 连接状态
   };
 
   interface PositionObj {
@@ -171,6 +173,7 @@ declare namespace API {
     errorCode?: string;
     errorMessage?: string;
     message?: string;
+    total?: number;
   };
 
   type RegressionResult = {
