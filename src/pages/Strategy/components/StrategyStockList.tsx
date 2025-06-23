@@ -9,6 +9,7 @@ import {
   ProFormSelect,
   ProFormText,
   ProFormTextArea,
+  ProFormSwitch,
   ProTable,
 } from '@ant-design/pro-components';
 import { FormattedMessage, useIntl } from '@umijs/max';
@@ -19,7 +20,8 @@ import {
   updateStrategyStock, 
   deleteStrategyStock,
   listStrategyJob,
-  updateStrategyStockStatus
+  updateStrategyStockStatus,
+  updateStrategyStockOpeningBuy
 } from '@/services/ant-design-pro/api';
 
 interface StrategyStockListProps {
@@ -135,7 +137,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
   };
 
   // 添加策略股票关系
-  const handleAdd = async (fields: API.StrategyStockItem) => {
+  const handleAdd = async (fields: any) => {
     const hide = message.loading(intl.formatMessage({ id: 'pages.message.creating' }));
     
     // 如果有选择策略，则使用选定的策略ID和名称
@@ -200,6 +202,10 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       console.log('处理后的buyRatioConfig:', fields.buyRatioConfig);
     }
     
+    // 处理买入比例配置
+    const buyRatioConfig = parseBuyRatioConfig(fields.buyRatioConfig);
+    fields.buyRatioConfig = JSON.stringify(buyRatioConfig);
+    
     try {
       await createStrategyStock(fields);
       hide();
@@ -214,7 +220,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
   };
 
   // 更新策略股票关系
-  const handleUpdate = async (fields: API.StrategyStockItem) => {
+  const handleUpdate = async (fields: any) => {
     const hide = message.loading(intl.formatMessage({ id: 'pages.message.updating' }));
     
     if (!currentRow) {
@@ -277,6 +283,10 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       console.log('处理后的buyRatioConfig:', fields.buyRatioConfig);
     }
     
+    // 处理买入比例配置
+    const buyRatioConfig = parseBuyRatioConfig(fields.buyRatioConfig);
+    fields.buyRatioConfig = JSON.stringify(buyRatioConfig);
+    
     try {
       await updateStrategyStock({
         ...currentRow,
@@ -323,6 +333,23 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     } catch (error) {
       hide();
       message.error(intl.formatMessage({ id: 'pages.message.updateFailed' }));
+      return false;
+    }
+  };
+
+  // 更新策略股票关系开盘买入状态
+  const handleUpdateOpeningBuy = async (id: number, enableOpeningBuy: boolean) => {
+    const hide = message.loading('更新中...');
+    
+    try {
+      await updateStrategyStockOpeningBuy({ id, enableOpeningBuy });
+      hide();
+      message.success('更新成功');
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error('更新失败');
       return false;
     }
   };
@@ -511,6 +538,29 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       dataIndex: 'limitStartShares',
       valueType: 'digit',
       hideInSearch: true,
+    },
+    {
+      title: (
+        <>
+          <>是否开盘买入</>
+          <Tooltip title="是否在开盘时执行买入策略，默认开启">
+            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </>
+      ),
+      dataIndex: 'enableOpeningBuy',
+      valueType: 'switch',
+      hideInSearch: true,
+      render: (_, record) => (
+        <Switch
+          checkedChildren="是"
+          unCheckedChildren="否"
+          checked={record.enableOpeningBuy !== false} // 默认为true，只有明确设置为false时才显示否
+          onChange={(checked) => {
+            handleUpdateOpeningBuy(record.id!, checked);
+          }}
+        />
+      ),
     },
     {
       title: <FormattedMessage id="pages.strategy.stock.relation.status" defaultMessage="Status" />,
@@ -818,6 +868,23 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           rules={[{ required: true }]}
         />
         </div>
+
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
+        <ProFormDigit
+          name="levelPercent"
+          label="开盘矩阵单档位百分比(%)"
+          tooltip="开盘矩阵单每档买入的百分比，例如1.5表示1.5%"
+          min={0}
+          max={100}
+          fieldProps={{
+            step: 0.01,
+            precision: 2,
+            addonAfter: '%',
+          }}
+          initialValue={1.5}
+          rules={[{ required: true }]}
+        />
+        </div>
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
         <ProFormDigit
@@ -853,22 +920,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         />
         </div>
         
-        <div style={{ width: 'calc(33.33% - 8px)' }}>
-        <ProFormDigit
-          name="levelPercent"
-          label="开盘矩阵单档位百分比(%)"
-          tooltip="开盘矩阵单每档买入的百分比，例如1.5表示1.5%"
-          min={0}
-          max={100}
-          fieldProps={{
-            step: 0.01,
-            precision: 2,
-            addonAfter: '%',
-          }}
-          initialValue={1.5}
-          rules={[{ required: true }]}
-        />
-        </div>
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
         <ProFormDigit
@@ -985,16 +1036,25 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         </div>
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
-        <ProFormSelect
-          name="status"
-          label="状态"
-          valueEnum={{
-            '0': '禁用',
-            '1': '启用',
-          }}
-          initialValue="1"
-          rules={[{ required: true }]}
-        />
+          <ProFormSwitch
+            name="enableOpeningBuy"
+            label="是否开盘买入"
+            tooltip="是否在开盘时执行买入策略，默认开启"
+            initialValue={true}
+          />
+        </div>
+        
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
+          <ProFormSelect
+            name="status"
+            label={<FormattedMessage id="pages.strategy.stock.relation.status" defaultMessage="Status" />}
+            valueEnum={{
+              '0': <FormattedMessage id="pages.strategy.status.disabled" defaultMessage="Disabled" />,
+              '1': <FormattedMessage id="pages.strategy.status.enabled" defaultMessage="Enabled" />,
+            }}
+            initialValue="1"
+            rules={[{ required: true }]}
+          />
         </div>
         </div>
         
@@ -1151,6 +1211,22 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           rules={[{ required: true }]}
         />
         </div>
+
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
+        <ProFormDigit
+          name="levelPercent"
+          label="开盘矩阵单档位百分比(%)"
+          tooltip="开盘矩阵单每档买入的百分比，例如1.5表示1.5%"
+          min={0}
+          max={100}
+          fieldProps={{
+            step: 0.01,
+            precision: 2,
+            addonAfter: '%',
+          }}
+          rules={[{ required: true }]}
+        />
+        </div>
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
         <ProFormDigit
@@ -1184,21 +1260,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         />
         </div>
         
-        <div style={{ width: 'calc(33.33% - 8px)' }}>
-        <ProFormDigit
-          name="levelPercent"
-          label="开盘矩阵单档位百分比(%)"
-          tooltip="开盘矩阵单每档买入的百分比，例如1.5表示1.5%"
-          min={0}
-          max={100}
-          fieldProps={{
-            step: 0.01,
-            precision: 2,
-            addonAfter: '%',
-          }}
-          rules={[{ required: true }]}
-        />
-        </div>
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
         <ProFormDigit
@@ -1311,15 +1372,24 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         </div>
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
-        <ProFormSelect
-          name="status"
-          label="状态"
-          valueEnum={{
-            '0': '禁用',
-            '1': '启用',
-          }}
-          rules={[{ required: true }]}
-        />
+          <ProFormSwitch
+            name="enableOpeningBuy"
+            label="是否开盘买入"
+            tooltip="是否在开盘时执行买入策略，默认开启"
+            initialValue={true}
+          />
+        </div>
+        
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
+          <ProFormSelect
+            name="status"
+            label={<FormattedMessage id="pages.strategy.stock.relation.status" defaultMessage="Status" />}
+            valueEnum={{
+              '0': <FormattedMessage id="pages.strategy.status.disabled" defaultMessage="Disabled" />,
+              '1': <FormattedMessage id="pages.strategy.status.enabled" defaultMessage="Enabled" />,
+            }}
+            rules={[{ required: true }]}
+          />
         </div>
         </div>
         

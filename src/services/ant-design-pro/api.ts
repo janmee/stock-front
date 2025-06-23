@@ -132,7 +132,20 @@ export async function cancelOrder(params: {
       ...params
     },
   });
-} 
+}
+
+// 撤销全部等待成交的订单
+export async function cancelAllPendingOrders() {
+  return request<API.Response<{
+    totalCount: number;
+    successCount: number;
+    failedCount: number;
+    failedOrders: string[];
+    message: string;
+  }>>('/api/orderInfo/cancelAllPendingOrders', {
+    method: 'POST',
+  });
+}
 
 /** 获取历史价格 GET /api/listHistoryPrices */
 export async function listHistoryPrices(
@@ -454,6 +467,7 @@ export async function createStrategyStock(body: API.StrategyStockItem, options?:
     totalFundShares: body.totalFundShares ?? 18,
     limitStartShares: body.limitStartShares ?? 9,
     buyRatioConfig: body.buyRatioConfig,
+    enableOpeningBuy: body.enableOpeningBuy,
     status: body.status
   };
   
@@ -487,6 +501,7 @@ export async function updateStrategyStock(body: API.StrategyStockItem, options?:
     totalFundShares: body.totalFundShares ?? 18,
     limitStartShares: body.limitStartShares ?? 9,
     buyRatioConfig: body.buyRatioConfig,
+    enableOpeningBuy: body.enableOpeningBuy,
     status: body.status
   };
   
@@ -1339,6 +1354,22 @@ export async function updateStrategyStockStatus(
   });
 }
 
+export async function updateStrategyStockOpeningBuy(
+  params: {
+    id: number;
+    enableOpeningBuy: boolean;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.ApiResponse>(`/api/strategy/stock/opening-buy/${params.id}`, {
+    method: 'POST',
+    data: {
+      enableOpeningBuy: params.enableOpeningBuy,
+    },
+    ...(options || {}),
+  });
+}
+
 export async function updateStrategyUserStockStatus(
   params: {
     id: number;
@@ -1348,6 +1379,22 @@ export async function updateStrategyUserStockStatus(
 ) {
   return request<API.ApiResponse>(`/api/strategy/user-stock/status/${params.id}/${params.status}`, {
     method: 'POST',
+    ...(options || {}),
+  });
+}
+
+export async function updateStrategyUserStockOpeningBuy(
+  params: {
+    id: number;
+    enableOpeningBuy: boolean | null;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.ApiResponse>(`/api/strategy/user-stock/opening-buy/${params.id}`, {
+    method: 'POST',
+    data: {
+      enableOpeningBuy: params.enableOpeningBuy,
+    },
     ...(options || {}),
   });
 }

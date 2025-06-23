@@ -251,6 +251,7 @@ declare namespace API {
     createTime?: string;
     updateTime?: string;
     buyRatioConfig?: string;
+    enableOpeningBuy?: boolean; // 是否启用开盘买入
   };
 
   type StrategyStockList = {
@@ -283,6 +284,7 @@ declare namespace API {
     totalFundShares?: number; // 总资金份数
     limitStartShares?: number; // 限制开始份数
     profitRatio?: number; // 盈利比例
+    enableOpeningBuy?: boolean; // 是否启用开盘买入
   };
 
   type StrategyUserStockList = {
@@ -357,13 +359,17 @@ declare namespace API {
     unfinishedOrderCount: number;
     totalUnfinishedAmount: number;
     averageBuyAmount: number;
-    qqqGainPercentage?: number;
-    stockGainPercentage?: number;
+    currentMarketValue: number;
+    unrealizedProfitLoss: number;
+    unrealizedProfitLossPercentage: number;
+    qqqGainPercentage: number;
+    stockGainPercentage: number;
     gainStartTime?: string;
     gainEndTime?: string;
-    buyOrders: any[];
-    sellOrders: any[];
     startTime?: string;
     endTime?: string;
+    buyOrders: any[];
+    sellOrders: any[];
+    stockStatistics?: Record<string, StrategyStatisticsVO>;
   };
 }

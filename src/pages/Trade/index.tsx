@@ -3,7 +3,7 @@ import { PageContainer } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
 import { Button, Modal, Form, Input, Radio, InputNumber, message, Checkbox, Divider, Table, Space, DatePicker, Tabs, Select, Switch } from 'antd';
-import { listAccountInfo, batchTrade, listOrderInfo, cancelOrder, queryStockPosition, createScheduledOrder, batchCreateScheduledOrders, getTimezones } from '@/services/ant-design-pro/api';
+import { listAccountInfo, batchTrade, listOrderInfo, cancelOrder, cancelAllPendingOrders, queryStockPosition, createScheduledOrder, batchCreateScheduledOrders, getTimezones } from '@/services/ant-design-pro/api';
 import { FormattedMessage, useIntl } from '@umijs/max';
 import { getLocale } from '@umijs/max';
 import moment from 'moment';
@@ -32,6 +32,7 @@ const Trade: React.FC = () => {
   const [currentAccount, setCurrentAccount] = useState<string>();
   const [positionData, setPositionData] = useState<API.PositionObj[]>([]);
   const [positionLoading, setPositionLoading] = useState(false);
+  const [cancelAllLoading, setCancelAllLoading] = useState(false);
   const [form] = Form.useForm();
   const actionRef = useRef<ActionType>();
   const [isScheduled, setIsScheduled] = useState<boolean>(false);
@@ -549,6 +550,91 @@ const Trade: React.FC = () => {
     },
   ];
 
+  // 处理撤销全部订单操作
+  const handleCancelAllOrders = async () => {
+    Modal.confirm({
+      title: intl.formatMessage({ id: 'pages.trade.confirmCancelAll.title', defaultMessage: '确认撤销全部订单' }),
+      content: intl.formatMessage({ 
+        id: 'pages.trade.confirmCancelAll.content', 
+        defaultMessage: '确定要撤销所有状态为"已提交等待成交"的订单吗？此操作不可撤销。' 
+      }),
+      okText: intl.formatMessage({ id: 'pages.trade.confirm', defaultMessage: '确认' }),
+      cancelText: intl.formatMessage({ id: 'pages.trade.cancel', defaultMessage: '取消' }),
+      onOk: async () => {
+        setCancelAllLoading(true);
+        try {
+          const response = await cancelAllPendingOrders();
+          
+          if (response.success && response.data) {
+            const { totalCount, successCount, failedCount, failedOrders, message: resultMessage } = response.data;
+            
+            // 显示详细结果
+            Modal.info({
+              title: intl.formatMessage({ id: 'pages.trade.cancelAllResult.title', defaultMessage: '撤销结果' }),
+              content: (
+                <div>
+                  <p>{intl.formatMessage({ 
+                    id: 'pages.trade.cancelAllResult.total', 
+                    defaultMessage: '总订单数：{count}' 
+                  }, { count: totalCount })}</p>
+                  <p style={{ color: '#52c41a' }}>{intl.formatMessage({ 
+                    id: 'pages.trade.cancelAllResult.success', 
+                    defaultMessage: '成功撤销：{count}' 
+                  }, { count: successCount })}</p>
+                  {failedCount > 0 && (
+                    <>
+                      <p style={{ color: '#ff4d4f' }}>{intl.formatMessage({ 
+                        id: 'pages.trade.cancelAllResult.failed', 
+                        defaultMessage: '撤销失败：{count}' 
+                      }, { count: failedCount })}</p>
+                      {failedOrders && failedOrders.length > 0 && (
+                        <div>
+                          <p>{intl.formatMessage({ 
+                            id: 'pages.trade.cancelAllResult.failedOrders', 
+                            defaultMessage: '失败订单：' 
+                          })}</p>
+                          <ul style={{ maxHeight: '100px', overflow: 'auto' }}>
+                            {failedOrders.map((orderNo: string) => (
+                              <li key={orderNo}>{orderNo}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {resultMessage && <p style={{ marginTop: '10px', fontStyle: 'italic' }}>{resultMessage}</p>}
+                </div>
+              ),
+              onOk: () => {
+                // 刷新订单列表
+                actionRef.current?.reload();
+              }
+            });
+            
+            if (successCount > 0) {
+              message.success(intl.formatMessage({ 
+                id: 'pages.trade.cancelAllSuccess', 
+                defaultMessage: '成功撤销 {count} 个订单' 
+              }, { count: successCount }));
+            }
+          } else {
+            const errorMsg = response?.errorMessage || response?.message || 
+              intl.formatMessage({ id: 'pages.trade.cancelAllFailed', defaultMessage: '撤销全部订单失败' });
+            message.error(errorMsg);
+          }
+        } catch (error) {
+          console.error('撤销全部订单错误:', error);
+          message.error(intl.formatMessage({ 
+            id: 'pages.trade.cancelAllRequestFailed', 
+            defaultMessage: '撤销全部订单请求失败' 
+          }));
+        } finally {
+          setCancelAllLoading(false);
+        }
+      },
+    });
+  };
+
   return (
     <PageContainer>
       <ProTable<API.AccountInfo>
@@ -609,6 +695,17 @@ const Trade: React.FC = () => {
         options={{
           reload: true,
         }}
+        toolBarRender={() => [
+          <Button
+            key="cancelAll"
+            danger
+            loading={cancelAllLoading}
+            onClick={handleCancelAllOrders}
+            style={{ marginRight: 8 }}
+          >
+            <FormattedMessage id="pages.trade.cancelAllOrders" defaultMessage="撤销全部订单" />
+          </Button>,
+        ]}
         revalidateOnFocus={true}
       />
 
