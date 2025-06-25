@@ -255,6 +255,7 @@ declare namespace API {
     updateTime?: string;
     buyRatioConfig?: string;
     enableOpeningBuy?: boolean; // 是否启用开盘买入
+    configTemplateId?: number; // 策略配置模版ID
   };
 
   type StrategyStockList = {
@@ -288,6 +289,7 @@ declare namespace API {
     limitStartShares?: number; // 限制开始份数
     profitRatio?: number; // 盈利比例
     enableOpeningBuy?: boolean; // 是否启用开盘买入
+    configTemplateId?: number; // 策略配置模版ID
   };
 
   type StrategyUserStockList = {
@@ -374,5 +376,33 @@ declare namespace API {
     buyOrders: any[];
     sellOrders: any[];
     stockStatistics?: Record<string, StrategyStatisticsVO>;
+  };
+
+  type StrategyConfigTemplateItem = {
+    id?: number;
+    name?: string;
+    applicableScenario?: string;
+    strategyId?: number;
+    sourceStockCode?: string;
+    minMarketCap?: number;
+    maxMarketCap?: number;
+    configType?: 'user_stock' | 'strategy_stock';
+    configTypeDesc?: string;
+    marketCondition?: string; // 行情类型（震荡、高开高走、高开低走、低开高走、低开低走）
+    volatilityRange?: string; // 波动范围，用户自定义字符串
+    configJson?: string;
+    createTime?: string;
+    updateTime?: string;
+    // 以下字段用于接口传参，不存储到数据库
+    sourceId?: number; // 源配置ID（用于保存模版时获取配置数据）
+    targetIds?: number[]; // 目标配置ID列表（用于应用模版时的批量操作）
+    overwrite?: boolean; // 是否覆盖现有配置（用于应用模版时）
+  };
+
+  type StrategyConfigTemplateList = {
+    data?: StrategyConfigTemplateItem[];
+    /** 列表的内容总数 */
+    total?: number;
+    success?: boolean;
   };
 }

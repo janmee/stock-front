@@ -1,5 +1,5 @@
 import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState } from 'react';
-import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select, DatePicker } from 'antd';
+import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select, DatePicker, Modal, Checkbox } from 'antd';
 import {
   ActionType,
   ModalForm,
@@ -14,7 +14,7 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { FormattedMessage, useIntl } from '@umijs/max';
-import { PlusOutlined, InfoCircleOutlined, FilterOutlined, CloseCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, InfoCircleOutlined, FilterOutlined, CloseCircleOutlined, QuestionCircleOutlined, SaveOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { 
   listStrategyUserStock, 
   createStrategyUserStock, 
@@ -24,7 +24,11 @@ import {
   listStrategyJob,
   updateStrategyUserStockStatus,
   updateStrategyUserStockSecondStage,
-  updateStrategyUserStockOpeningBuy
+  updateStrategyUserStockOpeningBuy,
+  saveConfigTemplate,
+  applyConfigTemplate,
+  getConfigTemplateList,
+  deleteConfigTemplate
 } from '@/services/ant-design-pro/api';
 
 interface StrategyUserStockListProps {
@@ -43,9 +47,16 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
   const [currentRow, setCurrentRow] = useState<API.StrategyUserStockItem>();
   const [strategyOptions, setStrategyOptions] = useState<{label: string, value: number}[]>([]);
   const [accountOptions, setAccountOptions] = useState<{label: string, value: string}[]>([]);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [saveTemplateModalVisible, setSaveTemplateModalVisible] = useState<boolean>(false);
+  const [applyTemplateModalVisible, setApplyTemplateModalVisible] = useState<boolean>(false);
+  const [templates, setTemplates] = useState<API.StrategyConfigTemplateItem[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<number>();
+  const [templateInitialValues, setTemplateInitialValues] = useState<any>({});
   const actionRef = useRef<ActionType>();
   const createFormRef = useRef<any>();
   const updateFormRef = useRef<any>();
+  const saveTemplateFormRef = useRef<any>();
   const intl = useIntl();
   
   // 公开刷新方法
@@ -244,6 +255,140 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       message.error('更新失败');
       return false;
     }
+  };
+
+  // 加载模版列表
+  const loadTemplates = async () => {
+    try {
+      const response = await getConfigTemplateList({ configType: 'user_stock' });
+      if (response.success && response.data) {
+        setTemplates(response.data);
+      }
+    } catch (error) {
+      console.error('加载模版列表失败:', error);
+    }
+  };
+
+  // 保存配置模版
+  const handleSaveTemplate = async (values: any) => {
+    if (selectedRowKeys.length === 0) {
+      message.error('请先选择要保存的配置');
+      return false;
+    }
+
+    if (selectedRowKeys.length > 1) {
+      message.error('保存模版时只能选择一个配置');
+      return false;
+    }
+
+    // 检查模版名称是否重复
+    try {
+      const response = await getConfigTemplateList({ configType: 'user_stock' });
+      if (response.success && response.data) {
+        const existingTemplate = response.data.find((template: API.StrategyConfigTemplateItem) => 
+          template.name === values.name
+        );
+        if (existingTemplate) {
+          message.error(`模版名称"${values.name}"已存在，请使用其他名称`);
+          return false;
+        }
+      }
+    } catch (error) {
+      console.error('检查模版名称重复时出错:', error);
+    }
+
+    const hide = message.loading('保存模版中...');
+    try {
+      await saveConfigTemplate({
+        name: values.name,
+        applicableScenario: values.applicableScenario,
+        marketCondition: values.marketCondition,
+        volatilityRange: values.volatilityRange,
+        strategyId: values.strategyId,
+        sourceStockCode: values.sourceStockCode,
+        minMarketCap: values.minMarketCap,
+        maxMarketCap: values.maxMarketCap,
+        configType: 'user_stock',
+        sourceId: selectedRowKeys[0] as number,
+      });
+      hide();
+      message.success('模版保存成功');
+      setSaveTemplateModalVisible(false);
+      setSelectedRowKeys([]);
+      return true;
+    } catch (error) {
+      hide();
+      message.error('模版保存失败');
+      return false;
+    }
+  };
+
+  // 应用配置模版
+  const handleApplyTemplate = async () => {
+    if (!selectedTemplate) {
+      message.error('请选择要应用的模版');
+      return;
+    }
+
+    if (selectedRowKeys.length === 0) {
+      message.error('请选择要应用配置的目标');
+      return;
+    }
+
+    const hide = message.loading('应用模版中...');
+    try {
+      await applyConfigTemplate({
+        id: selectedTemplate,
+        targetIds: selectedRowKeys as number[],
+        configType: 'user_stock',
+        overwrite: true,
+      });
+      hide();
+      message.success(`模版已应用到 ${selectedRowKeys.length} 个配置`);
+      setApplyTemplateModalVisible(false);
+      setSelectedRowKeys([]);
+      setSelectedTemplate(undefined);
+      actionRef.current?.reload();
+    } catch (error) {
+      hide();
+      message.error('模版应用失败');
+    }
+  };
+
+  // 删除模版
+  const handleDeleteTemplate = async (id: number) => {
+    const hide = message.loading('删除中...');
+    try {
+      await deleteConfigTemplate(id);
+      hide();
+      message.success('模版删除成功');
+      loadTemplates();
+    } catch (error: any) {
+      hide();
+      // 显示详细的错误信息
+      const errorMessage = error?.response?.data?.message || error?.message || '模版删除失败';
+      message.error({
+        content: errorMessage,
+        duration: 6, // 显示6秒，因为错误信息可能比较长
+        style: {
+          whiteSpace: 'pre-line', // 支持换行显示
+        },
+      });
+    }
+  };
+
+  // 保存单个记录为模版
+  const handleSaveAsTemplate = (record: API.StrategyUserStockItem) => {
+    // 设置模版初始值
+    const initialValues = {
+      strategyId: record.strategyId,
+      sourceStockCode: record.stockCode,
+      name: `${record.stockCode}_${record.accountName}_模版`,
+    };
+    setTemplateInitialValues(initialValues);
+    setSaveTemplateModalVisible(true);
+    // 临时设置选中的行，用于保存模版
+    setSelectedRowKeys([record.id!]);
   };
 
   // 表格列定义
@@ -543,6 +688,24 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       },
     },
     {
+      title: (
+        <span>
+          <>策略配置模版ID</>
+          <Tooltip title="该配置来源于哪个配置模版">
+            <InfoCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </span>
+      ),
+      dataIndex: 'configTemplateId',
+      hideInSearch: true,
+      render: (text, record) => {
+        if (record.configTemplateId === null || record.configTemplateId === undefined) {
+          return '-';
+        }
+        return record.configTemplateId;
+      },
+    },
+    {
       title: <FormattedMessage id="pages.strategy.createTime" defaultMessage="Create Time" />,
       dataIndex: 'createTime',
       valueType: 'dateTime',
@@ -628,6 +791,12 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         >
           <FormattedMessage id="pages.common.edit" defaultMessage="Edit" />
         </a>,
+        <a
+          key="saveAsTemplate"
+          onClick={() => handleSaveAsTemplate(record)}
+        >
+          保存为模版
+        </a>,
         <Popconfirm
           key="delete"
           title={<FormattedMessage id="pages.common.deleteConfirm" defaultMessage="Are you sure you want to delete this item?" />}
@@ -670,6 +839,10 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         search={{
           labelWidth: 120,
         }}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
         toolBarRender={() => [
           <Button
             key="new"
@@ -677,6 +850,19 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             onClick={() => setCreateModalVisible(true)}
           >
             <PlusOutlined /> <FormattedMessage id="pages.common.new" defaultMessage="New" />
+          </Button>,
+          <Button
+            key="apply-template"
+            onClick={() => {
+              if (selectedRowKeys.length === 0) {
+                message.warning('请先选择要应用配置的目标');
+                return;
+              }
+              loadTemplates();
+              setApplyTemplateModalVisible(true);
+            }}
+          >
+            <ThunderboltOutlined /> 应用模版
           </Button>,
         ]}
         request={(params, sort, filter) => {
@@ -1224,6 +1410,196 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           </div>
         </div>
       </ModalForm>
+      
+      {/* 保存配置模版Modal */}
+      <ModalForm
+        title="保存配置模版"
+        width="500px"
+        formRef={saveTemplateFormRef}
+        modalProps={{
+          destroyOnClose: true,
+        }}
+        open={saveTemplateModalVisible}
+        onOpenChange={(visible) => {
+          setSaveTemplateModalVisible(visible);
+          if (!visible) {
+            // 关闭时清理状态
+            setTemplateInitialValues({});
+            setSelectedRowKeys([]);
+          }
+        }}
+        onFinish={handleSaveTemplate}
+        initialValues={templateInitialValues}
+      >
+        <ProFormText
+          name="name"
+          label="模版名称"
+          rules={[{ required: true, message: '请输入模版名称' }]}
+          placeholder="请输入模版名称"
+        />
+        <ProFormTextArea
+          name="applicableScenario"
+          label="适用场景"
+          placeholder="请输入适用场景（可选）"
+          fieldProps={{
+            rows: 3,
+          }}
+        />
+        <ProFormSelect
+          name="marketCondition"
+          label="行情类型"
+          placeholder="请选择行情类型（可选）"
+          valueEnum={{
+            '震荡': '震荡',
+            '高开高走': '高开高走',
+            '高开低走': '高开低走',
+            '低开高走': '低开高走',
+            '低开低走': '低开低走',
+          }}
+        />
+        <ProFormText
+          name="volatilityRange"
+          label="波动范围"
+          placeholder="请输入波动范围（可选）"
+        />
+        <ProFormSelect
+          name="strategyId"
+          label="策略"
+          request={async () => {
+            // 获取策略列表
+            const res = await listStrategyJob({
+              current: 1,
+              pageSize: 100,
+              status: '1',
+            });
+            if (res && res.data) {
+              return res.data.map((item: any) => ({
+                label: item.name,
+                value: item.id,
+              }));
+            }
+            return [];
+          }}
+          placeholder="请选择策略（可选）"
+        />
+        <ProFormText
+          name="sourceStockCode"
+          label="来源股票代码"
+          placeholder="请输入来源股票代码（可选）"
+        />
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ flex: 1 }}>
+            <ProFormDigit
+              name="minMarketCap"
+              label="最小市值（亿美元）"
+              placeholder="请输入最小市值"
+              min={0}
+              fieldProps={{
+                precision: 2,
+              }}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <ProFormDigit
+              name="maxMarketCap"
+              label="最大市值（亿美元）"
+              placeholder="请输入最大市值"
+              min={0}
+              fieldProps={{
+                precision: 2,
+              }}
+            />
+          </div>
+        </div>
+      </ModalForm>
+
+      {/* 应用配置模版Modal */}
+      <Modal
+        title="应用配置模版"
+        open={applyTemplateModalVisible}
+        onCancel={() => {
+          setApplyTemplateModalVisible(false);
+          setSelectedTemplate(undefined);
+        }}
+        onOk={handleApplyTemplate}
+        width={800}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <h4>选择要应用的模版：</h4>
+          <Select
+            style={{ width: '100%' }}
+            placeholder="请选择模版"
+            value={selectedTemplate}
+            onChange={setSelectedTemplate}
+          >
+            {templates.map(template => (
+              <Select.Option key={template.id} value={template.id}>
+                <div>
+                  <strong>{template.name}</strong>
+                  {template.applicableScenario && <div style={{ fontSize: '12px', color: '#666' }}>{template.applicableScenario}</div>}
+                  {template.marketCondition && <div style={{ fontSize: '12px', color: '#1890ff' }}>行情: {template.marketCondition}</div>}
+                  {template.volatilityRange && <div style={{ fontSize: '12px', color: '#52c41a' }}>波动范围: {template.volatilityRange}</div>}
+                  <div style={{ fontSize: '11px', color: '#999' }}>
+                    创建时间: {template.createTime}
+                  </div>
+                </div>
+              </Select.Option>
+            ))}
+          </Select>
+        </div>
+        
+        <div style={{ marginBottom: 16 }}>
+          <h4>模版管理：</h4>
+          <div style={{ maxHeight: 300, overflow: 'auto' }}>
+            {templates.map(template => (
+              <div key={template.id} style={{ 
+                padding: 8, 
+                border: '1px solid #d9d9d9', 
+                borderRadius: 4, 
+                marginBottom: 8,
+                backgroundColor: selectedTemplate === template.id ? '#e6f7ff' : '#fff'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ flex: 1 }}>
+                    <strong>{template.name}</strong>
+                    {template.applicableScenario && <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>{template.applicableScenario}</div>}
+                    {template.marketCondition && <div style={{ fontSize: '12px', color: '#1890ff', marginTop: 2 }}>行情: {template.marketCondition}</div>}
+                    {template.volatilityRange && <div style={{ fontSize: '12px', color: '#52c41a', marginTop: 2 }}>波动范围: {template.volatilityRange}</div>}
+                    {template.strategyId && <div style={{ fontSize: '11px', color: '#999', marginTop: 2 }}>策略ID: {template.strategyId}</div>}
+                    {template.sourceStockCode && <div style={{ fontSize: '11px', color: '#999', marginTop: 2 }}>来源股票: {template.sourceStockCode}</div>}
+                    {(template.minMarketCap || template.maxMarketCap) && (
+                      <div style={{ fontSize: '11px', color: '#999', marginTop: 2 }}>
+                        市值范围: {template.minMarketCap || 0} - {template.maxMarketCap || '∞'} 亿美元
+                      </div>
+                    )}
+                    <div style={{ fontSize: '11px', color: '#999', marginTop: 4 }}>
+                      创建时间: {template.createTime}
+                    </div>
+                  </div>
+                  <Button
+                    type="link"
+                    danger
+                    size="small"
+                    onClick={() => {
+                      Modal.confirm({
+                        title: '确认删除',
+                        content: `确定要删除模版"${template.name}"吗？`,
+                        onOk: () => handleDeleteTemplate(template.id!),
+                      });
+                    }}
+                  >
+                    删除
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <div style={{ color: '#666', fontSize: '12px' }}>
+          将应用到 {selectedRowKeys.length} 个选中的配置
+        </div>
+      </Modal>
     </>
   );
 });

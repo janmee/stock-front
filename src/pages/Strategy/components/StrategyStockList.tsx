@@ -1,5 +1,5 @@
 import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState } from 'react';
-import { Button, message, Popconfirm, Select, Tooltip, Tag, Space, Switch, Input, InputNumber, Form } from 'antd';
+import { Button, message, Popconfirm, Select, Tooltip, Tag, Space, Switch, Input, InputNumber, Form, Modal } from 'antd';
 import {
   ActionType,
   ModalForm,
@@ -13,7 +13,7 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { FormattedMessage, useIntl } from '@umijs/max';
-import { PlusOutlined, InfoCircleOutlined, FilterOutlined, CloseCircleOutlined, QuestionCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, InfoCircleOutlined, FilterOutlined, CloseCircleOutlined, QuestionCircleOutlined, MinusCircleOutlined, SaveOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { 
   listStrategyStock, 
   createStrategyStock, 
@@ -21,7 +21,11 @@ import {
   deleteStrategyStock,
   listStrategyJob,
   updateStrategyStockStatus,
-  updateStrategyStockOpeningBuy
+  updateStrategyStockOpeningBuy,
+  saveConfigTemplate,
+  applyConfigTemplate,
+  getConfigTemplateList,
+  deleteConfigTemplate
 } from '@/services/ant-design-pro/api';
 
 interface StrategyStockListProps {
@@ -39,9 +43,16 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
   const [updateModalVisible, setUpdateModalVisible] = useState<boolean>(false);
   const [currentRow, setCurrentRow] = useState<API.StrategyStockItem>();
   const [strategyOptions, setStrategyOptions] = useState<{label: string, value: number}[]>([]);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [saveTemplateModalVisible, setSaveTemplateModalVisible] = useState<boolean>(false);
+  const [applyTemplateModalVisible, setApplyTemplateModalVisible] = useState<boolean>(false);
+  const [templates, setTemplates] = useState<API.StrategyConfigTemplateItem[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<number>();
+  const [templateInitialValues, setTemplateInitialValues] = useState<any>({});
   const actionRef = useRef<ActionType>();
   const createFormRef = useRef<any>();
   const updateFormRef = useRef<any>();
+  const saveTemplateFormRef = useRef<any>();
   const intl = useIntl();
   
   const [createForm] = Form.useForm();
@@ -354,6 +365,140 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     }
   };
 
+  // 加载模版列表
+  const loadTemplates = async () => {
+    try {
+      const response = await getConfigTemplateList({ configType: 'strategy_stock' });
+      if (response.success && response.data) {
+        setTemplates(response.data);
+      }
+    } catch (error) {
+      console.error('加载模版列表失败:', error);
+    }
+  };
+
+  // 保存配置模版
+  const handleSaveTemplate = async (values: any) => {
+    if (selectedRowKeys.length === 0) {
+      message.error('请先选择要保存的配置');
+      return false;
+    }
+
+    if (selectedRowKeys.length > 1) {
+      message.error('保存模版时只能选择一个配置');
+      return false;
+    }
+
+    // 检查模版名称是否重复
+    try {
+      const response = await getConfigTemplateList({ configType: 'strategy_stock' });
+      if (response.success && response.data) {
+        const existingTemplate = response.data.find((template: API.StrategyConfigTemplateItem) => 
+          template.name === values.name
+        );
+        if (existingTemplate) {
+          message.error(`模版名称"${values.name}"已存在，请使用其他名称`);
+          return false;
+        }
+      }
+    } catch (error) {
+      console.error('检查模版名称重复时出错:', error);
+    }
+
+    const hide = message.loading('保存模版中...');
+    try {
+      await saveConfigTemplate({
+        name: values.name,
+        applicableScenario: values.applicableScenario,
+        marketCondition: values.marketCondition,
+        volatilityRange: values.volatilityRange,
+        strategyId: values.strategyId,
+        sourceStockCode: values.sourceStockCode,
+        minMarketCap: values.minMarketCap,
+        maxMarketCap: values.maxMarketCap,
+        configType: 'strategy_stock',
+        sourceId: selectedRowKeys[0] as number,
+      });
+      hide();
+      message.success('模版保存成功');
+      setSaveTemplateModalVisible(false);
+      setSelectedRowKeys([]);
+      return true;
+    } catch (error) {
+      hide();
+      message.error('模版保存失败');
+      return false;
+    }
+  };
+
+  // 应用配置模版
+  const handleApplyTemplate = async () => {
+    if (!selectedTemplate) {
+      message.error('请选择要应用的模版');
+      return;
+    }
+
+    if (selectedRowKeys.length === 0) {
+      message.error('请选择要应用配置的目标');
+      return;
+    }
+
+    const hide = message.loading('应用模版中...');
+    try {
+      await applyConfigTemplate({
+        id: selectedTemplate,
+        targetIds: selectedRowKeys as number[],
+        configType: 'strategy_stock',
+        overwrite: true,
+      });
+      hide();
+      message.success(`模版已应用到 ${selectedRowKeys.length} 个配置`);
+      setApplyTemplateModalVisible(false);
+      setSelectedRowKeys([]);
+      setSelectedTemplate(undefined);
+      actionRef.current?.reload();
+    } catch (error) {
+      hide();
+      message.error('模版应用失败');
+    }
+  };
+
+  // 删除模版
+  const handleDeleteTemplate = async (id: number) => {
+    const hide = message.loading('删除中...');
+    try {
+      await deleteConfigTemplate(id);
+      hide();
+      message.success('模版删除成功');
+      loadTemplates();
+    } catch (error: any) {
+      hide();
+      // 显示详细的错误信息
+      const errorMessage = error?.response?.data?.message || error?.message || '模版删除失败';
+      message.error({
+        content: errorMessage,
+        duration: 6, // 显示6秒，因为错误信息可能比较长
+        style: {
+          whiteSpace: 'pre-line', // 支持换行显示
+        },
+      });
+    }
+  };
+
+  // 保存单个记录为模版
+  const handleSaveAsTemplate = (record: API.StrategyStockItem) => {
+    // 设置模版初始值
+    const initialValues = {
+      strategyId: record.strategyId,
+      sourceStockCode: record.stockCode,
+      name: `${record.stockCode}_策略标的_模版`,
+    };
+    setTemplateInitialValues(initialValues);
+    setSaveTemplateModalVisible(true);
+    // 临时设置选中的行，用于保存模版
+    setSelectedRowKeys([record.id!]);
+  };
+
   // 表格列定义
   const columns: ProColumns<API.StrategyStockItem>[] = [
     {
@@ -587,6 +732,24 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       ),
     },
     {
+      title: (
+        <span>
+          <>策略配置模版ID</>
+          <Tooltip title="该配置来源于哪个配置模版">
+            <InfoCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </span>
+      ),
+      dataIndex: 'configTemplateId',
+      hideInSearch: true,
+      render: (text, record) => {
+        if (record.configTemplateId === null || record.configTemplateId === undefined) {
+          return '-';
+        }
+        return record.configTemplateId;
+      },
+    },
+    {
       title: <FormattedMessage id="pages.strategy.createTime" defaultMessage="Create Time" />,
       dataIndex: 'createTime',
       valueType: 'dateTime',
@@ -690,6 +853,12 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         >
           <FormattedMessage id="pages.common.edit" defaultMessage="Edit" />
         </a>,
+        <a
+          key="saveAsTemplate"
+          onClick={() => handleSaveAsTemplate(record)}
+        >
+          保存为模版
+        </a>,
         <Popconfirm
           key="delete"
           title={<FormattedMessage id="pages.common.deleteConfirm" defaultMessage="Are you sure you want to delete this item?" />}
@@ -732,6 +901,11 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         search={{
           labelWidth: 120,
         }}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+          preserveSelectedRowKeys: true,
+        }}
         toolBarRender={() => [
           <Button
             key="new"
@@ -739,6 +913,20 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             onClick={() => setCreateModalVisible(true)}
           >
             <PlusOutlined /> <FormattedMessage id="pages.common.new" defaultMessage="New" />
+          </Button>,
+          <Button
+            key="apply"
+            type="primary"
+            onClick={() => {
+              if (selectedRowKeys.length === 0) {
+                message.warning('请先选择要应用配置的目标');
+                return;
+              }
+              loadTemplates();
+              setApplyTemplateModalVisible(true);
+            }}
+          >
+            <ThunderboltOutlined /> 应用模版
           </Button>,
         ]}
         request={(params, sort, filter) => {
@@ -938,35 +1126,47 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         </div>
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
-        <ProFormDigit
-          name="totalFundShares"
-          label={<FormattedMessage id="pages.strategy.stock.relation.totalFundShares" defaultMessage="Total Fund Shares" />}
-          tooltip={<FormattedMessage id="pages.strategy.stock.relation.totalFundSharesTip" defaultMessage="The total number of shares the fund is divided into for buying, default 18" />}
-          min={1}
-          max={100}
-          fieldProps={{
-            step: 1,
-            precision: 0,
-          }}
-          initialValue={20}
-          rules={[{ required: true }]}
-        />
+          <ProFormDigit
+            name="totalFundShares"
+            label={
+              <span>
+                <FormattedMessage id="pages.strategy.stock.relation.totalFundShares" defaultMessage="Total Fund Shares" />
+                <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.totalFundSharesTip" defaultMessage="The total number of shares the fund is divided into for buying, default 18" />}>
+                  <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+                </Tooltip>
+              </span>
+            }
+            min={1}
+            max={100}
+            fieldProps={{
+              step: 1,
+              precision: 0,
+            }}
+            initialValue={20}
+            rules={[{ required: true }]}
+          />
         </div>
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
-        <ProFormDigit
-          name="limitStartShares"
-          label={<FormattedMessage id="pages.strategy.stock.relation.limitStartShares" defaultMessage="Limit Start Shares" />}
-          tooltip={<FormattedMessage id="pages.strategy.stock.relation.limitStartSharesTip" defaultMessage="From which share to start limiting buying, default 9" />}
-          min={1}
-          max={100}
-          fieldProps={{
-            step: 1,
-            precision: 0,
-          }}
-          initialValue={9}
-          rules={[{ required: true }]}
-        />
+          <ProFormDigit
+            name="limitStartShares"
+            label={
+              <span>
+                <FormattedMessage id="pages.strategy.stock.relation.limitStartShares" defaultMessage="Limit Start Shares" />
+                <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.limitStartSharesTip" defaultMessage="From which share to start limiting buying, default 9" />}>
+                  <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+                </Tooltip>
+              </span>
+            }
+            min={1}
+            max={100}
+            fieldProps={{
+              step: 1,
+              precision: 0,
+            }}
+            initialValue={9}
+            rules={[{ required: true }]}
+          />
         </div>
 
         <div style={{ width: 'calc(33.33% - 8px)' }}>
@@ -1278,35 +1478,47 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         </div>
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
-        <ProFormDigit
-          name="totalFundShares"
-          label={<FormattedMessage id="pages.strategy.stock.relation.totalFundShares" defaultMessage="Total Fund Shares" />}
-          tooltip={<FormattedMessage id="pages.strategy.stock.relation.totalFundSharesTip" defaultMessage="The total number of shares the fund is divided into for buying, default 18" />}
-          min={1}
-          max={100}
-          fieldProps={{
-            step: 1,
-            precision: 0,
-          }}
-          initialValue={18}
-          rules={[{ required: true }]}
-        />
+          <ProFormDigit
+            name="totalFundShares"
+            label={
+              <span>
+                <FormattedMessage id="pages.strategy.stock.relation.totalFundShares" defaultMessage="Total Fund Shares" />
+                <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.totalFundSharesTip" defaultMessage="The total number of shares the fund is divided into for buying, default 18" />}>
+                  <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+                </Tooltip>
+              </span>
+            }
+            min={1}
+            max={100}
+            fieldProps={{
+              step: 1,
+              precision: 0,
+            }}
+            initialValue={20}
+            rules={[{ required: true }]}
+          />
         </div>
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
-        <ProFormDigit
-          name="limitStartShares"
-          label={<FormattedMessage id="pages.strategy.stock.relation.limitStartShares" defaultMessage="Limit Start Shares" />}
-          tooltip={<FormattedMessage id="pages.strategy.stock.relation.limitStartSharesTip" defaultMessage="From which share to start limiting buying, default 9" />}
-          min={1}
-          max={100}
-          fieldProps={{
-            step: 1,
-            precision: 0,
-          }}
-          initialValue={9}
-          rules={[{ required: true }]}
-        />
+          <ProFormDigit
+            name="limitStartShares"
+            label={
+              <span>
+                <FormattedMessage id="pages.strategy.stock.relation.limitStartShares" defaultMessage="Limit Start Shares" />
+                <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.limitStartSharesTip" defaultMessage="From which share to start limiting buying, default 9" />}>
+                  <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+                </Tooltip>
+              </span>
+            }
+            min={1}
+            max={100}
+            fieldProps={{
+              step: 1,
+              precision: 0,
+            }}
+            initialValue={9}
+            rules={[{ required: true }]}
+          />
         </div>
 
         <div style={{ width: 'calc(33.33% - 8px)' }}>
@@ -1495,6 +1707,204 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         </Form.Item>
         </div>
       </ModalForm>
+
+      {/* 保存配置模版Modal */}
+      <ModalForm
+        title="保存配置模版"
+        width="500px"
+        formRef={saveTemplateFormRef}
+        modalProps={{
+          destroyOnClose: true,
+        }}
+        open={saveTemplateModalVisible}
+        onOpenChange={(visible) => {
+          setSaveTemplateModalVisible(visible);
+          if (!visible) {
+            // 关闭时清理状态
+            setTemplateInitialValues({});
+            setSelectedRowKeys([]);
+          }
+        }}
+        onFinish={handleSaveTemplate}
+        initialValues={templateInitialValues}
+      >
+        <ProFormText
+          name="name"
+          label="模版名称"
+          rules={[{ required: true, message: '请输入模版名称' }]}
+          placeholder="请输入模版名称"
+        />
+        <ProFormTextArea
+          name="applicableScenario"
+          label="适用场景"
+          placeholder="请输入适用场景（可选）"
+          fieldProps={{
+            rows: 3,
+          }}
+        />
+        <ProFormSelect
+          name="marketCondition"
+          label="行情类型"
+          placeholder="请选择行情类型（可选）"
+          valueEnum={{
+            '震荡': '震荡',
+            '高开高走': '高开高走',
+            '高开低走': '高开低走',
+            '低开高走': '低开高走',
+            '低开低走': '低开低走',
+          }}
+        />
+        <ProFormText
+          name="volatilityRange"
+          label="波动范围"
+          placeholder="请输入波动范围（可选）"
+        />
+        <ProFormSelect
+          name="strategyId"
+          label="策略"
+          request={async () => {
+            // 获取策略列表
+            const res = await listStrategyJob({
+              current: 1,
+              pageSize: 100,
+              status: '1',
+            });
+            if (res && res.data) {
+              return res.data.map((item: any) => ({
+                label: item.name,
+                value: item.id,
+              }));
+            }
+            return [];
+          }}
+          placeholder="请选择策略（可选）"
+        />
+        <ProFormText
+          name="sourceStockCode"
+          label="来源股票代码"
+          placeholder="请输入来源股票代码（可选）"
+        />
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ flex: 1 }}>
+            <ProFormDigit
+              name="minMarketCap"
+              label="最小市值（亿美元）"
+              placeholder="请输入最小市值"
+              min={0}
+              fieldProps={{
+                precision: 2,
+              }}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <ProFormDigit
+              name="maxMarketCap"
+              label="最大市值（亿美元）"
+              placeholder="请输入最大市值"
+              min={0}
+              fieldProps={{
+                precision: 2,
+              }}
+            />
+          </div>
+        </div>
+      </ModalForm>
+
+      {/* 应用配置模版Modal */}
+      <Modal
+        title="应用配置模版"
+        open={applyTemplateModalVisible}
+        onCancel={() => {
+          setApplyTemplateModalVisible(false);
+          setSelectedTemplate(undefined);
+        }}
+        onOk={handleApplyTemplate}
+        width={800}
+        okText="应用模版"
+        cancelText="取消"
+      >
+        <div style={{ marginBottom: 16 }}>
+          <strong>选择模版：</strong>
+        </div>
+        <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+          {templates.map((template) => (
+            <div
+              key={template.id}
+              style={{
+                border: selectedTemplate === template.id ? '2px solid #1890ff' : '1px solid #d9d9d9',
+                borderRadius: 4,
+                padding: 12,
+                marginBottom: 8,
+                cursor: 'pointer',
+                backgroundColor: selectedTemplate === template.id ? '#f0f8ff' : 'white',
+              }}
+              onClick={() => setSelectedTemplate(template.id)}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontWeight: 'bold', fontSize: 14 }}>{template.name}</div>
+                  {template.applicableScenario && (
+                    <div style={{ color: '#666', fontSize: 12, marginTop: 4 }}>
+                      {template.applicableScenario}
+                    </div>
+                  )}
+                  {template.marketCondition && (
+                    <div style={{ color: '#1890ff', fontSize: 12, marginTop: 2 }}>
+                      行情: {template.marketCondition}
+                    </div>
+                  )}
+                  {template.volatilityRange && (
+                    <div style={{ color: '#52c41a', fontSize: 12, marginTop: 2 }}>
+                      波动范围: {template.volatilityRange}
+                    </div>
+                  )}
+                  {template.strategyId && (
+                    <div style={{ color: '#999', fontSize: 11, marginTop: 2 }}>
+                      策略ID: {template.strategyId}
+                    </div>
+                  )}
+                  {template.sourceStockCode && (
+                    <div style={{ color: '#999', fontSize: 11, marginTop: 2 }}>
+                      来源股票: {template.sourceStockCode}
+                    </div>
+                  )}
+                  {(template.minMarketCap || template.maxMarketCap) && (
+                    <div style={{ color: '#999', fontSize: 11, marginTop: 2 }}>
+                      市值范围: {template.minMarketCap || 0} - {template.maxMarketCap || '∞'} 亿美元
+                    </div>
+                  )}
+                  <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
+                    创建时间: {template.createTime}
+                  </div>
+                </div>
+                <Button
+                  type="text"
+                  danger
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    Modal.confirm({
+                      title: '确认删除',
+                      content: '确定要删除这个模版吗？',
+                      onOk: () => handleDeleteTemplate(template.id!),
+                    });
+                  }}
+                >
+                  删除
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+        {templates.length === 0 && (
+          <div style={{ textAlign: 'center', color: '#999', padding: 20 }}>
+            暂无模版
+          </div>
+        )}
+        <div style={{ marginTop: 16, color: '#666', fontSize: 12 }}>
+          <strong>说明：</strong>选择一个模版后，将其配置应用到当前选中的 {selectedRowKeys.length} 个目标配置中。
+        </div>
+      </Modal>
     </>
   );
 });

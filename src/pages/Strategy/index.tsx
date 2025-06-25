@@ -9,6 +9,7 @@ import { FormattedMessage, useIntl } from '@umijs/max';
 import StrategyJobList from './components/StrategyJobList';
 import StrategyStockList from './components/StrategyStockList';
 import StrategyUserStockList from './components/StrategyUserStockList';
+import StrategyConfigTemplateManagement from './components/StrategyConfigTemplateManagement';
 import { PlusOutlined } from '@ant-design/icons';
 
 const TabPane = Tabs.TabPane;
@@ -67,7 +68,7 @@ const StrategyPage: React.FC = () => {
   return (
     <PageContainer>
       <Tabs activeKey={activeTab} onChange={handleTabChange}>
-      <TabPane 
+        <TabPane 
           tab={<FormattedMessage id="pages.strategy.tabs.strategyUserStock" defaultMessage="Strategy User Stocks" />}
           key="3"
         >
@@ -99,6 +100,13 @@ const StrategyPage: React.FC = () => {
             ref={strategyJobListRef}
             onStrategySelected={handleStrategySelected}
           />
+        </TabPane>
+        
+        <TabPane 
+          tab="配置模版管理"
+          key="4"
+        >
+          <StrategyConfigTemplateManagement />
         </TabPane>
       </Tabs>
     </PageContainer>

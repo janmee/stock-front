@@ -1398,6 +1398,7 @@ export async function updateStrategyUserStockOpeningBuy(
   });
 }
 
+
 /** 获取策略统计数据 GET /api/strategy-statistics/data */
 export async function getStrategyStatisticsData(params: {
   strategyId?: number;
@@ -1411,5 +1412,48 @@ export async function getStrategyStatisticsData(params: {
     params: {
       ...params,
     },
+  });
+}
+
+// 策略配置模版相关接口
+export async function saveConfigTemplate(params: API.StrategyConfigTemplateItem) {
+  return request<API.Response<number>>('/api/strategy-config-template/save', {
+    method: 'POST',
+    data: params,
+  });
+}
+
+export async function applyConfigTemplate(params: API.StrategyConfigTemplateItem) {
+  return request<API.Response<boolean>>('/api/strategy-config-template/apply', {
+    method: 'POST',
+    data: params,
+  });
+}
+
+export async function getConfigTemplateList(params?: {
+  configType?: 'user_stock' | 'strategy_stock';
+}) {
+  return request<API.Response<API.StrategyConfigTemplateItem[]>>('/api/strategy-config-template/list', {
+    method: 'GET',
+    params,
+  });
+}
+
+export async function deleteConfigTemplate(id: number) {
+  return request<API.Response<boolean>>(`/api/strategy-config-template/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function updateConfigTemplate(id: number, params: API.StrategyConfigTemplateItem) {
+  return request<API.Response<boolean>>(`/api/strategy-config-template/${id}`, {
+    method: 'PUT',
+    data: params,
+  });
+}
+
+export async function getConfigTemplateById(id: number) {
+  return request<API.Response<API.StrategyConfigTemplateItem>>(`/api/strategy-config-template/${id}`, {
+    method: 'GET',
   });
 }
