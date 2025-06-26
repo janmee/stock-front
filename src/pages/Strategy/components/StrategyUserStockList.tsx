@@ -28,7 +28,9 @@ import {
   saveConfigTemplate,
   applyConfigTemplate,
   getConfigTemplateList,
-  deleteConfigTemplate
+  deleteConfigTemplate,
+  listStrategyStock,
+  listAccountInfo,
 } from '@/services/ant-design-pro/api';
 
 interface StrategyUserStockListProps {
@@ -53,6 +55,8 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
   const [templates, setTemplates] = useState<API.StrategyConfigTemplateItem[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<number>();
   const [templateInitialValues, setTemplateInitialValues] = useState<any>({});
+  const [strategyStockMap, setStrategyStockMap] = useState<Map<string, API.StrategyStockItem>>(new Map());
+  const [accountTotalAmountMap, setAccountTotalAmountMap] = useState<Map<string, number>>(new Map());
   const actionRef = useRef<ActionType>();
   const createFormRef = useRef<any>();
   const updateFormRef = useRef<any>();
@@ -65,6 +69,76 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       actionRef.current?.reload();
     },
   }));
+
+  // 默认的BuyRatioConfig配置
+  const getDefaultBuyRatioConfig = () => ({
+    firstShareRatio: 3.0,
+    extraShares: [
+      { drop: 7, ratio: 3, secondStage: false },
+      { drop: 7, ratio: 3, secondStage: false },
+      { drop: 9, ratio: 4.6, secondStage: false },
+      { drop: 9, ratio: 4.6, secondStage: false },
+      { drop: 11, ratio: 6, secondStage: false },
+      { drop: 11, ratio: 6, secondStage: false },
+      { drop: 11, ratio: 7.7, secondStage: false }
+    ]
+  });
+
+  // 解析BuyRatioConfig
+  const parseBuyRatioConfig = (buyRatioConfigStr?: string) => {
+    if (!buyRatioConfigStr) {
+      return getDefaultBuyRatioConfig();
+    }
+    try {
+      return JSON.parse(buyRatioConfigStr);
+    } catch (error) {
+      console.warn('解析BuyRatioConfig失败，使用默认配置:', error);
+      return getDefaultBuyRatioConfig();
+    }
+  };
+
+  // 计算单次资金
+  const calculateSingleAmount = (record: API.StrategyUserStockItem, buyRatioConfig: any) => {
+    if (!record.maxAmount) return 0;
+    const firstShareRatio = (buyRatioConfig.firstShareRatio || 3.0) / 100;
+    return record.maxAmount * firstShareRatio;
+  };
+
+  // 计算单天最大持有资金
+  const calculateDailyMaxHolding = (record: API.StrategyUserStockItem, singleAmount: number) => {
+    const unsoldStackLimit = record.unsoldStackLimit || 4;
+    return singleAmount * unsoldStackLimit;
+  };
+
+  // 计算最大持有资金
+  const calculateMaxHolding = (record: API.StrategyUserStockItem, buyRatioConfig: any, singleAmount: number) => {
+    if (!record.maxAmount) return 0;
+    const limitStartShares = record.limitStartShares || 9;
+    const totalFundShares = record.totalFundShares || 18;
+    const extraShares = buyRatioConfig.extraShares || [];
+    
+    // 第一部分：单次资金 * limitStartShares
+    const firstPart = singleAmount * limitStartShares;
+    
+    // 第二部分：计算额外份数的比例总和
+    const extraSharesCount = totalFundShares - limitStartShares;
+    let extraRatioSum = 0;
+    
+    for (let i = 0; i < Math.min(extraSharesCount, extraShares.length); i++) {
+      extraRatioSum += (extraShares[i].ratio || 0) / 100;
+    }
+    
+    const secondPart = record.maxAmount * extraRatioSum;
+    
+    return firstPart + secondPart;
+  };
+
+  // 获取策略股票配置
+  const getStrategyStockConfig = (strategyId?: number, stockCode?: string) => {
+    if (!strategyId || !stockCode) return null;
+    const key = `${strategyId}_${stockCode}`;
+    return strategyStockMap.get(key) || null;
+  };
 
   // 加载策略任务列表和账户列表
   useEffect(() => {
@@ -98,6 +172,50 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     };
     
     fetchOptions();
+  }, []);
+
+  // 获取策略股票配置数据
+  useEffect(() => {
+    const fetchStrategyStockData = async () => {
+      try {
+        // 获取所有策略股票配置
+        const strategyStockRes = await listStrategyStock({
+          current: 1,
+          pageSize: 1000, // 获取足够多的数据
+        });
+        
+        if (strategyStockRes && strategyStockRes.data) {
+          const newMap = new Map<string, API.StrategyStockItem>();
+          strategyStockRes.data.forEach((item: API.StrategyStockItem) => {
+            if (item.strategyId && item.stockCode) {
+              const key = `${item.strategyId}_${item.stockCode}`;
+              newMap.set(key, item);
+            }
+          });
+          setStrategyStockMap(newMap);
+        }
+
+        // 获取所有账户的总资金信息
+        const accountDetailRes = await listAccountInfo({
+          current: 1,
+          pageSize: 1000,
+        }, {});
+        
+        if (accountDetailRes && accountDetailRes.data) {
+          const newAccountTotalAmountMap = new Map<string, number>();
+          accountDetailRes.data.forEach((account: API.AccountInfo) => {
+            if (account.account && account.totalAmount) {
+              newAccountTotalAmountMap.set(account.account, account.totalAmount);
+            }
+          });
+          setAccountTotalAmountMap(newAccountTotalAmountMap);
+        }
+      } catch (error) {
+        console.error('获取策略股票配置数据或账户资金数据失败:', error);
+      }
+    };
+    
+    fetchStrategyStockData();
   }, []);
 
   // 添加策略用户股票关系
@@ -573,6 +691,89 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       valueType: 'percent',
       hideInSearch: true,
       render: (_, record) => record.profitRatio ? `${(record.profitRatio * 100).toFixed(2)}%` : '-',
+    },
+    {
+      title: (
+        <span>
+          <>单次资金</>
+          <Tooltip title="单次买入资金 = 最大金额 × 首次份额比例">
+            <InfoCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </span>
+      ),
+      dataIndex: 'singleAmount',
+      valueType: 'money',
+      hideInSearch: true,
+      render: (_, record) => {
+        const strategyStockConfig = getStrategyStockConfig(record.strategyId, record.stockCode);
+        const buyRatioConfig = parseBuyRatioConfig(strategyStockConfig?.buyRatioConfig);
+        const singleAmount = calculateSingleAmount(record, buyRatioConfig);
+        return singleAmount > 0 ? `$${singleAmount.toFixed(2)}` : '-';
+      },
+    },
+    {
+      title: (
+        <span>
+          <>单天最大持有资金</>
+          <Tooltip title="单天最大持有资金 = 单次资金 × 未卖出堆栈值">
+            <InfoCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </span>
+      ),
+      dataIndex: 'dailyMaxHolding',
+      valueType: 'money',
+      hideInSearch: true,
+      render: (_, record) => {
+        const strategyStockConfig = getStrategyStockConfig(record.strategyId, record.stockCode);
+        const buyRatioConfig = parseBuyRatioConfig(strategyStockConfig?.buyRatioConfig);
+        const singleAmount = calculateSingleAmount(record, buyRatioConfig);
+        const dailyMaxHolding = calculateDailyMaxHolding(record, singleAmount);
+        
+        if (dailyMaxHolding <= 0) return '-';
+        
+        // 获取账户总资金
+        const accountTotalAmount = record.account ? accountTotalAmountMap.get(record.account) : undefined;
+        let percentageText = '';
+        
+        if (accountTotalAmount && accountTotalAmount > 0) {
+          const percentage = (dailyMaxHolding / accountTotalAmount) * 100;
+          percentageText = ` (${percentage.toFixed(2)}%)`;
+        }
+        
+        return `$${dailyMaxHolding.toFixed(2)}${percentageText}`;
+      },
+    },
+    {
+      title: (
+        <span>
+          <>最大持有资金</>
+          <Tooltip title="最大持有资金 = 单次资金 × 限制开始份数 + 最大金额 × 额外份数比例总和">
+            <InfoCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </span>
+      ),
+      dataIndex: 'maxHolding',
+      valueType: 'money',
+      hideInSearch: true,
+      render: (_, record) => {
+        const strategyStockConfig = getStrategyStockConfig(record.strategyId, record.stockCode);
+        const buyRatioConfig = parseBuyRatioConfig(strategyStockConfig?.buyRatioConfig);
+        const singleAmount = calculateSingleAmount(record, buyRatioConfig);
+        const maxHolding = calculateMaxHolding(record, buyRatioConfig, singleAmount);
+        
+        if (maxHolding <= 0) return '-';
+        
+        // 获取账户总资金
+        const accountTotalAmount = record.account ? accountTotalAmountMap.get(record.account) : undefined;
+        let percentageText = '';
+        
+        if (accountTotalAmount && accountTotalAmount > 0) {
+          const percentage = (maxHolding / accountTotalAmount) * 100;
+          percentageText = ` (${percentage.toFixed(2)}%)`;
+        }
+        
+        return `$${maxHolding.toFixed(2)}${percentageText}`;
+      },
     },
     {
       title: (

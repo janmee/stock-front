@@ -10,6 +10,7 @@ import StrategyJobList from './components/StrategyJobList';
 import StrategyStockList from './components/StrategyStockList';
 import StrategyUserStockList from './components/StrategyUserStockList';
 import StrategyConfigTemplateManagement from './components/StrategyConfigTemplateManagement';
+import AccountFundAllocation from './components/AccountFundAllocation';
 import { PlusOutlined } from '@ant-design/icons';
 
 const TabPane = Tabs.TabPane;
@@ -91,6 +92,21 @@ const StrategyPage: React.FC = () => {
             onClearStrategy={clearSelectedStrategy}
           />
         </TabPane>
+
+        <TabPane 
+          tab="账户资金配比"
+          key="5"
+        >
+          <AccountFundAllocation />
+        </TabPane>
+
+        <TabPane 
+          tab="配置模版管理"
+          key="4"
+        >
+          <StrategyConfigTemplateManagement />
+        </TabPane>
+        
         
         <TabPane 
           tab={<FormattedMessage id="pages.strategy.tabs.strategyJob" defaultMessage="Strategy Jobs" />} 
@@ -102,12 +118,6 @@ const StrategyPage: React.FC = () => {
           />
         </TabPane>
         
-        <TabPane 
-          tab="配置模版管理"
-          key="4"
-        >
-          <StrategyConfigTemplateManagement />
-        </TabPane>
       </Tabs>
     </PageContainer>
   );
