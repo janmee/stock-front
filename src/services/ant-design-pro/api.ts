@@ -1369,6 +1369,23 @@ export async function updateStrategyStockOpeningBuy(
   });
 }
 
+export async function batchUpdateStrategyStockOpeningBuy(
+  params: {
+    ids: number[];
+    enableOpeningBuy: boolean;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.ApiResponse>('/api/strategy/stock/batch-opening-buy', {
+    method: 'POST',
+    data: {
+      ids: params.ids,
+      enableOpeningBuy: params.enableOpeningBuy,
+    },
+    ...(options || {}),
+  });
+}
+
 export async function updateStrategyUserStockStatus(
   params: {
     id: number;
@@ -1398,6 +1415,22 @@ export async function updateStrategyUserStockOpeningBuy(
   });
 }
 
+export async function batchUpdateStrategyUserStockOpeningBuy(
+  params: {
+    ids: number[];
+    enableOpeningBuy: boolean | null;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.ApiResponse>('/api/strategy/user-stock/batch-opening-buy', {
+    method: 'POST',
+    data: {
+      ids: params.ids,
+      enableOpeningBuy: params.enableOpeningBuy,
+    },
+    ...(options || {}),
+  });
+}
 
 /** 获取策略统计数据 GET /api/strategy-statistics/data */
 export async function getStrategyStatisticsData(params: {

@@ -1,5 +1,5 @@
 import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState } from 'react';
-import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select, DatePicker, Modal, Checkbox } from 'antd';
+import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select, DatePicker, Modal, Checkbox, Dropdown, Menu } from 'antd';
 import {
   ActionType,
   ModalForm,
@@ -14,7 +14,7 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { FormattedMessage, useIntl } from '@umijs/max';
-import { PlusOutlined, InfoCircleOutlined, FilterOutlined, CloseCircleOutlined, QuestionCircleOutlined, SaveOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { PlusOutlined, InfoCircleOutlined, FilterOutlined, CloseCircleOutlined, QuestionCircleOutlined, SaveOutlined, ThunderboltOutlined, DownOutlined } from '@ant-design/icons';
 import { 
   listStrategyUserStock, 
   createStrategyUserStock, 
@@ -25,6 +25,7 @@ import {
   updateStrategyUserStockStatus,
   updateStrategyUserStockSecondStage,
   updateStrategyUserStockOpeningBuy,
+  batchUpdateStrategyUserStockOpeningBuy,
   saveConfigTemplate,
   applyConfigTemplate,
   getConfigTemplateList,
@@ -375,6 +376,32 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     }
   };
 
+  // 批量更新策略用户股票关系开盘买入状态
+  const handleBatchUpdateOpeningBuy = async (enableOpeningBuy: boolean | null) => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要更新的记录');
+      return;
+    }
+
+    const hide = message.loading('批量更新中...');
+    
+    try {
+      const result = await batchUpdateStrategyUserStockOpeningBuy({ 
+        ids: selectedRowKeys as number[], 
+        enableOpeningBuy 
+      });
+      hide();
+      message.success(`已成功更新 ${selectedRowKeys.length} 条记录`);
+      setSelectedRowKeys([]);
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error('批量更新失败');
+      return false;
+    }
+  };
+
   // 加载模版列表
   const loadTemplates = async () => {
     try {
@@ -554,6 +581,21 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       title: <FormattedMessage id="pages.strategy.user.stockRelation.stockCode" defaultMessage="Stock Code" />,
       dataIndex: 'stockCode',
       sorter: true,
+      render: (text, record) => (
+        <a
+          onClick={() => {
+            // 跳转到策略标的页面，并传递参数以便自动打开编辑弹窗
+            if (record.strategyId && record.stockCode) {
+              // 使用 window.location.hash 或者路由跳转
+              const url = `/strategy?tab=2&strategyId=${record.strategyId}&editStockCode=${record.stockCode}`;
+              window.location.href = url;
+            }
+          }}
+          style={{ color: '#1890ff', cursor: 'pointer' }}
+        >
+          {text}
+        </a>
+      ),
     },
     {
       title: (
@@ -1065,6 +1107,33 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           >
             <ThunderboltOutlined /> 应用模版
           </Button>,
+          <Dropdown.Button
+            key="batch-opening-buy"
+            overlay={
+              <Menu
+                items={[
+                  {
+                    key: '1',
+                    label: '批量开启开盘买入',
+                    onClick: () => handleBatchUpdateOpeningBuy(true),
+                  },
+                  {
+                    key: '2',
+                    label: '批量关闭开盘买入',
+                    onClick: () => handleBatchUpdateOpeningBuy(false),
+                  },
+                  {
+                    key: '3',
+                    label: '批量设为策略默认',
+                    onClick: () => handleBatchUpdateOpeningBuy(null),
+                  },
+                ]}
+              />
+            }
+            disabled={selectedRowKeys.length === 0}
+          >
+            批量开盘买入
+          </Dropdown.Button>,
         ]}
         request={(params, sort, filter) => {
           // 添加策略ID作为过滤条件（如果有）

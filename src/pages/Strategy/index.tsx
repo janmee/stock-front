@@ -3,9 +3,9 @@ import {
   Tabs,
   message
 } from 'antd';
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
-import { FormattedMessage, useIntl } from '@umijs/max';
+import { FormattedMessage, useIntl, useLocation } from '@umijs/max';
 import StrategyJobList from './components/StrategyJobList';
 import StrategyStockList from './components/StrategyStockList';
 import StrategyUserStockList from './components/StrategyUserStockList';
@@ -20,6 +20,7 @@ const TabPane = Tabs.TabPane;
  */
 const StrategyPage: React.FC = () => {
   const intl = useIntl();
+  const location = useLocation();
   
   // 当前活动标签
   const [activeTab, setActiveTab] = useState<string>('3');
@@ -28,6 +29,9 @@ const StrategyPage: React.FC = () => {
   const [selectedStrategyId, setSelectedStrategyId] = useState<number | undefined>(undefined);
   const [selectedStrategyName, setSelectedStrategyName] = useState<string | undefined>(undefined);
   
+  // 编辑股票代码参数
+  const [editStockCode, setEditStockCode] = useState<string | undefined>(undefined);
+  
   // 策略任务列表引用，用于刷新列表
   const strategyJobListRef = useRef<any>();
   // 策略股票关系列表引用
@@ -35,9 +39,31 @@ const StrategyPage: React.FC = () => {
   // 策略用户股票关系列表引用
   const strategyUserStockListRef = useRef<any>();
   
+  // 处理URL参数
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const tab = urlParams.get('tab');
+    const strategyId = urlParams.get('strategyId');
+    const stockCode = urlParams.get('editStockCode');
+    
+    if (tab) {
+      setActiveTab(tab);
+    }
+    
+    if (strategyId) {
+      setSelectedStrategyId(parseInt(strategyId));
+    }
+    
+    if (stockCode) {
+      setEditStockCode(stockCode);
+    }
+  }, [location.search]);
+  
   // 处理标签切换
   const handleTabChange = (key: string) => {
     setActiveTab(key);
+    // 清除编辑参数
+    setEditStockCode(undefined);
   };
   
   // 当用户选择一个策略任务
@@ -90,6 +116,8 @@ const StrategyPage: React.FC = () => {
             strategyId={selectedStrategyId}
             strategyName={selectedStrategyName}
             onClearStrategy={clearSelectedStrategy}
+            editStockCode={editStockCode}
+            onEditComplete={() => setEditStockCode(undefined)}
           />
         </TabPane>
 

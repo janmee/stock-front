@@ -1,5 +1,5 @@
 import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState } from 'react';
-import { Button, message, Popconfirm, Select, Tooltip, Tag, Space, Switch, Input, InputNumber, Form, Modal } from 'antd';
+import { Button, message, Popconfirm, Select, Tooltip, Tag, Space, Switch, Input, InputNumber, Form, Modal, Dropdown, Menu } from 'antd';
 import {
   ActionType,
   ModalForm,
@@ -13,7 +13,7 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { FormattedMessage, useIntl } from '@umijs/max';
-import { PlusOutlined, InfoCircleOutlined, FilterOutlined, CloseCircleOutlined, QuestionCircleOutlined, MinusCircleOutlined, SaveOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { PlusOutlined, InfoCircleOutlined, FilterOutlined, CloseCircleOutlined, QuestionCircleOutlined, MinusCircleOutlined, SaveOutlined, ThunderboltOutlined, DownOutlined } from '@ant-design/icons';
 import { 
   listStrategyStock, 
   createStrategyStock, 
@@ -22,6 +22,7 @@ import {
   listStrategyJob,
   updateStrategyStockStatus,
   updateStrategyStockOpeningBuy,
+  batchUpdateStrategyStockOpeningBuy,
   saveConfigTemplate,
   applyConfigTemplate,
   getConfigTemplateList,
@@ -32,13 +33,15 @@ interface StrategyStockListProps {
   strategyId?: number;
   strategyName?: string;
   onClearStrategy?: () => void;
+  editStockCode?: string;
+  onEditComplete?: () => void;
 }
 
 /**
  * 策略股票关系列表组件
  */
 const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
-  const { strategyId, strategyName, onClearStrategy } = props;
+  const { strategyId, strategyName, onClearStrategy, editStockCode, onEditComplete } = props;
   const [createModalVisible, setCreateModalVisible] = useState<boolean>(false);
   const [updateModalVisible, setUpdateModalVisible] = useState<boolean>(false);
   const [currentRow, setCurrentRow] = useState<API.StrategyStockItem>();
@@ -361,6 +364,32 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     } catch (error) {
       hide();
       message.error('更新失败');
+      return false;
+    }
+  };
+
+  // 批量更新策略股票关系开盘买入状态
+  const handleBatchUpdateOpeningBuy = async (enableOpeningBuy: boolean) => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要更新的记录');
+      return;
+    }
+
+    const hide = message.loading('批量更新中...');
+    
+    try {
+      const result = await batchUpdateStrategyStockOpeningBuy({ 
+        ids: selectedRowKeys as number[], 
+        enableOpeningBuy 
+      });
+      hide();
+      message.success(`已成功更新 ${selectedRowKeys.length} 条记录`);
+      setSelectedRowKeys([]);
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error('批量更新失败');
       return false;
     }
   };
@@ -891,6 +920,54 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     return null;
   };
   
+  // 处理自动编辑逻辑
+  useEffect(() => {
+    if (editStockCode && strategyId) {
+      // 延迟执行，等待表格数据加载完成
+      const timer = setTimeout(async () => {
+        try {
+          // 获取策略股票列表
+          const response = await listStrategyStock({
+            current: 1,
+            pageSize: 1000,
+            strategyId: strategyId,
+            stockCode: editStockCode,
+          });
+          
+          if (response && response.data && response.data.length > 0) {
+            const targetRecord = response.data[0];
+            // 转换数据格式
+            const editItem = {
+              ...targetRecord,
+              profitRatio: targetRecord.profitRatio ? targetRecord.profitRatio * 100 : undefined,
+              levelPercent: targetRecord.levelPercent ? targetRecord.levelPercent * 100 : undefined,
+              maBelowPercent: targetRecord.maBelowPercent ? targetRecord.maBelowPercent * 100 : undefined,
+              maAbovePercent: targetRecord.maAbovePercent ? targetRecord.maAbovePercent * 100 : undefined,
+              intraUpPullbackPercent: targetRecord.intraUpPullbackPercent ? targetRecord.intraUpPullbackPercent * 100 : undefined,
+              intraDnBelowAvgPercent: targetRecord.intraDnBelowAvgPercent ? targetRecord.intraDnBelowAvgPercent * 100 : undefined,
+            };
+            
+            setCurrentRow(editItem);
+            setUpdateModalVisible(true);
+            message.success(`已自动打开股票 ${editStockCode} 的编辑弹窗`);
+          } else {
+            message.warning(`未找到策略下的股票 ${editStockCode} 的配置，请先在策略标的中添加该股票`);
+          }
+        } catch (error) {
+          console.error('自动打开编辑弹窗失败:', error);
+          message.error('自动打开编辑弹窗失败');
+        } finally {
+          // 无论成功失败都通知父组件编辑完成，清除URL参数
+          if (onEditComplete) {
+            onEditComplete();
+          }
+        }
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [editStockCode, strategyId, onEditComplete]);
+  
   return (
     <>
       {renderFilterTag()}
@@ -928,6 +1005,28 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           >
             <ThunderboltOutlined /> 应用模版
           </Button>,
+          <Dropdown.Button
+            key="batch-opening-buy"
+            overlay={
+              <Menu
+                items={[
+                  {
+                    key: '1',
+                    label: '批量开启开盘买入',
+                    onClick: () => handleBatchUpdateOpeningBuy(true),
+                  },
+                  {
+                    key: '2',
+                    label: '批量关闭开盘买入',
+                    onClick: () => handleBatchUpdateOpeningBuy(false),
+                  },
+                ]}
+              />
+            }
+            disabled={selectedRowKeys.length === 0}
+          >
+            批量开盘买入
+          </Dropdown.Button>,
         ]}
         request={(params, sort, filter) => {
           // 添加策略ID作为过滤条件（如果有）
