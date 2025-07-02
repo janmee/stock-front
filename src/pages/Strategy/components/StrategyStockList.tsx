@@ -23,6 +23,7 @@ import {
   updateStrategyStockStatus,
   updateStrategyStockOpeningBuy,
   batchUpdateStrategyStockOpeningBuy,
+  batchUpdateStrategyStockStatus,
   saveConfigTemplate,
   applyConfigTemplate,
   getConfigTemplateList,
@@ -968,6 +969,32 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     }
   }, [editStockCode, strategyId, onEditComplete]);
   
+  // 批量更新策略股票关系状态
+  const handleBatchUpdateStatus = async (status: string) => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要更新的记录');
+      return;
+    }
+
+    const hide = message.loading('批量更新状态中...');
+    
+    try {
+      const result = await batchUpdateStrategyStockStatus({ 
+        ids: selectedRowKeys as number[], 
+        status 
+      });
+      hide();
+      message.success(`已成功更新 ${selectedRowKeys.length} 条记录的状态`);
+      setSelectedRowKeys([]);
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error('批量更新状态失败');
+      return false;
+    }
+  };
+  
   return (
     <>
       {renderFilterTag()}
@@ -1026,6 +1053,28 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             disabled={selectedRowKeys.length === 0}
           >
             批量开盘买入
+          </Dropdown.Button>,
+          <Dropdown.Button
+            key="batch-status"
+            overlay={
+              <Menu
+                items={[
+                  {
+                    key: '1',
+                    label: '批量启用',
+                    onClick: () => handleBatchUpdateStatus('1'),
+                  },
+                  {
+                    key: '2',
+                    label: '批量禁用',
+                    onClick: () => handleBatchUpdateStatus('0'),
+                  },
+                ]}
+              />
+            }
+            disabled={selectedRowKeys.length === 0}
+          >
+            批量状态
           </Dropdown.Button>,
         ]}
         request={(params, sort, filter) => {

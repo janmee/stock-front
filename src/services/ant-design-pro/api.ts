@@ -1490,3 +1490,73 @@ export async function getConfigTemplateById(id: number) {
     method: 'GET',
   });
 }
+
+export async function batchUpdateStrategyStockStatus(
+  params: {
+    ids: number[];
+    status: string;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.ApiResponse>('/api/strategy/stock/batch-status', {
+    method: 'POST',
+    data: {
+      ids: params.ids,
+      status: params.status,
+    },
+    ...(options || {}),
+  });
+}
+
+export async function batchUpdateStrategyUserStockStatus(
+  params: {
+    ids: number[];
+    status: string;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.ApiResponse>('/api/strategy/user-stock/batch-status', {
+    method: 'POST',
+    data: {
+      ids: params.ids,
+      status: params.status,
+    },
+    ...(options || {}),
+  });
+}
+
+export async function batchUpdateStrategyUserStockProfitRatio(
+  params: {
+    ids: number[];
+    profitRatio: number;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.ApiResponse>('/api/strategy/user-stock/batch-profit-ratio', {
+    method: 'POST',
+    data: {
+      ids: params.ids,
+      profitRatio: params.profitRatio,
+    },
+    ...(options || {}),
+  });
+}
+
+export async function batchUpdateStrategyUserStockTime(
+  params: {
+    ids: number[];
+    startTime?: string;
+    endTime?: string;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.ApiResponse>('/api/strategy/user-stock/batch-time', {
+    method: 'POST',
+    data: {
+      ids: params.ids,
+      startTime: params.startTime,
+      endTime: params.endTime,
+    },
+    ...(options || {}),
+  });
+}

@@ -1,5 +1,5 @@
 import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState } from 'react';
-import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select, DatePicker, Modal, Checkbox, Dropdown, Menu } from 'antd';
+import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select, DatePicker, Modal, Checkbox, Dropdown, Menu, InputNumber, Input } from 'antd';
 import {
   ActionType,
   ModalForm,
@@ -26,6 +26,9 @@ import {
   updateStrategyUserStockSecondStage,
   updateStrategyUserStockOpeningBuy,
   batchUpdateStrategyUserStockOpeningBuy,
+  batchUpdateStrategyUserStockStatus,
+  batchUpdateStrategyUserStockProfitRatio,
+  batchUpdateStrategyUserStockTime,
   saveConfigTemplate,
   applyConfigTemplate,
   getConfigTemplateList,
@@ -58,6 +61,10 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
   const [templateInitialValues, setTemplateInitialValues] = useState<any>({});
   const [strategyStockMap, setStrategyStockMap] = useState<Map<string, API.StrategyStockItem>>(new Map());
   const [accountTotalAmountMap, setAccountTotalAmountMap] = useState<Map<string, number>>(new Map());
+  const [batchTimeModalVisible, setBatchTimeModalVisible] = useState<boolean>(false);
+  const [batchTimeType, setBatchTimeType] = useState<'start' | 'end' | 'both'>('start');
+  const [batchStartTime, setBatchStartTime] = useState<string>('10:00');
+  const [batchEndTime, setBatchEndTime] = useState<string>('16:00');
   const actionRef = useRef<ActionType>();
   const createFormRef = useRef<any>();
   const updateFormRef = useRef<any>();
@@ -400,6 +407,106 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       message.error('批量更新失败');
       return false;
     }
+  };
+
+  // 批量更新策略用户股票关系状态
+  const handleBatchUpdateStatus = async (status: string) => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要更新的记录');
+      return;
+    }
+
+    const hide = message.loading('批量更新状态中...');
+    
+    try {
+      const result = await batchUpdateStrategyUserStockStatus({ 
+        ids: selectedRowKeys as number[], 
+        status 
+      });
+      hide();
+      message.success(`已成功更新 ${selectedRowKeys.length} 条记录的状态`);
+      setSelectedRowKeys([]);
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error('批量更新状态失败');
+      return false;
+    }
+  };
+
+  // 批量更新策略用户股票关系盈利比例
+  const handleBatchUpdateProfitRatio = async (profitRatio: number) => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要更新的记录');
+      return;
+    }
+
+    const hide = message.loading('批量更新盈利比例中...');
+    
+    try {
+      // 将百分比转换为小数
+      const profitRatioDecimal = profitRatio / 100;
+      const result = await batchUpdateStrategyUserStockProfitRatio({ 
+        ids: selectedRowKeys as number[], 
+        profitRatio: profitRatioDecimal 
+      });
+      hide();
+      message.success(`已成功更新 ${selectedRowKeys.length} 条记录的盈利比例为 ${profitRatio}%`);
+      setSelectedRowKeys([]);
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error('批量更新盈利比例失败');
+      return false;
+    }
+  };
+
+  // 批量更新策略用户股票关系开始结束时间
+  const handleBatchUpdateTime = async (startTime?: string, endTime?: string) => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要更新的记录');
+      return;
+    }
+
+    if (!startTime && !endTime) {
+      message.warning('请至少设置开始时间或结束时间');
+      return;
+    }
+
+    try {
+      const ids = selectedRowKeys.map(key => Number(key));
+      await batchUpdateStrategyUserStockTime({
+        ids,
+        startTime,
+        endTime,
+      });
+      message.success('批量更新时间成功');
+      actionRef.current?.reload();
+      setSelectedRowKeys([]);
+    } catch (error) {
+      console.error('批量更新时间失败:', error);
+      message.error('批量更新时间失败');
+    }
+  };
+
+  // 处理批量时间设置确认
+  const handleBatchTimeConfirm = () => {
+    let startTime: string | undefined;
+    let endTime: string | undefined;
+    
+    if (batchTimeType === 'start') {
+      startTime = batchStartTime;
+    } else if (batchTimeType === 'end') {
+      endTime = batchEndTime;
+    } else {
+      startTime = batchStartTime;
+      endTime = batchEndTime;
+    }
+    
+    handleBatchUpdateTime(startTime, endTime);
+    setBatchTimeModalVisible(false);
   };
 
   // 加载模版列表
@@ -1133,6 +1240,110 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             disabled={selectedRowKeys.length === 0}
           >
             批量开盘买入
+          </Dropdown.Button>,
+          <Dropdown.Button
+            key="batch-status"
+            overlay={
+              <Menu
+                items={[
+                  {
+                    key: '1',
+                    label: '批量启用',
+                    onClick: () => handleBatchUpdateStatus('1'),
+                  },
+                  {
+                    key: '2',
+                    label: '批量禁用',
+                    onClick: () => handleBatchUpdateStatus('0'),
+                  },
+                ]}
+              />
+            }
+            disabled={selectedRowKeys.length === 0}
+          >
+            批量状态
+          </Dropdown.Button>,
+          <Dropdown.Button
+            key="batch-config"
+            overlay={
+              <Menu
+                items={[
+                  {
+                    key: '1',
+                    label: '批量设置盈利比例',
+                    onClick: () => {
+                      if (selectedRowKeys.length === 0) {
+                        message.warning('请先选择要更新的记录');
+                        return;
+                      }
+                      
+                      let profitRatio = 1.5;
+                      Modal.confirm({
+                        title: '批量设置盈利比例',
+                        content: (
+                          <div style={{ marginTop: 16 }}>
+                            <span>盈利比例（%）：</span>
+                            <InputNumber
+                              defaultValue={1.5}
+                              min={0.1}
+                              max={100}
+                              step={0.1}
+                              precision={2}
+                              style={{ width: 120, marginLeft: 8 }}
+                              onChange={(value) => {
+                                profitRatio = value || 1.5;
+                              }}
+                            />
+                          </div>
+                        ),
+                        onOk: () => handleBatchUpdateProfitRatio(profitRatio),
+                        okText: '确定',
+                        cancelText: '取消',
+                      });
+                    },
+                  },
+                  {
+                    key: '2',
+                    label: '批量设置开始时间',
+                    onClick: () => {
+                      if (selectedRowKeys.length === 0) {
+                        message.warning('请先选择要更新的记录');
+                        return;
+                      }
+                      setBatchTimeType('start');
+                      setBatchTimeModalVisible(true);
+                    },
+                  },
+                  {
+                    key: '3',
+                    label: '批量设置结束时间',
+                    onClick: () => {
+                      if (selectedRowKeys.length === 0) {
+                        message.warning('请先选择要更新的记录');
+                        return;
+                      }
+                      setBatchTimeType('end');
+                      setBatchTimeModalVisible(true);
+                    },
+                  },
+                  {
+                    key: '4',
+                    label: '批量设置开始结束时间',
+                    onClick: () => {
+                      if (selectedRowKeys.length === 0) {
+                        message.warning('请先选择要更新的记录');
+                        return;
+                      }
+                      setBatchTimeType('both');
+                      setBatchTimeModalVisible(true);
+                    },
+                  },
+                ]}
+              />
+            }
+            disabled={selectedRowKeys.length === 0}
+          >
+            批量配置
           </Dropdown.Button>,
         ]}
         request={(params, sort, filter) => {
@@ -1868,6 +2079,48 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         
         <div style={{ color: '#666', fontSize: '12px' }}>
           将应用到 {selectedRowKeys.length} 个选中的配置
+        </div>
+      </Modal>
+
+      {/* 批量时间设置Modal */}
+      <Modal
+        title={
+          batchTimeType === 'start' ? '批量设置开始时间' :
+          batchTimeType === 'end' ? '批量设置结束时间' :
+          '批量设置开始结束时间'
+        }
+        open={batchTimeModalVisible}
+        onCancel={() => setBatchTimeModalVisible(false)}
+        onOk={handleBatchTimeConfirm}
+        okText="确定"
+        cancelText="取消"
+      >
+        <div style={{ marginTop: 16 }}>
+          {(batchTimeType === 'start' || batchTimeType === 'both') && (
+            <div style={{ marginBottom: batchTimeType === 'both' ? 12 : 0 }}>
+              <span>开始时间：</span>
+              <Input
+                value={batchStartTime}
+                style={{ width: 120, marginLeft: 8 }}
+                placeholder="HH:mm"
+                onChange={(e) => setBatchStartTime(e.target.value)}
+              />
+            </div>
+          )}
+          {(batchTimeType === 'end' || batchTimeType === 'both') && (
+            <div>
+              <span>结束时间：</span>
+              <Input
+                value={batchEndTime}
+                style={{ width: 120, marginLeft: 8 }}
+                placeholder="HH:mm"
+                onChange={(e) => setBatchEndTime(e.target.value)}
+              />
+            </div>
+          )}
+        </div>
+        <div style={{ color: '#666', fontSize: '12px', marginTop: 16 }}>
+          将更新 {selectedRowKeys.length} 个选中的记录
         </div>
       </Modal>
     </>
