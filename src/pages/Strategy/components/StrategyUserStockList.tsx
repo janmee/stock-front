@@ -23,12 +23,15 @@ import {
   listAccount,
   listStrategyJob,
   updateStrategyUserStockStatus,
-  updateStrategyUserStockSecondStage,
   updateStrategyUserStockOpeningBuy,
   batchUpdateStrategyUserStockOpeningBuy,
+  updateStrategyUserStockSecondStage,
   batchUpdateStrategyUserStockStatus,
   batchUpdateStrategyUserStockProfitRatio,
   batchUpdateStrategyUserStockTime,
+  batchUpdateStrategyUserStockUnsoldStackLimit,
+  batchUpdateStrategyUserStockLimitStartShares,
+  batchUpdateStrategyUserStockTotalFundShares,
   saveConfigTemplate,
   applyConfigTemplate,
   getConfigTemplateList,
@@ -65,6 +68,12 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
   const [batchTimeType, setBatchTimeType] = useState<'start' | 'end' | 'both'>('start');
   const [batchStartTime, setBatchStartTime] = useState<string>('10:00');
   const [batchEndTime, setBatchEndTime] = useState<string>('16:00');
+  const [batchUnsoldStackLimit, setBatchUnsoldStackLimit] = useState<number>(5);
+  const [batchLimitStartShares, setBatchLimitStartShares] = useState<number>(9);
+  const [batchTotalFundShares, setBatchTotalFundShares] = useState<number>(18);
+  const [batchUnsoldStackModalVisible, setBatchUnsoldStackModalVisible] = useState<boolean>(false);
+  const [batchLimitStartModalVisible, setBatchLimitStartModalVisible] = useState<boolean>(false);
+  const [batchTotalFundModalVisible, setBatchTotalFundModalVisible] = useState<boolean>(false);
   const actionRef = useRef<ActionType>();
   const createFormRef = useRef<any>();
   const updateFormRef = useRef<any>();
@@ -496,17 +505,84 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     let startTime: string | undefined;
     let endTime: string | undefined;
     
-    if (batchTimeType === 'start') {
+    if (batchTimeType === 'start' || batchTimeType === 'both') {
       startTime = batchStartTime;
-    } else if (batchTimeType === 'end') {
-      endTime = batchEndTime;
-    } else {
-      startTime = batchStartTime;
+    }
+    if (batchTimeType === 'end' || batchTimeType === 'both') {
       endTime = batchEndTime;
     }
     
     handleBatchUpdateTime(startTime, endTime);
     setBatchTimeModalVisible(false);
+  };
+
+  // 批量更新未卖出堆栈值
+  const handleBatchUpdateUnsoldStackLimit = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要更新的记录');
+      return;
+    }
+
+    try {
+      const ids = selectedRowKeys.map(key => Number(key));
+      await batchUpdateStrategyUserStockUnsoldStackLimit({
+        ids,
+        unsoldStackLimit: batchUnsoldStackLimit,
+      });
+      message.success('批量更新未卖出堆栈值成功');
+      actionRef.current?.reload();
+      setSelectedRowKeys([]);
+      setBatchUnsoldStackModalVisible(false);
+    } catch (error) {
+      console.error('批量更新未卖出堆栈值失败:', error);
+      message.error('批量更新未卖出堆栈值失败');
+    }
+  };
+
+  // 批量更新限制开始份数
+  const handleBatchUpdateLimitStartShares = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要更新的记录');
+      return;
+    }
+
+    try {
+      const ids = selectedRowKeys.map(key => Number(key));
+      await batchUpdateStrategyUserStockLimitStartShares({
+        ids,
+        limitStartShares: batchLimitStartShares,
+      });
+      message.success('批量更新限制开始份数成功');
+      actionRef.current?.reload();
+      setSelectedRowKeys([]);
+      setBatchLimitStartModalVisible(false);
+    } catch (error) {
+      console.error('批量更新限制开始份数失败:', error);
+      message.error('批量更新限制开始份数失败');
+    }
+  };
+
+  // 批量更新最大持有买入单数
+  const handleBatchUpdateTotalFundShares = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要更新的记录');
+      return;
+    }
+
+    try {
+      const ids = selectedRowKeys.map(key => Number(key));
+      await batchUpdateStrategyUserStockTotalFundShares({
+        ids,
+        totalFundShares: batchTotalFundShares,
+      });
+      message.success('批量更新最大持有买入单数成功');
+      actionRef.current?.reload();
+      setSelectedRowKeys([]);
+      setBatchTotalFundModalVisible(false);
+    } catch (error) {
+      console.error('批量更新最大持有买入单数失败:', error);
+      message.error('批量更新最大持有买入单数失败');
+    }
   };
 
   // 加载模版列表
@@ -1338,6 +1414,39 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                       setBatchTimeModalVisible(true);
                     },
                   },
+                  {
+                    key: '5',
+                    label: '批量设置未卖出堆栈值',
+                    onClick: () => {
+                      if (selectedRowKeys.length === 0) {
+                        message.warning('请先选择要更新的记录');
+                        return;
+                      }
+                      setBatchUnsoldStackModalVisible(true);
+                    },
+                  },
+                  {
+                    key: '6',
+                    label: '批量设置限制开始份数',
+                    onClick: () => {
+                      if (selectedRowKeys.length === 0) {
+                        message.warning('请先选择要更新的记录');
+                        return;
+                      }
+                      setBatchLimitStartModalVisible(true);
+                    },
+                  },
+                  {
+                    key: '7',
+                    label: '批量设置最大持有买入单数',
+                    onClick: () => {
+                      if (selectedRowKeys.length === 0) {
+                        message.warning('请先选择要更新的记录');
+                        return;
+                      }
+                      setBatchTotalFundModalVisible(true);
+                    },
+                  },
                 ]}
               />
             }
@@ -2118,6 +2227,96 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               />
             </div>
           )}
+        </div>
+        <div style={{ color: '#666', fontSize: '12px', marginTop: 16 }}>
+          将更新 {selectedRowKeys.length} 个选中的记录
+        </div>
+      </Modal>
+
+      {/* 批量设置未卖出堆栈值Modal */}
+      <Modal
+        title="批量设置未卖出堆栈值"
+        open={batchUnsoldStackModalVisible}
+        onCancel={() => setBatchUnsoldStackModalVisible(false)}
+        onOk={() => {
+          handleBatchUpdateUnsoldStackLimit();
+          setBatchUnsoldStackModalVisible(false);
+        }}
+        okText="确定"
+        cancelText="取消"
+      >
+        <div style={{ marginTop: 16 }}>
+          <span>未卖出堆栈值：</span>
+          <InputNumber
+            value={batchUnsoldStackLimit}
+            min={1}
+            step={1}
+            style={{ width: 120, marginLeft: 8 }}
+            onChange={(value) => setBatchUnsoldStackLimit(value || 5)}
+          />
+          <div style={{ fontSize: '12px', color: '#666', marginTop: 8 }}>
+            限制当天同一股票在同一策略下最多允许的未卖出买入订单数（必须为正数）
+          </div>
+        </div>
+        <div style={{ color: '#666', fontSize: '12px', marginTop: 16 }}>
+          将更新 {selectedRowKeys.length} 个选中的记录
+        </div>
+      </Modal>
+
+      {/* 批量设置限制开始份数Modal */}
+      <Modal
+        title="批量设置限制开始份数"
+        open={batchLimitStartModalVisible}
+        onCancel={() => setBatchLimitStartModalVisible(false)}
+        onOk={() => {
+          handleBatchUpdateLimitStartShares();
+          setBatchLimitStartModalVisible(false);
+        }}
+        okText="确定"
+        cancelText="取消"
+      >
+        <div style={{ marginTop: 16 }}>
+          <span>限制开始份数：</span>
+          <InputNumber
+            value={batchLimitStartShares}
+            min={1}
+            step={1}
+            style={{ width: 120, marginLeft: 8 }}
+            onChange={(value) => setBatchLimitStartShares(value || 9)}
+          />
+          <div style={{ fontSize: '12px', color: '#666', marginTop: 8 }}>
+            从第几份开始限制买入，默认为9（必须为正数）
+          </div>
+        </div>
+        <div style={{ color: '#666', fontSize: '12px', marginTop: 16 }}>
+          将更新 {selectedRowKeys.length} 个选中的记录
+        </div>
+      </Modal>
+
+      {/* 批量设置最大持有买入单数Modal */}
+      <Modal
+        title="批量设置最大持有买入单数"
+        open={batchTotalFundModalVisible}
+        onCancel={() => setBatchTotalFundModalVisible(false)}
+        onOk={() => {
+          handleBatchUpdateTotalFundShares();
+          setBatchTotalFundModalVisible(false);
+        }}
+        okText="确定"
+        cancelText="取消"
+      >
+        <div style={{ marginTop: 16 }}>
+          <span>最大持有买入单数：</span>
+          <InputNumber
+            value={batchTotalFundShares}
+            min={1}
+            step={1}
+            style={{ width: 120, marginLeft: 8 }}
+            onChange={(value) => setBatchTotalFundShares(value || 18)}
+          />
+          <div style={{ fontSize: '12px', color: '#666', marginTop: 8 }}>
+            资金分成多少份用于买入，默认18份（必须为正数）
+          </div>
         </div>
         <div style={{ color: '#666', fontSize: '12px', marginTop: 16 }}>
           将更新 {selectedRowKeys.length} 个选中的记录

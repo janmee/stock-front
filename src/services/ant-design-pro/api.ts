@@ -147,6 +147,19 @@ export async function cancelAllPendingOrders() {
   });
 }
 
+// 撤销全部等待成交的卖出订单
+export async function cancelAllPendingSellOrders() {
+  return request<API.Response<{
+    totalCount: number;
+    successCount: number;
+    failedCount: number;
+    failedOrders: string[];
+    message: string;
+  }>>('/api/orderInfo/cancelAllPendingSellOrders', {
+    method: 'POST',
+  });
+}
+
 /** 获取历史价格 GET /api/listHistoryPrices */
 export async function listHistoryPrices(
   params: {
@@ -1552,11 +1565,64 @@ export async function batchUpdateStrategyUserStockTime(
 ) {
   return request<API.ApiResponse>('/api/strategy/user-stock/batch-time', {
     method: 'POST',
-    data: {
-      ids: params.ids,
-      startTime: params.startTime,
-      endTime: params.endTime,
+    headers: {
+      'Content-Type': 'application/json',
     },
+    data: params,
+    ...(options || {}),
+  });
+}
+
+/** 批量更新策略用户股票关系的未卖出堆栈值 */
+export async function batchUpdateStrategyUserStockUnsoldStackLimit(
+  params: {
+    ids: number[];
+    unsoldStackLimit: number;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.ApiResponse>('/api/strategy/user-stock/batch-unsold-stack-limit', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: params,
+    ...(options || {}),
+  });
+}
+
+/** 批量更新策略用户股票关系的限制开始份数 */
+export async function batchUpdateStrategyUserStockLimitStartShares(
+  params: {
+    ids: number[];
+    limitStartShares: number;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.ApiResponse>('/api/strategy/user-stock/batch-limit-start-shares', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: params,
+    ...(options || {}),
+  });
+}
+
+/** 批量更新策略用户股票关系的最大持有买入单数 */
+export async function batchUpdateStrategyUserStockTotalFundShares(
+  params: {
+    ids: number[];
+    totalFundShares: number;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.ApiResponse>('/api/strategy/user-stock/batch-total-fund-shares', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: params,
     ...(options || {}),
   });
 }
