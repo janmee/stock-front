@@ -92,6 +92,47 @@ const StrategyPage: React.FC = () => {
     }
   };
   
+  // 处理股票点击事件
+  const handleStockClick = async (strategyId: number, stockCode: string) => {
+    try {
+      // 获取策略名称
+      const strategyRes = await import('@/services/ant-design-pro/api').then(api => 
+        api.listStrategyJob({
+          current: 1,
+          pageSize: 100,
+        })
+      );
+      
+      let strategyName: string = '';
+      if (strategyRes && strategyRes.data) {
+        const strategy = strategyRes.data.find((item: any) => item.id === strategyId);
+        if (strategy) {
+          strategyName = strategy.name || '';
+        }
+      }
+      
+      // 设置策略ID、策略名称和股票代码
+      setSelectedStrategyId(strategyId);
+      setSelectedStrategyName(strategyName || `策略${strategyId}`);
+      setEditStockCode(stockCode);
+      
+      // 切换到策略标的tab
+      setActiveTab('2');
+      
+      // 给一点时间让组件渲染完成，然后通知StrategyStockList组件
+      setTimeout(() => {
+        if (strategyStockListRef.current) {
+          strategyStockListRef.current.reload();
+        }
+      }, 100);
+      
+      message.success(`已切换到策略标的页面，正在编辑股票 ${stockCode}`);
+    } catch (error) {
+      console.error('获取策略信息失败:', error);
+      message.error('获取策略信息失败');
+    }
+  };
+  
   return (
     <PageContainer>
       <Tabs activeKey={activeTab} onChange={handleTabChange}>
@@ -104,6 +145,7 @@ const StrategyPage: React.FC = () => {
             strategyId={selectedStrategyId}
             strategyName={selectedStrategyName}
             onClearStrategy={clearSelectedStrategy}
+            onStockClick={handleStockClick}
           />
         </TabPane>
         

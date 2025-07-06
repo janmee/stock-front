@@ -46,13 +46,14 @@ interface StrategyUserStockListProps {
   strategyId?: number;
   strategyName?: string;
   onClearStrategy?: () => void;
+  onStockClick?: (strategyId: number, stockCode: string) => void;
 }
 
 /**
  * 策略用户股票关系列表组件
  */
 const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref) => {
-  const { strategyId, strategyName, onClearStrategy } = props;
+  const { strategyId, strategyName, onClearStrategy, onStockClick } = props;
   const [createModalVisible, setCreateModalVisible] = useState<boolean>(false);
   const [batchCreateModalVisible, setBatchCreateModalVisible] = useState<boolean>(false);
   const [updateModalVisible, setUpdateModalVisible] = useState<boolean>(false);
@@ -1044,11 +1045,9 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       render: (text, record) => (
         <a
           onClick={() => {
-            // 跳转到策略标的页面，并传递参数以便自动打开编辑弹窗
-            if (record.strategyId && record.stockCode) {
-              // 使用 window.location.hash 或者路由跳转
-              const url = `/strategy?tab=2&strategyId=${record.strategyId}&editStockCode=${record.stockCode}`;
-              window.location.href = url;
+            // 通过回调函数通知父组件切换tab
+            if (record.strategyId && record.stockCode && onStockClick) {
+              onStockClick(record.strategyId, record.stockCode);
             }
           }}
           style={{ color: '#1890ff', cursor: 'pointer' }}
