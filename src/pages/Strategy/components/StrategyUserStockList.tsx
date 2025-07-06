@@ -1,5 +1,5 @@
-import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState } from 'react';
-import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select, DatePicker, Modal, Checkbox, Dropdown, Menu, InputNumber, Input } from 'antd';
+import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState, useMemo } from 'react';
+import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select, DatePicker, Modal, Checkbox, Dropdown, Menu, InputNumber, Input, Card, Statistic, Row, Col } from 'antd';
 import {
   ActionType,
   ModalForm,
@@ -12,12 +12,14 @@ import {
   ProFormSwitch,
   ProFormDatePicker,
   ProTable,
+  ProFormList,
 } from '@ant-design/pro-components';
 import { FormattedMessage, useIntl } from '@umijs/max';
 import { PlusOutlined, InfoCircleOutlined, FilterOutlined, CloseCircleOutlined, QuestionCircleOutlined, SaveOutlined, ThunderboltOutlined, DownOutlined } from '@ant-design/icons';
 import { 
   listStrategyUserStock, 
   createStrategyUserStock, 
+  batchCreateStrategyUserStock,
   updateStrategyUserStock, 
   deleteStrategyUserStock,
   listAccount,
@@ -52,6 +54,7 @@ interface StrategyUserStockListProps {
 const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref) => {
   const { strategyId, strategyName, onClearStrategy } = props;
   const [createModalVisible, setCreateModalVisible] = useState<boolean>(false);
+  const [batchCreateModalVisible, setBatchCreateModalVisible] = useState<boolean>(false);
   const [updateModalVisible, setUpdateModalVisible] = useState<boolean>(false);
   const [currentRow, setCurrentRow] = useState<API.StrategyUserStockItem>();
   const [strategyOptions, setStrategyOptions] = useState<{label: string, value: number}[]>([]);
@@ -74,10 +77,15 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
   const [batchUnsoldStackModalVisible, setBatchUnsoldStackModalVisible] = useState<boolean>(false);
   const [batchLimitStartModalVisible, setBatchLimitStartModalVisible] = useState<boolean>(false);
   const [batchTotalFundModalVisible, setBatchTotalFundModalVisible] = useState<boolean>(false);
+  const [selectedAccountsInfo, setSelectedAccountsInfo] = useState<API.AccountInfo[]>([]);
+  const [selectedAccountsStocks, setSelectedAccountsStocks] = useState<API.StrategyUserStockItem[]>([]);
+  const [currentTableData, setCurrentTableData] = useState<API.StrategyUserStockItem[]>([]);
   const actionRef = useRef<ActionType>();
   const createFormRef = useRef<any>();
+  const batchCreateFormRef = useRef<any>();
   const updateFormRef = useRef<any>();
   const saveTemplateFormRef = useRef<any>();
+  const searchFormRef = useRef<any>();
   const intl = useIntl();
   
   // 公开刷新方法
@@ -282,6 +290,92 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     } catch (error) {
       hide();
       message.error(intl.formatMessage({ id: 'pages.message.createFailed' }));
+      return false;
+    }
+  };
+
+  // 批量创建策略用户股票关系
+  const handleBatchCreate = async (fields: any) => {
+    const hide = message.loading('正在批量创建...');
+    
+    try {
+      // 如果有选择策略，则使用选定的策略ID和名称
+      if (strategyId) {
+        fields.strategyId = strategyId;
+        fields.strategyName = strategyName;
+      }
+      // 如果没有预选策略，检查表单中是否有策略选择
+      else if (fields.strategyId) {
+        // 表单中的strategyName应该已经通过onChange事件设置了
+        if (!fields.strategyName) {
+          // 如果没有策略名称，从策略选项中查找
+          const strategyOption = strategyOptions.find(option => option.value === fields.strategyId);
+          if (strategyOption) {
+            fields.strategyName = strategyOption.label.split(' (ID:')[0]; // 提取策略名称
+          }
+        }
+      }
+      
+      // 处理股票代码数组 - 从ProFormList的格式转换为字符串数组
+      if (fields.stockCodes && Array.isArray(fields.stockCodes)) {
+        fields.stockCodes = fields.stockCodes
+          .map((item: any) => item.code || item)
+          .filter((code: string) => code && code.trim())
+          .map((code: string) => code.trim().toUpperCase());
+      }
+      
+      // 将百分比值转换为小数
+      if (fields.fundPercent) {
+        fields.fundPercent = fields.fundPercent / 100;
+      }
+      
+      // 将盈利比例百分比值转换为小数
+      if (fields.profitRatio) {
+        fields.profitRatio = fields.profitRatio / 100;
+      }
+      
+      // 处理开盘买入字段
+      if (fields.enableOpeningBuy === 'true') {
+        fields.enableOpeningBuy = true;
+      } else if (fields.enableOpeningBuy === 'false') {
+        fields.enableOpeningBuy = false;
+      } else {
+        fields.enableOpeningBuy = undefined;
+      }
+      
+      // 根据设置的字段设置相应的null值
+      if (fields.maxAmount && fields.maxAmount > 0) {
+        // 如果设置了最大金额，将资金百分比设为undefined
+        fields.fundPercent = undefined;
+      } else if (fields.fundPercent && fields.fundPercent > 0) {
+        // 如果设置了资金百分比，将最大金额设为undefined
+        fields.maxAmount = undefined;
+      }
+      
+      const result = await batchCreateStrategyUserStock(fields);
+      hide();
+      
+      if (result && result.data) {
+        const { successCount, failureCount, errorMessages } = result.data;
+        
+        if (failureCount > 0) {
+          message.warning(
+            `批量创建完成！成功：${successCount}，失败：${failureCount}。${
+              errorMessages.length > 0 ? `错误信息：${errorMessages.join('; ')}` : ''
+            }`
+          );
+        } else {
+          message.success(`批量创建成功！共创建 ${successCount} 条记录。`);
+        }
+      } else {
+        message.success('批量创建成功！');
+      }
+      
+      actionRef.current?.reload();
+      return true;
+    } catch (error: any) {
+      hide();
+      message.error(`批量创建失败：${error.message || '未知错误'}`);
       return false;
     }
   };
@@ -719,6 +813,160 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     setSelectedRowKeys([record.id!]);
   };
 
+  // 处理用户账号选择后的自动查询
+  const handleAccountsChange = async (selectedAccounts: string[]) => {
+    if (!selectedAccounts || selectedAccounts.length === 0) {
+      setSelectedAccountsInfo([]);
+      setSelectedAccountsStocks([]);
+      return;
+    }
+
+    try {
+      // 查询选中账户的详细信息
+      const accountDetailRes = await listAccountInfo({
+        current: 1,
+        pageSize: 1000,
+      }, {});
+      
+      if (accountDetailRes && accountDetailRes.data) {
+        const selectedAccountsData = accountDetailRes.data.filter((account: API.AccountInfo) => 
+          selectedAccounts.includes(account.account)
+        );
+        setSelectedAccountsInfo(selectedAccountsData);
+      }
+
+      // 查询选中账户已有的股票配置
+      const userStockPromises = selectedAccounts.map(account => 
+        listStrategyUserStock({
+          current: 1,
+          pageSize: 1000,
+          account: account,
+        })
+      );
+      
+      const userStockResults = await Promise.all(userStockPromises);
+      const allUserStocks: API.StrategyUserStockItem[] = [];
+      
+      userStockResults.forEach(result => {
+        if (result && result.data) {
+          allUserStocks.push(...result.data);
+        }
+      });
+      
+      setSelectedAccountsStocks(allUserStocks);
+    } catch (error) {
+      console.error('查询账户信息失败:', error);
+      message.error('查询账户信息失败');
+    }
+  };
+
+  // 计算汇总数据
+  const calculateSummaryData = () => {
+    let totalSingleAmount = 0;
+    let totalDailyMaxHolding = 0;
+    let totalMaxHolding = 0;
+
+    currentTableData.forEach(record => {
+      const strategyStockConfig = getStrategyStockConfig(record.strategyId, record.stockCode);
+      const buyRatioConfig = parseBuyRatioConfig(strategyStockConfig?.buyRatioConfig);
+      
+      // 计算单次资金
+      const singleAmount = calculateSingleAmount(record, buyRatioConfig);
+      totalSingleAmount += singleAmount;
+      
+      // 计算单天最大持有资金
+      const dailyMaxHolding = calculateDailyMaxHolding(record, singleAmount);
+      totalDailyMaxHolding += dailyMaxHolding;
+      
+      // 计算最大持有资金
+      const maxHolding = calculateMaxHolding(record, buyRatioConfig, singleAmount);
+      totalMaxHolding += maxHolding;
+    });
+
+    return {
+      totalSingleAmount,
+      totalDailyMaxHolding,
+      totalMaxHolding,
+      recordCount: currentTableData.length,
+    };
+  };
+
+  // 使用useMemo优化汇总数据计算
+  const summaryData = useMemo(() => {
+    let totalSingleAmount = 0;
+    let totalDailyMaxHolding = 0;
+    let totalMaxHolding = 0;
+    const accountsSet = new Set<string>();
+    const stockAmountMap = new Map<string, number>(); // 股票代码 -> 总资金
+
+    currentTableData.forEach(record => {
+      const strategyStockConfig = getStrategyStockConfig(record.strategyId, record.stockCode);
+      const buyRatioConfig = parseBuyRatioConfig(strategyStockConfig?.buyRatioConfig);
+      
+      // 计算单次资金
+      const singleAmount = calculateSingleAmount(record, buyRatioConfig);
+      totalSingleAmount += singleAmount;
+      
+      // 计算单天最大持有资金
+      const dailyMaxHolding = calculateDailyMaxHolding(record, singleAmount);
+      totalDailyMaxHolding += dailyMaxHolding;
+      
+      // 计算最大持有资金
+      const maxHolding = calculateMaxHolding(record, buyRatioConfig, singleAmount);
+      totalMaxHolding += maxHolding;
+      
+      // 收集账户信息
+      if (record.account) {
+        accountsSet.add(record.account);
+      }
+      
+      // 统计每个股票的资金占用（使用最大持有资金）
+      if (record.stockCode) {
+        const currentAmount = stockAmountMap.get(record.stockCode) || 0;
+        stockAmountMap.set(record.stockCode, currentAmount + maxHolding);
+      }
+    });
+
+    // 计算所有涉及账户的总资金
+    let totalAccountAmount = 0;
+    accountsSet.forEach(account => {
+      const accountAmount = accountTotalAmountMap.get(account) || 0;
+      totalAccountAmount += accountAmount;
+    });
+
+    // 计算占比
+    const singleAmountRatio = totalAccountAmount > 0 ? (totalSingleAmount / totalAccountAmount) * 100 : 0;
+    const dailyMaxHoldingRatio = totalAccountAmount > 0 ? (totalDailyMaxHolding / totalAccountAmount) * 100 : 0;
+    const maxHoldingRatio = totalAccountAmount > 0 ? (totalMaxHolding / totalAccountAmount) * 100 : 0;
+
+    // 找出资金占用最大的股票
+    let maxStockCode = '';
+    let maxStockAmount = 0;
+    let maxStockRatio = 0;
+    
+    stockAmountMap.forEach((amount, stockCode) => {
+      if (amount > maxStockAmount) {
+        maxStockAmount = amount;
+        maxStockCode = stockCode;
+        maxStockRatio = totalAccountAmount > 0 ? (amount / totalAccountAmount) * 100 : 0;
+      }
+    });
+
+    return {
+      totalSingleAmount,
+      totalDailyMaxHolding,
+      totalMaxHolding,
+      totalAccountAmount,
+      singleAmountRatio,
+      dailyMaxHoldingRatio,
+      maxHoldingRatio,
+      recordCount: currentTableData.length,
+      accountCount: accountsSet.size,
+      maxStockCode,
+      maxStockRatio,
+    };
+  }, [currentTableData, strategyStockMap, accountTotalAmountMap]);
+
   // 表格列定义
   const columns: ProColumns<API.StrategyUserStockItem>[] = [
     {
@@ -752,6 +1000,16 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         showSearch: true,
         filterOption: (input: string, option: any) => 
           option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0,
+        onChange: (value: string) => {
+          // 当用户选择账户后，自动触发查询
+          if (value) {
+            // 延迟一点时间确保搜索表单已更新，然后触发查询
+            setTimeout(() => {
+              searchFormRef.current?.submit();
+              actionRef.current?.reload();
+            }, 100);
+          }
+        },
       },
     },
     {
@@ -806,7 +1064,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       dataIndex: 'maxAmount',
       valueType: 'money',
       hideInSearch: true,
-      render: (_, record) => record.maxAmount ? `$${record.maxAmount.toFixed(0)}` : '-',
+      render: (_, record) => record.maxAmount ? `$${record.maxAmount.toLocaleString()}` : '-',
     },
     {
       title: (
@@ -933,7 +1191,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         const strategyStockConfig = getStrategyStockConfig(record.strategyId, record.stockCode);
         const buyRatioConfig = parseBuyRatioConfig(strategyStockConfig?.buyRatioConfig);
         const singleAmount = calculateSingleAmount(record, buyRatioConfig);
-        return singleAmount > 0 ? `$${singleAmount.toFixed(2)}` : '-';
+        return singleAmount > 0 ? `$${singleAmount.toLocaleString()}` : '-';
       },
     },
     {
@@ -965,7 +1223,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           percentageText = ` (${percentage.toFixed(2)}%)`;
         }
         
-        return `$${dailyMaxHolding.toFixed(2)}${percentageText}`;
+        return `$${dailyMaxHolding.toLocaleString()}${percentageText}`;
       },
     },
     {
@@ -997,7 +1255,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           percentageText = ` (${percentage.toFixed(2)}%)`;
         }
         
-        return `$${maxHolding.toFixed(2)}${percentageText}`;
+        return `$${maxHolding.toLocaleString()}${percentageText}`;
       },
     },
     {
@@ -1259,8 +1517,82 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     <>
       {renderFilterTag()}
       
+      {/* 统计卡片 */}
+      <Card style={{ marginBottom: 16 }}>
+        <Row gutter={16}>
+          <Col xs={24} sm={12} md={6}>
+            <Statistic 
+              title="记录数量" 
+              value={summaryData.recordCount}
+              valueStyle={{ color: '#1890ff' }}
+              formatter={(value) => value?.toLocaleString()}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Statistic 
+              title="涉及账户" 
+              value={summaryData.accountCount}
+              valueStyle={{ color: '#722ed1' }}
+              formatter={(value) => value?.toLocaleString()}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Statistic 
+              title="账户总资金" 
+              value={summaryData.totalAccountAmount}
+              precision={2}
+              valueStyle={{ color: '#52c41a' }}
+              formatter={(value) => value?.toLocaleString()}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Statistic 
+              title="单次资金总计" 
+              value={summaryData.totalSingleAmount}
+              precision={2}
+              suffix={`(${summaryData.singleAmountRatio.toFixed(2)}%)`}
+              valueStyle={{ color: '#faad14' }}
+              formatter={(value) => value?.toLocaleString()}
+            />
+          </Col>
+        </Row>
+        <Row gutter={16} style={{ marginTop: 16 }}>
+          <Col xs={24} sm={12} md={6}>
+            <Statistic 
+              title="单天最大持有资金" 
+              value={summaryData.totalDailyMaxHolding}
+              precision={2}
+              suffix={`(${summaryData.dailyMaxHoldingRatio.toFixed(2)}%)`}
+              valueStyle={{ color: '#f5222d' }}
+              formatter={(value) => value?.toLocaleString()}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Statistic 
+              title="最大持有资金" 
+              value={summaryData.totalMaxHolding}
+              precision={2}
+              suffix={`(${summaryData.maxHoldingRatio.toFixed(2)}%)`}
+              valueStyle={{ color: '#fa541c' }}
+              formatter={(value) => value?.toLocaleString()}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Statistic 
+              title="资金最大使用股票" 
+              value={summaryData.maxStockCode ? `${summaryData.maxStockCode}(${summaryData.maxStockRatio.toFixed(2)}%)` : '无'}
+              valueStyle={{ color: '#ff4d4f' }}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            {/* 空列，保持布局对称 */}
+          </Col>
+        </Row>
+      </Card>
+      
       <ProTable<API.StrategyUserStockItem, API.PageParams>
         actionRef={actionRef}
+        formRef={searchFormRef}
         rowKey="id"
         search={{
           labelWidth: 120,
@@ -1276,6 +1608,13 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             onClick={() => setCreateModalVisible(true)}
           >
             <PlusOutlined /> <FormattedMessage id="pages.common.new" defaultMessage="New" />
+          </Button>,
+          <Button
+            key="batch-new"
+            type="primary"
+            onClick={() => setBatchCreateModalVisible(true)}
+          >
+            <PlusOutlined /> 批量新增
           </Button>,
           <Button
             key="apply-template"
@@ -1464,12 +1803,16 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           return listStrategyUserStock(queryParams).then(response => {
             if (response && response.data) {
               console.log('Strategy user stock data:', response.data);
+              // 更新当前表格数据状态
+              setCurrentTableData(response.data);
               return {
                 data: response.data,
                 success: true,
                 total: response.total || response.data.length
               };
             }
+            // 如果没有数据，清空当前表格数据
+            setCurrentTableData([]);
             return {
               data: [],
               success: false,
@@ -1487,11 +1830,30 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         formRef={createFormRef}
         modalProps={{
           destroyOnClose: true,
+          footer: null, // 隐藏默认底部按钮
         }}
         open={createModalVisible}
         onOpenChange={setCreateModalVisible}
         onFinish={handleAdd}
+        submitter={false} // 禁用默认提交按钮
       >
+        {/* 顶部按钮区域 */}
+        <div style={{ marginBottom: '16px', textAlign: 'right' }}>
+          <Button 
+            onClick={() => setCreateModalVisible(false)}
+            style={{ marginRight: '8px' }}
+          >
+            取消
+          </Button>
+          <Button 
+            type="primary" 
+            onClick={() => {
+              createFormRef.current?.submit();
+            }}
+          >
+            确定
+          </Button>
+        </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
           {!strategyId && (
             <div style={{ width: '100%' }}>
@@ -1776,10 +2138,12 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         formRef={updateFormRef}
         modalProps={{
           destroyOnClose: true,
+          footer: null, // 隐藏默认底部按钮
         }}
         open={updateModalVisible}
         onOpenChange={setUpdateModalVisible}
         onFinish={handleUpdate}
+        submitter={false} // 禁用默认提交按钮
         initialValues={{
           ...currentRow,
           // 将数据库中的小数值转换为百分比显示
@@ -1790,6 +2154,23 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                            currentRow?.enableOpeningBuy === false ? 'false' : 'null',
         }}
       >
+        {/* 顶部按钮区域 */}
+        <div style={{ marginBottom: '16px', textAlign: 'right' }}>
+          <Button 
+            onClick={() => setUpdateModalVisible(false)}
+            style={{ marginRight: '8px' }}
+          >
+            取消
+          </Button>
+          <Button 
+            type="primary" 
+            onClick={() => {
+              updateFormRef.current?.submit();
+            }}
+          >
+            确定
+          </Button>
+        </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
           <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormText
@@ -2008,6 +2389,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         formRef={saveTemplateFormRef}
         modalProps={{
           destroyOnClose: true,
+          footer: null, // 隐藏默认底部按钮
         }}
         open={saveTemplateModalVisible}
         onOpenChange={(visible) => {
@@ -2020,7 +2402,25 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         }}
         onFinish={handleSaveTemplate}
         initialValues={templateInitialValues}
+        submitter={false} // 禁用默认提交按钮
       >
+        {/* 顶部按钮区域 */}
+        <div style={{ marginBottom: '16px', textAlign: 'right' }}>
+          <Button 
+            onClick={() => setSaveTemplateModalVisible(false)}
+            style={{ marginRight: '8px' }}
+          >
+            取消
+          </Button>
+          <Button 
+            type="primary" 
+            onClick={() => {
+              saveTemplateFormRef.current?.submit();
+            }}
+          >
+            确定
+          </Button>
+        </div>
         <ProFormText
           name="name"
           label="模版名称"
@@ -2322,6 +2722,380 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           将更新 {selectedRowKeys.length} 个选中的记录
         </div>
       </Modal>
+      
+      {/* 批量创建策略用户股票关系表单 */}
+      <ModalForm
+        title="批量创建策略用户股票关系"
+        width="750px"
+        formRef={batchCreateFormRef}
+        modalProps={{
+          destroyOnClose: true,
+          footer: null, // 隐藏默认底部按钮
+        }}
+        open={batchCreateModalVisible}
+        onOpenChange={(open) => {
+          setBatchCreateModalVisible(open);
+          if (!open) {
+            // 表单关闭时清理状态
+            setSelectedAccountsInfo([]);
+            setSelectedAccountsStocks([]);
+          }
+        }}
+        onFinish={handleBatchCreate}
+        submitter={false} // 禁用默认提交按钮
+        initialValues={{
+          status: '1',
+          startTime: '10:00',
+          endTime: '16:00',
+          timeZone: 'America/New_York',
+          cooldownTime: 30,
+          unsoldStackLimit: 4,
+          limitStartShares: 9,
+          totalFundShares: 18,
+          fundPercent: 5,
+          profitRatio: 1.5,
+          enableOpeningBuy: 'null',
+        }}
+      >
+        {/* 顶部按钮区域 */}
+        <div style={{ marginBottom: '16px', textAlign: 'right' }}>
+          <Button 
+            onClick={() => setBatchCreateModalVisible(false)}
+            style={{ marginRight: '8px' }}
+          >
+            取消
+          </Button>
+          <Button 
+            type="primary" 
+            onClick={() => {
+              batchCreateFormRef.current?.submit();
+            }}
+          >
+            确定
+          </Button>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {!strategyId && (
+            <div style={{ width: '100%' }}>
+              <ProFormSelect
+                name="strategyId"
+                label="策略"
+                rules={[{ required: true, message: '请选择策略' }]}
+                request={async () => {
+                  // 获取策略任务列表
+                  const res = await listStrategyJob({
+                    current: 1,
+                    pageSize: 100,
+                    status: '1', // 只获取启用状态的策略
+                  });
+                  if (res && res.data) {
+                    return res.data.map((item: any) => ({
+                      label: `${item.name} (ID: ${item.id})`,
+                      value: item.id,
+                      strategyName: item.name,
+                    }));
+                  }
+                  return [];
+                }}
+                fieldProps={{
+                  onChange: (value, option: any) => {
+                    if (batchCreateFormRef.current && option?.strategyName) {
+                      batchCreateFormRef.current.setFieldsValue({
+                        strategyName: option.strategyName,
+                      });
+                    }
+                  },
+                }}
+                placeholder="请选择策略"
+              />
+            </div>
+          )}
+          
+          {!strategyId && (
+            <ProFormText
+              name="strategyName"
+              label="策略名称"
+              rules={[{ required: true }]}
+              hidden
+            />
+          )}
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormSelect
+              name="accounts"
+              label="用户账号"
+              mode="multiple"
+              rules={[{ required: true, message: '请选择用户账号' }]}
+              request={async () => {
+                return accountOptions;
+              }}
+              fieldProps={{
+                onChange: (value: string[]) => {
+                  handleAccountsChange(value || []);
+                },
+              }}
+              placeholder="请选择用户账号"
+            />
+          </div>
+          
+          {/* 显示选中账户的信息 */}
+          {selectedAccountsInfo.length > 0 && (
+            <div style={{ width: '100%', marginBottom: '16px' }}>
+              <h4>选中账户信息：</h4>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {selectedAccountsInfo.map((account) => (
+                  <div key={account.account} style={{ 
+                    padding: '8px', 
+                    border: '1px solid #d9d9d9', 
+                    borderRadius: '4px',
+                    backgroundColor: '#fafafa',
+                    minWidth: '200px'
+                  }}>
+                    <div><strong>{account.account}</strong> ({account.name})</div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>
+                      总资金: ${account.totalAmount?.toFixed(2) || 0}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>
+                      可用资金: ${account.availableAmount?.toFixed(2) || 0}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>
+                      证券市值: ${account.marketVal?.toFixed(2) || 0}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* 显示选中账户已有的股票配置 */}
+          {selectedAccountsStocks.length > 0 && (
+            <div style={{ width: '100%', marginBottom: '16px' }}>
+              <h4>已有股票配置 ({selectedAccountsStocks.length} 个)：</h4>
+              <div style={{ maxHeight: '200px', overflow: 'auto' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  {selectedAccountsStocks.map((stock, index) => (
+                    <Tag key={index} color="blue" style={{ marginBottom: '4px' }}>
+                      {stock.account}: {stock.stockCode} ({stock.strategyName})
+                    </Tag>
+                  ))}
+                </div>
+              </div>
+              <div style={{ fontSize: '12px', color: '#ff4d4f', marginTop: '8px' }}>
+                ⚠️ 请注意避免重复创建已存在的股票配置
+              </div>
+            </div>
+          )}
+          
+          <div style={{ width: 'calc(50% - 4px)' }}>
+            <ProFormList
+              name="stockCodes"
+              label="股票代码"
+              min={1}
+              copyIconProps={false}
+              creatorButtonProps={{
+                position: 'bottom',
+                creatorButtonText: '添加股票代码',
+              }}
+              initialValue={[{ code: '' }]}
+            >
+              <ProFormText
+                name="code"
+                placeholder="请输入股票代码，如：AAPL"
+                rules={[
+                  { required: true, message: '请输入股票代码' },
+                  { 
+                    pattern: /^[A-Z]{1,5}$/, 
+                    message: '股票代码格式不正确，应为1-5位大写字母' 
+                  }
+                ]}
+                fieldProps={{
+                  style: { width: '100%' },
+                  onChange: (e) => {
+                    // 自动转换为大写
+                    const value = e.target.value.toUpperCase();
+                    e.target.value = value;
+                  }
+                }}
+              />
+            </ProFormList>
+          </div>
+          
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormDigit
+              name="fundPercent"
+              label="资金百分比"
+              placeholder="留空则使用最大金额"
+              tooltip="使用账户资金的百分比，与最大金额二选一"
+              min={0}
+              max={100}
+              fieldProps={{
+                precision: 1,
+                addonAfter: '%',
+              }}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormDigit
+              name="maxAmount"
+              label="最大金额"
+              placeholder="留空则使用资金百分比"
+              tooltip="固定的最大投资金额，与资金百分比二选一"
+              min={0}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormDigit
+              name="dailyCompletedOrders"
+              label="每日最大完成单数"
+              placeholder="留空表示不限制"
+              tooltip="每天最大完成单数限制，当当天已完成订单数量达到这个值时，将停止下单"
+              min={0}
+              fieldProps={{
+                precision: 0,
+              }}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormText
+              name="startTime"
+              label="开始时间"
+              placeholder="格式为HH:mm，例如10:00"
+              tooltip="策略开始执行时间（基于设置的时区）"
+              rules={[
+                { 
+                  pattern: /^([01]\d|2[0-3]):([0-5]\d)$/, 
+                  message: '时间格式无效，应为HH:mm' 
+                }
+              ]}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormText
+              name="endTime"
+              label="结束时间"
+              placeholder="格式为HH:mm，例如16:00"
+              tooltip="策略结束执行时间（基于设置的时区）"
+              rules={[
+                { 
+                  pattern: /^([01]\d|2[0-3]):([0-5]\d)$/, 
+                  message: '时间格式无效，应为HH:mm' 
+                }
+              ]}
+            />
+          </div>
+
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormSelect
+              name="timeZone"
+              label="时区"
+              tooltip="策略执行的时区，默认为美东时区"
+              valueEnum={{
+                'America/New_York': '美东时区',
+                'Asia/Shanghai': '北京时区',
+              }}
+            />
+          </div>
+
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormDigit
+              name="cooldownTime"
+              label="买入冷却时间(分钟)"
+              placeholder="留空使用默认值30分钟"
+              tooltip="两次相邻买入之间的冷却时间，单位分钟，默认30分钟"
+              min={1}
+              fieldProps={{
+                precision: 0,
+              }}
+            />
+          </div>
+
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormDigit
+              name="unsoldStackLimit"
+              label="未卖出堆栈值"
+              tooltip="限制当天同一股票在同一策略下最多允许的未卖出买入订单数"
+              min={1}
+              max={20}
+              fieldProps={{
+                precision: 0,
+              }}
+              rules={[{ required: true }]}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormDigit
+              name="limitStartShares"
+              label="限制开始份数"
+              tooltip="从第几份开始限制买入，默认为9"
+              min={1}
+              max={100}
+              fieldProps={{
+                precision: 0,
+              }}
+              rules={[{ required: true }]}
+            />
+          </div>
+
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormDigit
+              name="totalFundShares"
+              label="最大持有买入单数"
+              tooltip="最大持有买入单数"
+              min={1}
+              max={100}
+              fieldProps={{
+                precision: 0,
+              }}
+              rules={[{ required: true }]}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormDigit
+              name="profitRatio"
+              label="盈利比例"
+              placeholder="留空使用策略默认值"
+              tooltip="用户自定义的盈利比例，如果设置了该值，策略将优先使用此比例进行止盈"
+              min={0}
+              max={1000}
+              fieldProps={{
+                precision: 2,
+                addonAfter: '%',
+              }}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormSelect
+              name="enableOpeningBuy"
+              label="是否开盘买入"
+              tooltip="是否在开盘时执行买入策略，优先级高于策略标的设置，默认使用策略标的设置"
+              valueEnum={{
+                'true': '开启',
+                'false': '关闭',
+                'null': '使用策略默认',
+              }}
+            />
+          </div>
+          
+          <div style={{ width: 'calc(33.33% - 8px)' }}>
+            <ProFormSelect
+              name="status"
+              label="状态"
+              valueEnum={{
+                '0': '禁用',
+                '1': '启用',
+              }}
+              rules={[{ required: true }]}
+            />
+          </div>
+        </div>
+      </ModalForm>
     </>
   );
 });

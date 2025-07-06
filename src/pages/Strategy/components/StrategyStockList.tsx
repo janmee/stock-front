@@ -1119,6 +1119,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         form={createForm}
         modalProps={{
           destroyOnClose: true,
+          footer: null, // 隐藏默认底部按钮
         }}
         open={createModalVisible}
         onOpenChange={(visible) => {
@@ -1134,7 +1135,25 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           }
         }}
         onFinish={handleAdd}
+        submitter={false} // 禁用默认提交按钮
       >
+        {/* 顶部按钮区域 */}
+        <div style={{ marginBottom: '16px', textAlign: 'right' }}>
+          <Button 
+            onClick={() => setCreateModalVisible(false)}
+            style={{ marginRight: '8px' }}
+          >
+            取消
+          </Button>
+          <Button 
+            type="primary" 
+            onClick={() => {
+              createForm.submit();
+            }}
+          >
+            确定
+          </Button>
+        </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
         {!strategyId && (
           <div style={{ width: '100%' }}>
@@ -1517,6 +1536,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         form={updateForm}
         modalProps={{
           destroyOnClose: true,
+          footer: null, // 隐藏默认底部按钮
         }}
         open={updateModalVisible}
         onOpenChange={(visible) => {
@@ -1534,7 +1554,25 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           }
         }}
         onFinish={handleUpdate}
+        submitter={false} // 禁用默认提交按钮
       >
+        {/* 顶部按钮区域 */}
+        <div style={{ marginBottom: '16px', textAlign: 'right' }}>
+          <Button 
+            onClick={() => setUpdateModalVisible(false)}
+            style={{ marginRight: '8px' }}
+          >
+            取消
+          </Button>
+          <Button 
+            type="primary" 
+            onClick={() => {
+              updateForm.submit();
+            }}
+          >
+            确定
+          </Button>
+        </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
         <div style={{ width: 'calc(33.33% - 8px)' }}>
         <ProFormText

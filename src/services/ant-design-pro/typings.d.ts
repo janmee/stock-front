@@ -154,6 +154,13 @@ declare namespace API {
     overPercent: number;  // 最大使用资金占总资产百分比
     initAmount: number;   // 初始资金
     connected?: boolean;  // 连接状态
+    riskPreference?: number;  // 风险偏好百分比
+    stockCount?: number;  // 配置股票数量
+    totalDailyMaxHolding?: number;  // 每天最大持有资金总和
+    totalMaxHolding?: number;  // 最大持有资金总和
+    dailyMaxHoldingRatio?: number;  // 每天最大持有资金占比
+    maxHoldingRatio?: number;  // 最大持有资金占比
+    singleFundAmount?: number;  // 单次资金
   };
 
   interface PositionObj {
@@ -290,6 +297,32 @@ declare namespace API {
     profitRatio?: number; // 盈利比例
     enableOpeningBuy?: boolean; // 是否启用开盘买入
     configTemplateId?: number; // 策略配置模版ID
+  };
+
+  type BatchCreateStrategyUserStockRequest = {
+    strategyId: number;
+    strategyName: string;
+    accounts: string[];
+    stockCodes: string[];
+    fundPercent?: number;
+    maxAmount?: number;
+    dailyCompletedOrders?: number;
+    startTime?: string;
+    endTime?: string;
+    timeZone?: string;
+    cooldownTime?: number;
+    unsoldStackLimit?: number;
+    totalFundShares?: number;
+    limitStartShares?: number;
+    profitRatio?: number;
+    enableOpeningBuy?: boolean;
+    status?: string;
+  };
+
+  type BatchCreateStrategyUserStockResult = {
+    successCount: number;
+    failureCount: number;
+    errorMessages: string[];
   };
 
   type StrategyUserStockList = {

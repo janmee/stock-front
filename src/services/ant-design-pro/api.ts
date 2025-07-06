@@ -597,6 +597,50 @@ export async function listAccountInfo(
   }
 }
 
+/** 获取账户资金配比列表 GET /api/accountInfo/fundAllocation */
+export async function listAccountFundAllocation(
+  params: {
+    // query
+    /** 当前的页码 */
+    current?: number;
+    /** 页面的容量 */
+    pageSize?: number;
+    account?: string;
+    enable?: boolean;
+  },
+  sort: object,
+  options?: { [key: string]: any },
+) {
+  try {
+    const response = await request<API.Response<API.AccountInfo[]>>('/api/accountInfo/fundAllocation', {
+      method: 'GET',
+      params: {
+        ...params,
+        sortKey: sort ? Object.keys(sort)[0] : '',
+        sortOrder: sort ? Object.values(sort)[0] : '',
+      },
+      ...(options || {}),
+    });
+    
+    // 打印响应结果以进行调试
+    console.log('账户资金配比列表API返回数据:', response);
+    
+    // 后端直接返回列表数据，需要包装成ProTable期望的格式
+    return {
+      data: response.data || [],
+      total: response.total || 0,
+      success: response.success || true,
+    };
+  } catch (error) {
+    console.error('获取账户资金配比列表出错:', error);
+    return {
+      data: [],
+      total: 0,
+      success: false,
+    };
+  }
+}
+
 /** 更新账户状态 POST /api/accountInfo/status */
 export async function updateAccountStatus(
   params: {
@@ -1182,6 +1226,18 @@ export async function listStrategyUserStock(
 /** 创建策略用户股票关系 POST /api/strategy/user-stock */
 export async function createStrategyUserStock(body: API.StrategyUserStockItem, options?: { [key: string]: any }) {
   return request<API.Response<void>>('/api/strategy/user-stock', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 批量创建策略用户股票关系 POST /api/strategy/user-stock/batch */
+export async function batchCreateStrategyUserStock(body: API.BatchCreateStrategyUserStockRequest, options?: { [key: string]: any }) {
+  return request<API.Response<API.BatchCreateStrategyUserStockResult>>('/api/strategy/user-stock/batch', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

@@ -112,12 +112,6 @@ const StrategyStatistics: React.FC = () => {
     fetchOptions();
   }, []);
 
-  // 页面加载时获取初始数据
-  useEffect(() => {
-    // 页面加载时查询所有策略统计数据
-    fetchStrategyStatistics('', undefined, undefined, undefined);
-  }, []);
-
   // 处理股票标签点击
   const handleStockTagClick = (code: string) => {
     formRef.current?.setFieldsValue({ stockCode: code });
@@ -225,12 +219,6 @@ const StrategyStatistics: React.FC = () => {
   const handleStockCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value?.trim() || '';
     setStockCode(value);
-    
-    // 当股票代码输入框被清空时，不再清空统计数据，而是查询所有股票的数据
-    if (!value) {
-      console.log('股票代码为空，查询所有股票的数据');
-      fetchStrategyStatistics('', selectedStrategyId, selectedAccount, dateRange);
-    }
   };
 
   // 修改getColumnSearchProps的类型定义
