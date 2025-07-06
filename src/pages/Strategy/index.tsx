@@ -32,6 +32,14 @@ const StrategyPage: React.FC = () => {
   // 编辑股票代码参数
   const [editStockCode, setEditStockCode] = useState<string | undefined>(undefined);
   
+  // 新增：用于策略用户股票关系的预填数据
+  const [userStockPreFillData, setUserStockPreFillData] = useState<{
+    strategyId: number;
+    strategyName: string;
+    stockCode: string;
+    accountInfo: any;
+  } | undefined>(undefined);
+  
   // 策略任务列表引用，用于刷新列表
   const strategyJobListRef = useRef<any>();
   // 策略股票关系列表引用
@@ -133,6 +141,63 @@ const StrategyPage: React.FC = () => {
     }
   };
   
+  // 处理从策略标的页面跳转到策略用户股票关系tab
+  const handleJumpToUserStock = async (strategyId: number, stockCode: string, accountInfo?: any) => {
+    try {
+      // 获取策略名称
+      const strategyRes = await import('@/services/ant-design-pro/api').then(api => 
+        api.listStrategyJob({
+          current: 1,
+          pageSize: 100,
+        })
+      );
+      
+      let strategyName: string = '';
+      if (strategyRes && strategyRes.data) {
+        const strategy = strategyRes.data.find((item: any) => item.id === strategyId);
+        if (strategy) {
+          strategyName = strategy.name || '';
+        }
+      }
+      
+      // 构建预填数据
+      const preFillData = {
+        strategyId,
+        strategyName: strategyName || `策略${strategyId}`,
+        stockCode,
+        accountInfo,
+      };
+      
+      console.log('跳转到策略用户股票关系，预填数据:', preFillData);
+      
+      // 设置预填数据
+      setUserStockPreFillData(preFillData);
+      
+      // 设置策略ID和名称
+      setSelectedStrategyId(strategyId);
+      setSelectedStrategyName(strategyName || `策略${strategyId}`);
+      
+      // 切换到策略用户股票关系tab
+      setActiveTab('3');
+      
+      // 给更多时间让组件渲染完成，然后通知组件打开新增弹窗
+      setTimeout(() => {
+        console.log('尝试打开新增弹窗，ref:', strategyUserStockListRef.current);
+        if (strategyUserStockListRef.current && strategyUserStockListRef.current.openCreateModal) {
+          console.log('调用openCreateModal方法，预填数据:', preFillData);
+          strategyUserStockListRef.current.openCreateModal(preFillData);
+        } else {
+          console.warn('无法找到openCreateModal方法或组件引用');
+        }
+      }, 300); // 增加延迟时间
+      
+      message.success(`已切换到策略用户股票关系页面，准备为账户 ${accountInfo?.account} 配置股票 ${stockCode}`);
+    } catch (error) {
+      console.error('跳转到策略用户股票关系失败:', error);
+      message.error('跳转失败');
+    }
+  };
+  
   return (
     <PageContainer>
       <Tabs activeKey={activeTab} onChange={handleTabChange}>
@@ -146,6 +211,8 @@ const StrategyPage: React.FC = () => {
             strategyName={selectedStrategyName}
             onClearStrategy={clearSelectedStrategy}
             onStockClick={handleStockClick}
+            preFillData={userStockPreFillData}
+            onPreFillDataUsed={() => setUserStockPreFillData(undefined)}
           />
         </TabPane>
         
@@ -160,6 +227,7 @@ const StrategyPage: React.FC = () => {
             onClearStrategy={clearSelectedStrategy}
             editStockCode={editStockCode}
             onEditComplete={() => setEditStockCode(undefined)}
+            onJumpToUserStock={handleJumpToUserStock}
           />
         </TabPane>
 

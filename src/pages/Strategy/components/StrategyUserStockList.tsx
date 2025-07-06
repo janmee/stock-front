@@ -1,5 +1,5 @@
 import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState, useMemo } from 'react';
-import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select, DatePicker, Modal, Checkbox, Dropdown, Menu, InputNumber, Input, Card, Statistic, Row, Col } from 'antd';
+import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select, DatePicker, Modal, Checkbox, Dropdown, Menu, InputNumber, Input, Card, Statistic, Row, Col, Form } from 'antd';
 import {
   ActionType,
   ModalForm,
@@ -47,13 +47,20 @@ interface StrategyUserStockListProps {
   strategyName?: string;
   onClearStrategy?: () => void;
   onStockClick?: (strategyId: number, stockCode: string) => void;
+  preFillData?: {
+    strategyId: number;
+    strategyName: string;
+    stockCode: string;
+    accountInfo: any;
+  };
+  onPreFillDataUsed?: () => void;
 }
 
 /**
  * 策略用户股票关系列表组件
  */
 const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref) => {
-  const { strategyId, strategyName, onClearStrategy, onStockClick } = props;
+  const { strategyId, strategyName, onClearStrategy, onStockClick, preFillData, onPreFillDataUsed } = props;
   const [createModalVisible, setCreateModalVisible] = useState<boolean>(false);
   const [batchCreateModalVisible, setBatchCreateModalVisible] = useState<boolean>(false);
   const [updateModalVisible, setUpdateModalVisible] = useState<boolean>(false);
@@ -89,10 +96,43 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
   const searchFormRef = useRef<any>();
   const intl = useIntl();
   
+  // 创建表单实例
+  const [createForm] = Form.useForm();
+  const [batchCreateForm] = Form.useForm();
+  const [updateForm] = Form.useForm();
+  
   // 公开刷新方法
   useImperativeHandle(ref, () => ({
     reload: () => {
       actionRef.current?.reload();
+    },
+    openCreateModal: (preFillData?: any) => {
+      console.log('openCreateModal被调用，预填数据:', preFillData);
+      setCreateModalVisible(true);
+      
+      // 延迟设置预填数据，确保表单已经渲染
+      setTimeout(() => {
+        console.log('尝试设置表单数据，createForm:', createForm);
+        if (preFillData) {
+          const initialValues: any = {
+            strategyId: preFillData.strategyId,
+            strategyName: preFillData.strategyName,
+            stockCode: preFillData.stockCode,
+          };
+          
+          // 如果有账户信息，则预填账户
+          if (preFillData.accountInfo) {
+            initialValues.account = preFillData.accountInfo.account;
+            initialValues.accountName = preFillData.accountInfo.accountName;
+          }
+          
+          console.log('设置表单初始值:', initialValues);
+          createForm.setFieldsValue(initialValues);
+          
+          // 强制更新表单显示
+          createForm.validateFields();
+        }
+      }, 200); // 增加延迟时间
     },
   }));
 
@@ -200,6 +240,36 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     fetchOptions();
   }, []);
 
+  // 处理预填数据
+  useEffect(() => {
+    if (preFillData) {
+      // 自动打开新增弹窗并预填数据
+      setCreateModalVisible(true);
+      
+      // 延迟设置预填数据，确保表单已经渲染
+      setTimeout(() => {
+        const initialValues: any = {
+          strategyId: preFillData.strategyId,
+          strategyName: preFillData.strategyName,
+          stockCode: preFillData.stockCode,
+        };
+        
+        // 如果有账户信息，则预填账户
+        if (preFillData.accountInfo) {
+          initialValues.account = preFillData.accountInfo.account;
+          initialValues.accountName = preFillData.accountInfo.accountName;
+        }
+        
+        createForm.setFieldsValue(initialValues);
+      }, 100);
+      
+      // 通知父组件预填数据已使用
+      if (onPreFillDataUsed) {
+        onPreFillDataUsed();
+      }
+    }
+  }, [preFillData, onPreFillDataUsed, createForm]);
+
   // 获取策略股票配置数据
   useEffect(() => {
     const fetchStrategyStockData = async () => {
@@ -246,6 +316,9 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
 
   // 添加策略用户股票关系
   const handleAdd = async (fields: any) => {
+    console.log('handleAdd被调用，提交的完整字段:', JSON.stringify(fields, null, 2));
+    console.log('账户别名字段:', fields.accountName);
+    
     const hide = message.loading(intl.formatMessage({ id: 'pages.message.creating' }));
     
     // 如果有选择策略，则使用选定的策略ID和名称
@@ -1925,6 +1998,13 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           });
         }}
         columns={columns}
+        pagination={{
+          defaultPageSize: 100,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          pageSizeOptions: ['100', '200', '500', '1000'],
+          showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/总共 ${total} 条`,
+        }}
       />
       
       {/* 新增策略用户股票关系表单 */}
@@ -1932,6 +2012,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         title={<FormattedMessage id="pages.strategy.user.stockRelation.create" defaultMessage="Create Strategy User Stock Relation" />}
         width="650px"
         formRef={createFormRef}
+        form={createForm}
         modalProps={{
           destroyOnClose: true,
           footer: null, // 隐藏默认底部按钮
@@ -1951,57 +2032,66 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           </Button>
           <Button 
             type="primary" 
-            onClick={() => {
-              createFormRef.current?.submit();
+            onClick={async () => {
+              try {
+                // 先验证表单
+                const values = await createForm.validateFields();
+                console.log('表单验证通过，获取到的值:', JSON.stringify(values, null, 2));
+                
+                // 手动调用handleAdd
+                const success = await handleAdd(values);
+                if (success) {
+                  setCreateModalVisible(false);
+                  createForm.resetFields();
+                }
+              } catch (error) {
+                console.error('表单验证失败:', error);
+              }
             }}
           >
             确定
           </Button>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-          {!strategyId && (
-            <div style={{ width: '100%' }}>
-              <ProFormSelect
-                name="strategyId"
-                label={<FormattedMessage id="pages.strategy.job.id" defaultMessage="Strategy ID" />}
-                rules={[{ required: true }]}
-                request={async () => {
-                  // 获取策略任务列表
-                  const res = await listStrategyJob({
-                    current: 1,
-                    pageSize: 100,
-                    status: '1', // 只获取启用状态的策略
-                  });
-                  if (res && res.data) {
-                    return res.data.map((item: any) => ({
-                      label: `${item.name} (ID: ${item.id})`,
-                      value: item.id,
-                      strategyName: item.name,
-                    }));
-                  }
-                  return [];
-                }}
-                fieldProps={{
-                  onChange: (value, option: any) => {
-                    if (createFormRef.current && option?.strategyName) {
-                      createFormRef.current.setFieldsValue({
-                        strategyName: option.strategyName,
-                      });
-                    }
-                  },
-                }}
-              />
-            </div>
-          )}
-          
-          {!strategyId && (
-            <ProFormText
-              name="strategyName"
-              label={<FormattedMessage id="pages.strategy.job.name" defaultMessage="Strategy Name" />}
+          <div style={{ width: '100%' }}>
+            <ProFormSelect
+              name="strategyId"
+              label={<FormattedMessage id="pages.strategy.job.id" defaultMessage="Strategy ID" />}
               rules={[{ required: true }]}
-              hidden
+              request={async () => {
+                // 获取策略任务列表
+                const res = await listStrategyJob({
+                  current: 1,
+                  pageSize: 100,
+                  status: '1', // 只获取启用状态的策略
+                });
+                if (res && res.data) {
+                  return res.data.map((item: any) => ({
+                    label: `${item.name} (ID: ${item.id})`,
+                    value: item.id,
+                    strategyName: item.name,
+                  }));
+                }
+                return [];
+              }}
+              fieldProps={{
+                onChange: (value, option: any) => {
+                  if (createForm && option?.strategyName) {
+                    createForm.setFieldsValue({
+                      strategyName: option.strategyName,
+                    });
+                  }
+                },
+              }}
             />
-          )}
+          </div>
+          
+          <ProFormText
+            name="strategyName"
+            label={<FormattedMessage id="pages.strategy.job.name" defaultMessage="Strategy Name" />}
+            rules={[{ required: true }]}
+            hidden
+          />
           
           <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormSelect
@@ -2022,8 +2112,8 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               }}
               fieldProps={{
                 onChange: (value, option: any) => {
-                  if (createFormRef.current && option?.accountName) {
-                    createFormRef.current.setFieldsValue({
+                  if (createForm && option?.accountName) {
+                    createForm.setFieldsValue({
                       accountName: option.accountName,
                     });
                   }
@@ -2059,6 +2149,17 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                 precision: 1,
                 suffix: '%',
               }}
+              rules={[
+                {
+                  validator: (_: any, value: any) => {
+                    const maxAmount = createForm.getFieldValue('maxAmount');
+                    if (!value && !maxAmount) {
+                      return Promise.reject(new Error('资金占比和最大金额至少需要填入一个'));
+                    }
+                    return Promise.resolve();
+                  },
+                },
+              ]}
             />
           </div>
           
@@ -2069,6 +2170,17 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmount.placeholder', defaultMessage: '填入最大资金' })}
               tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmountTip' })}
               min={0}
+              rules={[
+                {
+                  validator: (_: any, value: any) => {
+                    const fundPercent = createForm.getFieldValue('fundPercent');
+                    if (!value && !fundPercent) {
+                      return Promise.reject(new Error('资金占比和最大金额至少需要填入一个'));
+                    }
+                    return Promise.resolve();
+                  },
+                },
+              ]}
             />
           </div>
           
@@ -2240,6 +2352,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         title={<FormattedMessage id="pages.strategy.user.stockRelation.edit" defaultMessage="Edit Strategy User Stock Relation" />}
         width="650px"
         formRef={updateFormRef}
+        form={updateForm}
         modalProps={{
           destroyOnClose: true,
           footer: null, // 隐藏默认底部按钮
@@ -2269,7 +2382,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           <Button 
             type="primary" 
             onClick={() => {
-              updateFormRef.current?.submit();
+              updateForm.submit();
             }}
           >
             确定
@@ -2313,6 +2426,17 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                 precision: 1,
                 suffix: '%',
               }}
+              rules={[
+                {
+                  validator: (_: any, value: any) => {
+                    const maxAmount = updateForm.getFieldValue('maxAmount');
+                    if (!value && !maxAmount) {
+                      return Promise.reject(new Error('资金占比和最大金额至少需要填入一个'));
+                    }
+                    return Promise.resolve();
+                  },
+                },
+              ]}
             />
           </div>
           
@@ -2323,6 +2447,17 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmount.placeholder', defaultMessage: 'Leave empty to use Fund Percent' })}
               tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmountTip' })}
               min={0}
+              rules={[
+                {
+                  validator: (_: any, value: any) => {
+                    const fundPercent = updateForm.getFieldValue('fundPercent');
+                    if (!value && !fundPercent) {
+                      return Promise.reject(new Error('资金占比和最大金额至少需要填入一个'));
+                    }
+                    return Promise.resolve();
+                  },
+                },
+              ]}
             />
           </div>
           
@@ -3061,6 +3196,17 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                 precision: 1,
                 addonAfter: '%',
               }}
+              rules={[
+                {
+                  validator: (_: any, value: any) => {
+                    const maxAmount = batchCreateForm.getFieldValue('maxAmount');
+                    if (!value && !maxAmount) {
+                      return Promise.reject(new Error('资金占比和最大金额至少需要填入一个'));
+                    }
+                    return Promise.resolve();
+                  },
+                },
+              ]}
             />
           </div>
           
@@ -3069,8 +3215,19 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               name="maxAmount"
               label="最大金额"
               placeholder="留空则使用资金百分比"
-              tooltip="固定的最大投资金额，与资金百分比二选一"
+              tooltip="投入的最大金额，与资金百分比二选一"
               min={0}
+              rules={[
+                {
+                  validator: (_: any, value: any) => {
+                    const fundPercent = batchCreateForm.getFieldValue('fundPercent');
+                    if (!value && !fundPercent) {
+                      return Promise.reject(new Error('资金占比和最大金额至少需要填入一个'));
+                    }
+                    return Promise.resolve();
+                  },
+                },
+              ]}
             />
           </div>
           

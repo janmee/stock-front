@@ -438,4 +438,14 @@ declare namespace API {
     total?: number;
     success?: boolean;
   };
+
+  // 账户配置状态VO类型
+  type AccountConfigStatusVO = {
+    accountId: number;
+    account: string;
+    accountName: string;
+    configured: boolean;
+    configId?: number;
+    enabled: boolean;
+  };
 }

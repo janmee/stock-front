@@ -1272,6 +1272,23 @@ export async function deleteStrategyUserStock(body: API.StrategyUserStockItem, o
   });
 }
 
+/** 获取策略股票在各账户中的配置状态 GET /api/strategy/user-stock/account-config-status/{strategyId}/{stockCode} */
+export async function getAccountConfigStatus(
+  params: {
+    strategyId: number;
+    stockCode: string;
+  },
+  options?: { [key: string]: any },
+): Promise<API.Response<API.AccountConfigStatusVO[]>> {
+  return request<API.Response<API.AccountConfigStatusVO[]>>(
+    `/api/strategy/user-stock/account-config-status/${params.strategyId}/${params.stockCode}`,
+    {
+      method: 'GET',
+      ...(options || {}),
+    },
+  );
+}
+
 /** 更新策略用户股票关系二阶段策略状态 POST /api/strategy/user-stock/second-stage */
 export async function updateStrategyUserStockSecondStage(params: { id: number; enabled: boolean }) {
   return request<API.Response<any>>('/api/strategy/user-stock/second-stage', {

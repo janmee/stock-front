@@ -1,5 +1,5 @@
 import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState } from 'react';
-import { Button, message, Popconfirm, Select, Tooltip, Tag, Space, Switch, Input, InputNumber, Form, Modal, Dropdown, Menu } from 'antd';
+import { Button, message, Popconfirm, Select, Tooltip, Tag, Space, Switch, Input, InputNumber, Form, Modal, Dropdown, Menu, Spin, Table } from 'antd';
 import {
   ActionType,
   ModalForm,
@@ -27,7 +27,10 @@ import {
   saveConfigTemplate,
   applyConfigTemplate,
   getConfigTemplateList,
-  deleteConfigTemplate
+  deleteConfigTemplate,
+  listAccountInfo,
+  listStrategyUserStock,
+  getAccountConfigStatus,
 } from '@/services/ant-design-pro/api';
 
 interface StrategyStockListProps {
@@ -36,13 +39,14 @@ interface StrategyStockListProps {
   onClearStrategy?: () => void;
   editStockCode?: string;
   onEditComplete?: () => void;
+  onJumpToUserStock?: (strategyId: number, stockCode: string, accountInfo?: any) => void;
 }
 
 /**
  * 策略股票关系列表组件
  */
 const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
-  const { strategyId, strategyName, onClearStrategy, editStockCode, onEditComplete } = props;
+  const { strategyId, strategyName, onClearStrategy, editStockCode, onEditComplete, onJumpToUserStock } = props;
   const [createModalVisible, setCreateModalVisible] = useState<boolean>(false);
   const [updateModalVisible, setUpdateModalVisible] = useState<boolean>(false);
   const [currentRow, setCurrentRow] = useState<API.StrategyStockItem>();
@@ -1015,6 +1019,113 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     }
   };
   
+  // 新增状态：账户信息和展开行的配置状态
+  const [accountOptions, setAccountOptions] = useState<{label: string, value: string, accountInfo: any}[]>([]);
+  const [expandedRowConfigs, setExpandedRowConfigs] = useState<Record<string, API.AccountConfigStatusVO[]>>({});
+
+  // 加载账户列表
+  useEffect(() => {
+    const fetchAccountOptions = async () => {
+      try {
+        const res = await listAccountInfo({
+          current: 1,
+          pageSize: 1000,
+          enable: true, // 只获取启用的账户
+        }, {});
+        if (res && res.data) {
+          const options = res.data.map((item: any) => ({
+            label: `${item.account} (${item.name})`,
+            value: item.account,
+            accountInfo: item,
+          }));
+          setAccountOptions(options);
+        }
+      } catch (error) {
+        console.error('获取账户列表失败:', error);
+      }
+    };
+    
+    fetchAccountOptions();
+  }, []);
+
+  // 加载展开行配置数据
+  const loadExpandedRowConfig = async (strategyId: number, stockCode: string) => {
+    const key = `${strategyId}-${stockCode}`;
+    
+    try {
+      const response = await getAccountConfigStatus({ strategyId, stockCode });
+      if (response.success) {
+        setExpandedRowConfigs(prev => ({
+          ...prev,
+          [key]: response.data
+        }));
+      }
+    } catch (error) {
+      console.error('加载配置数据失败:', error);
+      message.error('加载配置数据失败');
+    }
+  };
+
+  // 渲染展开行内容
+  const renderExpandedRow = (record: API.StrategyStockItem) => {
+    const key = `${record.strategyId}-${record.stockCode}`;
+    const configData = expandedRowConfigs[key] || [];
+
+    const columns = [
+      {
+        title: '账户',
+        dataIndex: 'account',
+        key: 'account',
+        width: 120,
+      },
+      {
+        title: '别名',
+        dataIndex: 'accountName',
+        key: 'accountName',
+        width: 120,
+      },
+      {
+        title: '配置状态',
+        dataIndex: 'configured',
+        key: 'configured',
+        width: 100,
+        render: (configured: boolean) => (
+          <Tag color={configured ? 'green' : 'red'}>
+            {configured ? '已配置' : '未配置'}
+          </Tag>
+        ),
+      },
+      {
+        title: '操作',
+        key: 'action',
+        width: 100,
+        render: (_: any, accountRecord: API.AccountConfigStatusVO) => (
+          !accountRecord.configured ? (
+            <Button
+              type="primary"
+              size="small"
+              onClick={() => onJumpToUserStock?.(record.strategyId!, record.stockCode!, accountRecord)}
+            >
+              配置
+            </Button>
+          ) : null
+        ),
+      },
+    ];
+
+    return (
+      <div style={{ padding: '0 24px' }}>
+        <Table
+          columns={columns}
+          dataSource={configData}
+          pagination={false}
+          size="small"
+          rowKey="accountId"
+        />
+      </div>
+    );
+  };
+  
   return (
     <>
       {renderFilterTag()}
@@ -1029,6 +1140,16 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           selectedRowKeys,
           onChange: setSelectedRowKeys,
           preserveSelectedRowKeys: true,
+        }}
+        expandable={{
+          expandedRowRender: renderExpandedRow,
+          onExpand: (expanded, record) => {
+            if (expanded && record.strategyId && record.stockCode) {
+              // 展开时加载配置数据
+              loadExpandedRowConfig(record.strategyId, record.stockCode);
+            }
+          },
+          expandRowByClick: false,
         }}
         toolBarRender={() => [
           <Button
@@ -1162,6 +1283,13 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           });
         }}
         columns={columns}
+        pagination={{
+          defaultPageSize: 100,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          pageSizeOptions: ['100', '200', '500', '1000'],
+          showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/总共 ${total} 条`,
+        }}
       />
       
       {/* 新增策略股票关系表单 */}
