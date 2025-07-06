@@ -684,7 +684,26 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     try {
       const response = await getConfigTemplateList({ configType: 'user_stock' });
       if (response.success && response.data) {
-        setTemplates(response.data);
+        // 获取当前选中行的股票代码
+        const selectedStockCodes = new Set<string>();
+        if (selectedRowKeys.length > 0 && currentTableData.length > 0) {
+          selectedRowKeys.forEach(key => {
+            const record = currentTableData.find(item => item.id === key);
+            if (record && record.stockCode) {
+              selectedStockCodes.add(record.stockCode);
+            }
+          });
+        }
+        
+        // 如果有选中的股票代码，则过滤模版列表
+        let filteredTemplates = response.data;
+        if (selectedStockCodes.size > 0) {
+          filteredTemplates = response.data.filter(template => 
+            !template.sourceStockCode || selectedStockCodes.has(template.sourceStockCode)
+          );
+        }
+        
+        setTemplates(filteredTemplates);
       }
     } catch (error) {
       console.error('加载模版列表失败:', error);
@@ -2514,6 +2533,24 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         onOk={handleApplyTemplate}
         width={800}
       >
+        {/* 显示当前过滤的股票代码 */}
+        {selectedRowKeys.length > 0 && currentTableData.length > 0 && (
+          <div style={{ marginBottom: 16, padding: 8, backgroundColor: '#f0f8ff', borderRadius: 4 }}>
+            <div style={{ fontWeight: 'bold', marginBottom: 4 }}>当前筛选股票：</div>
+            <div style={{ fontSize: '12px', color: '#666' }}>
+              {Array.from(new Set(
+                selectedRowKeys.map(key => {
+                  const record = currentTableData.find(item => item.id === key);
+                  return record?.stockCode;
+                }).filter(Boolean)
+              )).join(', ')}
+            </div>
+            <div style={{ fontSize: '11px', color: '#999', marginTop: 4 }}>
+              只显示与这些股票代码匹配的模版
+            </div>
+          </div>
+        )}
+        
         <div style={{ marginBottom: 16 }}>
           <h4>选择要应用的模版：</h4>
           <Select
@@ -2522,13 +2559,14 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             value={selectedTemplate}
             onChange={setSelectedTemplate}
           >
-            {templates.map(template => (
+            {templates.map((template: API.StrategyConfigTemplateItem) => (
               <Select.Option key={template.id} value={template.id}>
                 <div>
                   <strong>{template.name}</strong>
                   {template.applicableScenario && <div style={{ fontSize: '12px', color: '#666' }}>{template.applicableScenario}</div>}
                   {template.marketCondition && <div style={{ fontSize: '12px', color: '#1890ff' }}>行情: {template.marketCondition}</div>}
                   {template.volatilityRange && <div style={{ fontSize: '12px', color: '#52c41a' }}>波动范围: {template.volatilityRange}</div>}
+                  {template.sourceStockCode && <div style={{ fontSize: '11px', color: '#666' }}>来源股票: {template.sourceStockCode}</div>}
                   <div style={{ fontSize: '11px', color: '#999' }}>
                     创建时间: {template.createTime}
                   </div>
@@ -2541,48 +2579,54 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         <div style={{ marginBottom: 16 }}>
           <h4>模版管理：</h4>
           <div style={{ maxHeight: 300, overflow: 'auto' }}>
-            {templates.map(template => (
-              <div key={template.id} style={{ 
-                padding: 8, 
-                border: '1px solid #d9d9d9', 
-                borderRadius: 4, 
-                marginBottom: 8,
-                backgroundColor: selectedTemplate === template.id ? '#e6f7ff' : '#fff'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ flex: 1 }}>
-                    <strong>{template.name}</strong>
-                    {template.applicableScenario && <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>{template.applicableScenario}</div>}
-                    {template.marketCondition && <div style={{ fontSize: '12px', color: '#1890ff', marginTop: 2 }}>行情: {template.marketCondition}</div>}
-                    {template.volatilityRange && <div style={{ fontSize: '12px', color: '#52c41a', marginTop: 2 }}>波动范围: {template.volatilityRange}</div>}
-                    {template.strategyId && <div style={{ fontSize: '11px', color: '#999', marginTop: 2 }}>策略ID: {template.strategyId}</div>}
-                    {template.sourceStockCode && <div style={{ fontSize: '11px', color: '#999', marginTop: 2 }}>来源股票: {template.sourceStockCode}</div>}
-                    {(template.minMarketCap || template.maxMarketCap) && (
-                      <div style={{ fontSize: '11px', color: '#999', marginTop: 2 }}>
-                        市值范围: {template.minMarketCap || 0} - {template.maxMarketCap || '∞'} 亿美元
-                      </div>
-                    )}
-                    <div style={{ fontSize: '11px', color: '#999', marginTop: 4 }}>
-                      创建时间: {template.createTime}
-                    </div>
-                  </div>
-                  <Button
-                    type="link"
-                    danger
-                    size="small"
-                    onClick={() => {
-                      Modal.confirm({
-                        title: '确认删除',
-                        content: `确定要删除模版"${template.name}"吗？`,
-                        onOk: () => handleDeleteTemplate(template.id!),
-                      });
-                    }}
-                  >
-                    删除
-                  </Button>
-                </div>
+            {templates.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#999', padding: 20 }}>
+                暂无匹配的模版
               </div>
-            ))}
+            ) : (
+              templates.map((template: API.StrategyConfigTemplateItem) => (
+                <div key={template.id} style={{ 
+                  padding: 8, 
+                  border: '1px solid #d9d9d9', 
+                  borderRadius: 4, 
+                  marginBottom: 8,
+                  backgroundColor: selectedTemplate === template.id ? '#e6f7ff' : '#fff'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <strong>{template.name}</strong>
+                      {template.applicableScenario && <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>{template.applicableScenario}</div>}
+                      {template.marketCondition && <div style={{ fontSize: '12px', color: '#1890ff', marginTop: 2 }}>行情: {template.marketCondition}</div>}
+                      {template.volatilityRange && <div style={{ fontSize: '12px', color: '#52c41a', marginTop: 2 }}>波动范围: {template.volatilityRange}</div>}
+                      {template.strategyId && <div style={{ fontSize: '11px', color: '#999', marginTop: 2 }}>策略ID: {template.strategyId}</div>}
+                      {template.sourceStockCode && <div style={{ fontSize: '11px', color: '#666', marginTop: 2 }}>来源股票: {template.sourceStockCode}</div>}
+                      {(template.minMarketCap || template.maxMarketCap) && (
+                        <div style={{ fontSize: '11px', color: '#999', marginTop: 2 }}>
+                          市值范围: {template.minMarketCap || 0} - {template.maxMarketCap || '∞'} 亿美元
+                        </div>
+                      )}
+                      <div style={{ fontSize: '11px', color: '#999', marginTop: 4 }}>
+                        创建时间: {template.createTime}
+                      </div>
+                    </div>
+                    <Button
+                      type="link"
+                      danger
+                      size="small"
+                      onClick={() => {
+                        Modal.confirm({
+                          title: '确认删除',
+                          content: `确定要删除模版"${template.name}"吗？`,
+                          onOk: () => handleDeleteTemplate(template.id!),
+                        });
+                      }}
+                    >
+                      删除
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
         

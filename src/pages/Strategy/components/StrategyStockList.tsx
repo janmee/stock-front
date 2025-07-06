@@ -53,6 +53,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
   const [templates, setTemplates] = useState<API.StrategyConfigTemplateItem[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<number>();
   const [templateInitialValues, setTemplateInitialValues] = useState<any>({});
+  const [currentTableData, setCurrentTableData] = useState<API.StrategyStockItem[]>([]);
   const actionRef = useRef<ActionType>();
   const createFormRef = useRef<any>();
   const updateFormRef = useRef<any>();
@@ -400,7 +401,26 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     try {
       const response = await getConfigTemplateList({ configType: 'strategy_stock' });
       if (response.success && response.data) {
-        setTemplates(response.data);
+        // 获取当前选中行的股票代码
+        const selectedStockCodes = new Set<string>();
+        if (selectedRowKeys.length > 0 && currentTableData.length > 0) {
+          selectedRowKeys.forEach(key => {
+            const record = currentTableData.find(item => item.id === key);
+            if (record && record.stockCode) {
+              selectedStockCodes.add(record.stockCode);
+            }
+          });
+        }
+        
+        // 如果有选中的股票代码，则过滤模版列表
+        let filteredTemplates = response.data;
+        if (selectedStockCodes.size > 0) {
+          filteredTemplates = response.data.filter(template => 
+            !template.sourceStockCode || selectedStockCodes.has(template.sourceStockCode)
+          );
+        }
+        
+        setTemplates(filteredTemplates);
       }
     } catch (error) {
       console.error('加载模版列表失败:', error);
@@ -1095,12 +1115,17 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
                 // 百分比字段保持原样，显示时在render函数中处理
               }));
               
+              // 更新当前表格数据状态
+              setCurrentTableData(processedData);
+              
               return {
                 data: processedData,
                 success: true,
                 total: response.total || processedData.length
               };
             }
+            // 如果没有数据，清空当前表格数据
+            setCurrentTableData([]);
             return {
               data: [],
               success: false,
@@ -2009,6 +2034,24 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         okText="应用模版"
         cancelText="取消"
       >
+        {/* 显示当前过滤的股票代码 */}
+        {selectedRowKeys.length > 0 && (
+          <div style={{ marginBottom: 16, padding: 8, backgroundColor: '#f0f8ff', borderRadius: 4 }}>
+            <div style={{ fontWeight: 'bold', marginBottom: 4 }}>当前筛选股票：</div>
+            <div style={{ fontSize: '12px', color: '#666' }}>
+              {Array.from(new Set(
+                selectedRowKeys.map(key => {
+                  const record = currentTableData.find(item => item.id === key);
+                  return record?.stockCode;
+                }).filter(Boolean)
+              )).join(', ')}
+            </div>
+            <div style={{ fontSize: '11px', color: '#999', marginTop: 4 }}>
+              只显示与这些股票代码匹配的模版
+            </div>
+          </div>
+        )}
+        
         <div style={{ marginBottom: 16 }}>
           <strong>选择模版：</strong>
         </div>
@@ -2084,7 +2127,12 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         </div>
         {templates.length === 0 && (
           <div style={{ textAlign: 'center', color: '#999', padding: 20 }}>
-            暂无模版
+            {selectedRowKeys.length > 0 ? '暂无匹配的模版' : '暂无模版'}
+            {selectedRowKeys.length > 0 && (
+              <div style={{ fontSize: '12px', marginTop: 8 }}>
+                请先创建包含相同股票代码的模版
+              </div>
+            )}
           </div>
         )}
         <div style={{ marginTop: 16, color: '#666', fontSize: 12 }}>
