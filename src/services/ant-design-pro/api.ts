@@ -812,6 +812,8 @@ export async function batchTrade(data: {
   sellTriggerType?: 'percentage' | 'amount' | 'limit';
   sellTriggerValue?: number;
   timeForce?: number; // 0-不撤单有效, 1-撤单有效
+  quantityType?: 'fixed' | 'percentage'; // 数量计算方式：fixed-指定数量，percentage-按总资金占比
+  fundPercentage?: number; // 资金占比（当quantityType为percentage时使用）
 }) {
   return request<API.Response<boolean>>('/api/orderInfo/batchTrade', {
     method: 'POST',

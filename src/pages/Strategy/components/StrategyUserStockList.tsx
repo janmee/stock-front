@@ -1623,14 +1623,100 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           <Button
             key="new"
             type="primary"
-            onClick={() => setCreateModalVisible(true)}
+            onClick={() => {
+              // 获取搜索表单中的值
+              const searchValues = searchFormRef.current?.getFieldsValue() || {};
+              
+              // 打开新增表单
+              setCreateModalVisible(true);
+              
+              // 延迟设置初始值，确保表单已经渲染
+              setTimeout(() => {
+                if (createFormRef.current) {
+                  const initialValues: any = {};
+                  
+                  // 如果搜索条件中有策略ID，则填充到表单中
+                  if (searchValues.strategyId) {
+                    initialValues.strategyId = searchValues.strategyId;
+                    
+                    // 查找对应的策略名称
+                    const strategyOption = strategyOptions.find(option => option.value === searchValues.strategyId);
+                    if (strategyOption) {
+                      initialValues.strategyName = strategyOption.label.split(' (ID:')[0];
+                    }
+                  }
+                  // 如果没有从搜索条件获取到策略，且当前不是特定策略页面，则选择第一个策略
+                  else if (!strategyId && strategyOptions.length > 0) {
+                    const firstStrategy = strategyOptions[0];
+                    initialValues.strategyId = firstStrategy.value;
+                    initialValues.strategyName = firstStrategy.label.split(' (ID:')[0];
+                  }
+                  
+                  // 如果搜索条件中有账户，则填充到表单中
+                  if (searchValues.account) {
+                    initialValues.account = searchValues.account;
+                    
+                    // 查找对应的账户名称
+                    const accountOption = accountOptions.find(option => option.value === searchValues.account);
+                    if (accountOption) {
+                      // 从label中提取账户名称，格式为 "账户号 (账户名称)"
+                      const accountName = accountOption.label.match(/\((.+?)\)$/)?.[1];
+                      if (accountName) {
+                        initialValues.accountName = accountName;
+                      }
+                    }
+                  }
+                  
+                  // 设置表单初始值
+                  createFormRef.current.setFieldsValue(initialValues);
+                }
+              }, 100);
+            }}
           >
             <PlusOutlined /> <FormattedMessage id="pages.common.new" defaultMessage="New" />
           </Button>,
           <Button
             key="batch-new"
             type="primary"
-            onClick={() => setBatchCreateModalVisible(true)}
+            onClick={() => {
+              // 获取搜索表单中的值
+              const searchValues = searchFormRef.current?.getFieldsValue() || {};
+              
+              // 打开批量新增表单
+              setBatchCreateModalVisible(true);
+              
+              // 延迟设置初始值，确保表单已经渲染
+              setTimeout(() => {
+                if (batchCreateFormRef.current) {
+                  const initialValues: any = {};
+                  
+                  // 如果搜索条件中有策略ID，则填充到表单中
+                  if (searchValues.strategyId) {
+                    initialValues.strategyId = searchValues.strategyId;
+                    
+                    // 查找对应的策略名称
+                    const strategyOption = strategyOptions.find(option => option.value === searchValues.strategyId);
+                    if (strategyOption) {
+                      initialValues.strategyName = strategyOption.label.split(' (ID:')[0];
+                    }
+                  }
+                  // 如果没有从搜索条件获取到策略，且当前不是特定策略页面，则选择第一个策略
+                  else if (!strategyId && strategyOptions.length > 0) {
+                    const firstStrategy = strategyOptions[0];
+                    initialValues.strategyId = firstStrategy.value;
+                    initialValues.strategyName = firstStrategy.label.split(' (ID:')[0];
+                  }
+                  
+                  // 如果搜索条件中有账户，则填充到表单中（批量新增支持多选账户）
+                  if (searchValues.account) {
+                    initialValues.accounts = [searchValues.account];
+                  }
+                  
+                  // 设置表单初始值
+                  batchCreateFormRef.current.setFieldsValue(initialValues);
+                }
+              }, 100);
+            }}
           >
             <PlusOutlined /> 批量新增
           </Button>,

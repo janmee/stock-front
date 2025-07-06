@@ -1034,7 +1034,35 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           <Button
             key="new"
             type="primary"
-            onClick={() => setCreateModalVisible(true)}
+            onClick={() => {
+              setCreateModalVisible(true);
+              
+              // 如果没有预设策略ID，延迟设置第一个策略为默认值
+              if (!strategyId) {
+                setTimeout(async () => {
+                  if (createFormRef.current) {
+                    try {
+                      // 获取策略任务列表
+                      const res = await listStrategyJob({
+                        current: 1,
+                        pageSize: 100,
+                        status: '1', // 只获取启用状态的策略
+                      });
+                      
+                      if (res && res.data && res.data.length > 0) {
+                        const firstStrategy = res.data[0];
+                        createFormRef.current.setFieldsValue({
+                          strategyId: firstStrategy.id,
+                          strategyName: firstStrategy.name,
+                        });
+                      }
+                    } catch (error) {
+                      console.error('获取策略列表失败:', error);
+                    }
+                  }
+                }, 100);
+              }
+            }}
           >
             <PlusOutlined /> <FormattedMessage id="pages.common.new" defaultMessage="New" />
           </Button>,

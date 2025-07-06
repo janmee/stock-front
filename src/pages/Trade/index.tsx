@@ -22,6 +22,8 @@ interface TradeFormData {
   isScheduled?: boolean;
   scheduledTime?: moment.Moment;
   timezone?: string;
+  quantityType?: 'fixed' | 'percentage';
+  fundPercentage?: number;
 }
 
 const Trade: React.FC = () => {
@@ -470,6 +472,8 @@ const Trade: React.FC = () => {
         timeForce: values.timeForce ? 1 : 0,
         sellTriggerType: values.autoSell && values.sellTriggerType ? values.sellTriggerType : undefined,
         sellTriggerValue: values.autoSell && values.sellTriggerValue ? values.sellTriggerValue : undefined,
+        quantityType: values.quantityType || 'fixed',
+        fundPercentage: values.fundPercentage,
       });
       
       if (response.data) {
@@ -1045,16 +1049,73 @@ const Trade: React.FC = () => {
             />
           </Form.Item>
 
+          {tradeType === 'buy' && (
+            <Form.Item
+              name="quantityType"
+              label="数量计算方式"
+              initialValue="fixed"
+            >
+              <Radio.Group>
+                <Radio value="fixed">指定数量</Radio>
+                <Radio value="percentage">按总资金占比</Radio>
+              </Radio.Group>
+            </Form.Item>
+          )}
+
+          {tradeType === 'sell' && (
+            <Form.Item
+              name="quantityType"
+              hidden
+              initialValue="fixed"
+            >
+              <Input />
+            </Form.Item>
+          )}
+
           <Form.Item
-            name="qty"
-            label={intl.formatMessage({ id: 'pages.trade.form.quantity', defaultMessage: 'Quantity' })}
-            rules={[{ required: true, message: intl.formatMessage({ id: 'pages.trade.form.quantityRequired', defaultMessage: 'Please input quantity' }) }]}
+            noStyle
+            shouldUpdate={(prevValues, currentValues) => 
+              prevValues.quantityType !== currentValues.quantityType
+            }
           >
-            <InputNumber
-              min={1}
-              placeholder={intl.formatMessage({ id: 'pages.trade.form.quantityPlaceholder', defaultMessage: 'Please input quantity' })}
-              style={{ width: '100%' }}
-            />
+            {({ getFieldValue }) => {
+              const quantityType = getFieldValue('quantityType');
+              const isBuyOrder = tradeType === 'buy';
+              
+              if (isBuyOrder && quantityType === 'percentage') {
+                return (
+                  <Form.Item
+                    name="fundPercentage"
+                    label="资金占比(%)"
+                    rules={[{ required: true, message: '请输入资金占比' }]}
+                    initialValue={5}
+                  >
+                    <InputNumber
+                      min={0.1}
+                      max={100}
+                      step={0.1}
+                      placeholder="请输入资金占比"
+                      style={{ width: '100%' }}
+                      addonAfter="%"
+                    />
+                  </Form.Item>
+                );
+              }
+              
+              return (
+                <Form.Item
+                  name="qty"
+                  label={intl.formatMessage({ id: 'pages.trade.form.quantity', defaultMessage: 'Quantity' })}
+                  rules={[{ required: true, message: intl.formatMessage({ id: 'pages.trade.form.quantityRequired', defaultMessage: 'Please input quantity' }) }]}
+                >
+                  <InputNumber
+                    min={1}
+                    placeholder={intl.formatMessage({ id: 'pages.trade.form.quantityPlaceholder', defaultMessage: 'Please input quantity' })}
+                    style={{ width: '100%' }}
+                  />
+                </Form.Item>
+              );
+            }}
           </Form.Item>
 
           <Form.Item
