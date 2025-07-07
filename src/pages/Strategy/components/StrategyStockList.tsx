@@ -1,5 +1,5 @@
 import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState } from 'react';
-import { Button, message, Popconfirm, Select, Tooltip, Tag, Space, Switch, Input, InputNumber, Form, Modal, Dropdown, Menu, Spin, Table } from 'antd';
+import { Button, message, Popconfirm, Select, Tooltip, Tag, Space, Switch, Input, InputNumber, Form, Modal, Dropdown, Menu, Spin, Table, Checkbox } from 'antd';
 import {
   ActionType,
   ModalForm,
@@ -31,6 +31,7 @@ import {
   listAccountInfo,
   listStrategyUserStock,
   getAccountConfigStatus,
+  batchUpdateStrategyUserStockTimeSegmentConfig,
 } from '@/services/ant-design-pro/api';
 
 interface StrategyStockListProps {
@@ -40,13 +41,15 @@ interface StrategyStockListProps {
   editStockCode?: string;
   onEditComplete?: () => void;
   onJumpToUserStock?: (strategyId: number, stockCode: string, accountInfo?: any) => void;
+  openTimeSegmentConfig?: boolean;
+  onTimeSegmentConfigComplete?: () => void;
 }
 
 /**
  * 策略股票关系列表组件
  */
 const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
-  const { strategyId, strategyName, onClearStrategy, editStockCode, onEditComplete, onJumpToUserStock } = props;
+  const { strategyId, strategyName, onClearStrategy, editStockCode, onEditComplete, onJumpToUserStock, openTimeSegmentConfig, onTimeSegmentConfigComplete } = props;
   const [createModalVisible, setCreateModalVisible] = useState<boolean>(false);
   const [updateModalVisible, setUpdateModalVisible] = useState<boolean>(false);
   const [currentRow, setCurrentRow] = useState<API.StrategyStockItem>();
@@ -96,6 +99,42 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     
     fetchStrategyOptions();
   }, []);
+
+  // 监听openTimeSegmentConfig变化，自动打开时段配置对话框
+  useEffect(() => {
+    if (openTimeSegmentConfig && strategyId && editStockCode) {
+      // 延迟执行，等待表格数据加载完成
+      const timer = setTimeout(async () => {
+        try {
+          // 获取策略股票列表
+          const response = await listStrategyStock({
+            current: 1,
+            pageSize: 1000,
+            strategyId: strategyId,
+            stockCode: editStockCode,
+          });
+          
+          if (response && response.data && response.data.length > 0) {
+            const targetRecord = response.data[0];
+            // 直接打开时段配置对话框
+            handleTimeSegmentConfig(targetRecord);
+          } else {
+            message.warning(`未找到策略下的股票 ${editStockCode} 的配置，请先在策略标的中添加该股票`);
+          }
+        } catch (error) {
+          console.error('自动打开时段配置对话框失败:', error);
+          message.error('自动打开时段配置对话框失败');
+        } finally {
+          // 通知父组件完成
+          if (onTimeSegmentConfigComplete) {
+            onTimeSegmentConfigComplete();
+          }
+        }
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [openTimeSegmentConfig, strategyId, editStockCode, onTimeSegmentConfigComplete]);
 
   // 默认买入比例配置
   const defaultFirstShareRatio = 3; // 默认前N档买入比例3%
@@ -733,73 +772,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     {
       title: (
         <>
-          <>日内持续下跌时间(分钟)</>
-          <Tooltip title="当股票持续下跌达到该时间长度时触发买入信号（如30表示30分钟）">
-            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
-          </Tooltip>
-        </>
-      ),
-      dataIndex: 'intraDnDurationMinutes',
-      valueType: 'digit',
-      hideInSearch: true,
-      render: (_, record) => record.intraDnDurationMinutes ? `${record.intraDnDurationMinutes}分钟` : '-',
-    },
-    {
-      title: (
-        <>
-          <>日内持续上涨时间(分钟)</>
-          <Tooltip title="当股票持续上涨达到该时间长度时触发买入信号（如30表示30分钟）">
-            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
-          </Tooltip>
-        </>
-      ),
-      dataIndex: 'intraUpDurationMinutes',
-      valueType: 'digit',
-      hideInSearch: true,
-      render: (_, record) => record.intraUpDurationMinutes ? `${record.intraUpDurationMinutes}分钟` : '-',
-    },
-    {
-      title: (
-        <>
-          <FormattedMessage id="pages.strategy.stock.relation.unsoldStackLimit" defaultMessage="Unsold Stack Limit" />
-          <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.unsoldStackLimitTip" defaultMessage="Maximum number of open buy orders allowed per day" />}>
-            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
-          </Tooltip>
-        </>
-      ),
-      dataIndex: 'unsoldStackLimit',
-      valueType: 'digit',
-      hideInSearch: true,
-    },
-    {
-      title: (
-        <>
-          <FormattedMessage id="pages.strategy.stock.relation.totalFundShares" defaultMessage="Total Fund Shares" />
-          <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.totalFundSharesTip" defaultMessage="The total number of shares the fund is divided into for buying, default 18" />}>
-            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
-          </Tooltip>
-        </>
-      ),
-      dataIndex: 'totalFundShares',
-      valueType: 'digit',
-      hideInSearch: true,
-    },
-    {
-      title: (
-        <>
-          <FormattedMessage id="pages.strategy.stock.relation.limitStartShares" defaultMessage="Limit Start Shares" />
-          <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.limitStartSharesTip" defaultMessage="From which share to start limiting buying, default 9" />}>
-            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
-          </Tooltip>
-        </>
-      ),
-      dataIndex: 'limitStartShares',
-      valueType: 'digit',
-      hideInSearch: true,
-    },
-    {
-      title: (
-        <>
           <>是否开盘买入</>
           <Tooltip title="是否在开盘时执行买入策略，默认开启">
             <QuestionCircleOutlined style={{ marginLeft: 4 }} />
@@ -1010,80 +982,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     return null;
   };
   
-  // 处理自动编辑逻辑
-  useEffect(() => {
-    if (editStockCode && strategyId) {
-      // 延迟执行，等待表格数据加载完成
-      const timer = setTimeout(async () => {
-        try {
-          // 获取策略股票列表
-          const response = await listStrategyStock({
-            current: 1,
-            pageSize: 1000,
-            strategyId: strategyId,
-            stockCode: editStockCode,
-          });
-          
-          if (response && response.data && response.data.length > 0) {
-            const targetRecord = response.data[0];
-            // 转换数据格式
-            const editItem = {
-              ...targetRecord,
-              profitRatio: targetRecord.profitRatio ? targetRecord.profitRatio * 100 : undefined,
-              levelPercent: targetRecord.levelPercent ? targetRecord.levelPercent * 100 : undefined,
-              maBelowPercent: targetRecord.maBelowPercent ? targetRecord.maBelowPercent * 100 : undefined,
-              maAbovePercent: targetRecord.maAbovePercent ? targetRecord.maAbovePercent * 100 : undefined,
-              intraUpPullbackPercent: targetRecord.intraUpPullbackPercent ? targetRecord.intraUpPullbackPercent * 100 : undefined,
-              intraDnBelowAvgPercent: targetRecord.intraDnBelowAvgPercent ? targetRecord.intraDnBelowAvgPercent * 100 : undefined,
-            };
-            
-            setCurrentRow(editItem);
-            setUpdateModalVisible(true);
-            message.success(`已自动打开股票 ${editStockCode} 的编辑弹窗`);
-          } else {
-            message.warning(`未找到策略下的股票 ${editStockCode} 的配置，请先在策略标的中添加该股票`);
-          }
-        } catch (error) {
-          console.error('自动打开编辑弹窗失败:', error);
-          message.error('自动打开编辑弹窗失败');
-        } finally {
-          // 无论成功失败都通知父组件编辑完成，清除URL参数
-          if (onEditComplete) {
-            onEditComplete();
-          }
-        }
-      }, 1000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [editStockCode, strategyId, onEditComplete]);
-  
-  // 批量更新策略股票关系状态
-  const handleBatchUpdateStatus = async (status: string) => {
-    if (selectedRowKeys.length === 0) {
-      message.warning('请先选择要更新的记录');
-      return;
-    }
-
-    const hide = message.loading('批量更新状态中...');
-    
-    try {
-      const result = await batchUpdateStrategyStockStatus({ 
-        ids: selectedRowKeys as number[], 
-        status 
-      });
-      hide();
-      message.success(`已成功更新 ${selectedRowKeys.length} 条记录的状态`);
-      setSelectedRowKeys([]);
-      actionRef.current?.reload();
-      return true;
-    } catch (error) {
-      hide();
-      message.error('批量更新状态失败');
-      return false;
-    }
-  };
-  
   // 新增状态：账户信息和展开行的配置状态
   const [accountOptions, setAccountOptions] = useState<{label: string, value: string, accountInfo: any}[]>([]);
   const [expandedRowConfigs, setExpandedRowConfigs] = useState<Record<string, API.AccountConfigStatusVO[]>>({});
@@ -1192,33 +1090,70 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
   };
   
   // 时段配置对话框相关状态
-  const [timeSegmentModalVisible, setTimeSegmentModalVisible] = useState(false);
+  const [timeSegmentModalVisible, setTimeSegmentModalVisible] = useState<boolean>(false);
   const [timeSegmentCurrentRecord, setTimeSegmentCurrentRecord] = useState<API.StrategyStockItem | null>(null);
   const [timeSegmentForm] = Form.useForm();
+  
+  // 新增：多账号应用相关状态
+  const [timeSegmentSelectedAccounts, setTimeSegmentSelectedAccounts] = useState<string[]>([]);
+  const [timeSegmentAllAccounts, setTimeSegmentAllAccounts] = useState<{account: string, name: string}[]>([]);
+  const [timeSegmentSelectAll, setTimeSegmentSelectAll] = useState<boolean>(false);
 
   // 处理时段配置
   const handleTimeSegmentConfig = (record: API.StrategyStockItem) => {
     setTimeSegmentCurrentRecord(record);
     
-    // 解析现有的时段配置
-    const currentConfig = parseTimeSegmentMaConfig(record.timeSegmentMaConfig);
+    // 获取该股票相关的所有账户信息
+    const fetchAccountsForStock = async () => {
+      try {
+        // 查询使用该策略股票的所有账户
+        const userStockRes = await listStrategyUserStock({
+          current: 1,
+          pageSize: 1000,
+          strategyId: record.strategyId,
+          stockCode: record.stockCode,
+        });
+        
+        if (userStockRes && userStockRes.data) {
+          const accounts = userStockRes.data
+            .filter((item: API.StrategyUserStockItem) => item.account) // 过滤掉account为空的记录
+            .map((item: API.StrategyUserStockItem) => ({
+              account: item.account!,
+              name: item.accountName || item.account!,
+            }));
+          
+          // 去重
+          const uniqueAccounts = accounts.filter((account, index, self) => 
+            index === self.findIndex(a => a.account === account.account)
+          );
+          
+          setTimeSegmentAllAccounts(uniqueAccounts);
+          setTimeSegmentSelectedAccounts([]);
+          setTimeSegmentSelectAll(false);
+        }
+      } catch (error) {
+        console.error('获取账户信息失败:', error);
+        message.error('获取账户信息失败');
+      }
+    };
     
-    // 设置表单初始值
-    if (currentConfig.length > 0) {
-      timeSegmentForm.setFieldsValue({
-        timeSegmentMaConfigInput: currentConfig.map(item => ({
-          timeSegment: item.timeSegment,
-          maBelowPercent: item.maBelowPercent * 100, // 转换为百分比显示
-          maAbovePercent: item.maAbovePercent * 100, // 转换为百分比显示
-          profitPercent: item.profitPercent * 100, // 转换为百分比显示
-        }))
-      });
-    } else {
-      // 如果没有配置，设置为空数组
-      timeSegmentForm.setFieldsValue({
-        timeSegmentMaConfigInput: []
-      });
-    }
+    fetchAccountsForStock();
+    
+    // 解析现有的时段配置
+    const timeSegmentMaConfig = parseTimeSegmentMaConfig(record.timeSegmentMaConfig);
+    
+    // 转换为表单格式
+    const formattedConfig = timeSegmentMaConfig.map((config: any) => ({
+      timeSegment: config.timeSegment,
+      maBelowPercent: config.maBelowPercent * 100, // 转换为百分比显示
+      maAbovePercent: config.maAbovePercent * 100,
+      profitPercent: config.profitPercent * 100,
+    }));
+    
+    // 设置表单数据
+    timeSegmentForm.setFieldsValue({
+      timeSegmentMaConfigInput: formattedConfig.length > 0 ? formattedConfig : [],
+    });
     
     setTimeSegmentModalVisible(true);
   };
@@ -1248,59 +1183,209 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     return hours * 60 + minutes;
   };
 
+  // 处理账户选择
+  const handleTimeSegmentAccountChange = (selectedAccounts: string[]) => {
+    setTimeSegmentSelectedAccounts(selectedAccounts);
+    setTimeSegmentSelectAll(selectedAccounts.length === timeSegmentAllAccounts.length);
+  };
+  
+  // 处理全选
+  const handleTimeSegmentSelectAll = (checked: boolean) => {
+    setTimeSegmentSelectAll(checked);
+    if (checked) {
+      setTimeSegmentSelectedAccounts(timeSegmentAllAccounts.map(acc => acc.account));
+    } else {
+      setTimeSegmentSelectedAccounts([]);
+    }
+  };
+  
+  // 应用时段配置到选中的账户
+  const handleApplyTimeSegmentConfigToAccounts = async (values: any) => {
+    if (!timeSegmentCurrentRecord) return;
+    
+    const { timeSegmentMaConfigInput } = values;
+    
+    // 验证时段配置
+    if (!timeSegmentMaConfigInput || timeSegmentMaConfigInput.length === 0) {
+      message.error('请至少添加一个时段配置');
+      return;
+    }
+    
+    // 验证账户选择
+    if (timeSegmentSelectedAccounts.length === 0) {
+      message.error('请选择要应用配置的账户');
+      return;
+    }
+    
+    // 验证时段格式和重复性
+    const timeSegments = timeSegmentMaConfigInput.map((item: any) => item.timeSegment);
+    const uniqueTimeSegments = [...new Set(timeSegments)];
+    
+    if (uniqueTimeSegments.length !== timeSegments.length) {
+      message.error('时段配置中存在重复的时间段');
+      return;
+    }
+    
+    // 验证时段格式
+    for (const item of timeSegmentMaConfigInput) {
+      if (!validateTimeSegment(item.timeSegment)) {
+        message.error(`时段 ${item.timeSegment} 格式不正确，请使用 HH:mm 格式`);
+        return;
+      }
+    }
+    
+    // 按时间排序并转换百分比为小数
+    const sortedConfig = timeSegmentMaConfigInput
+      .sort((a: any, b: any) => timeToMinutes(a.timeSegment) - timeToMinutes(b.timeSegment))
+      .map((item: any) => ({
+        timeSegment: item.timeSegment,
+        maBelowPercent: item.maBelowPercent / 100, // 百分比转小数
+        maAbovePercent: item.maAbovePercent / 100, // 百分比转小数
+        profitPercent: item.profitPercent / 100, // 百分比转小数
+      }));
+    
+    // 构建时段配置字符串
+    const timeSegmentMaConfig = JSON.stringify(sortedConfig);
+    
+    try {
+      // 获取需要更新的策略用户股票关系记录
+      const userStockRes = await listStrategyUserStock({
+        current: 1,
+        pageSize: 1000,
+        strategyId: timeSegmentCurrentRecord.strategyId,
+        stockCode: timeSegmentCurrentRecord.stockCode,
+      });
+      
+      if (userStockRes && userStockRes.data) {
+        // 过滤出选中账户的记录
+        const targetRecords = userStockRes.data.filter((item: API.StrategyUserStockItem) => 
+          timeSegmentSelectedAccounts.includes(item.account!)
+        );
+        
+        if (targetRecords.length === 0) {
+          message.error('未找到选中账户的相关记录');
+          return;
+        }
+        
+        // 批量更新
+        const ids = targetRecords.map(record => record.id!);
+        await batchUpdateStrategyUserStockTimeSegmentConfig({
+          ids,
+          timeSegmentMaConfig,
+        });
+        
+        message.success(`成功应用时段配置到 ${targetRecords.length} 个账户`);
+        setTimeSegmentModalVisible(false);
+        setTimeSegmentCurrentRecord(null);
+        setTimeSegmentSelectedAccounts([]);
+        setTimeSegmentSelectAll(false);
+        
+        // 通知父组件时段配置对话框已完成
+        if (onTimeSegmentConfigComplete) {
+          onTimeSegmentConfigComplete();
+        }
+        
+        // 刷新数据
+        actionRef.current?.reload();
+      }
+    } catch (error) {
+      console.error('应用时段配置到账户失败:', error);
+      message.error('应用时段配置到账户失败，请重试');
+    }
+  };
+  
   // 保存时段配置
   const handleSaveTimeSegmentConfig = async (values: any) => {
-    if (!timeSegmentCurrentRecord) {
+    if (!timeSegmentCurrentRecord) return;
+    
+    const { timeSegmentMaConfigInput } = values;
+    
+    // 验证时段配置
+    if (!timeSegmentMaConfigInput || timeSegmentMaConfigInput.length === 0) {
+      message.error('请至少添加一个时段配置');
+      return;
+    }
+    
+    // 验证时段格式和重复性
+    const timeSegments = timeSegmentMaConfigInput.map((item: any) => item.timeSegment);
+    const uniqueTimeSegments = [...new Set(timeSegments)];
+    
+    if (uniqueTimeSegments.length !== timeSegments.length) {
+      message.error('时段配置中存在重复的时间段');
+      return;
+    }
+    
+    // 验证时段格式
+    for (const item of timeSegmentMaConfigInput) {
+      if (!validateTimeSegment(item.timeSegment)) {
+        message.error(`时段 ${item.timeSegment} 格式不正确，请使用 HH:mm 格式`);
+        return;
+      }
+    }
+    
+    // 按时间排序并转换百分比为小数
+    const sortedConfig = timeSegmentMaConfigInput
+      .sort((a: any, b: any) => timeToMinutes(a.timeSegment) - timeToMinutes(b.timeSegment))
+      .map((item: any) => ({
+        timeSegment: item.timeSegment,
+        maBelowPercent: item.maBelowPercent / 100, // 百分比转小数
+        maAbovePercent: item.maAbovePercent / 100, // 百分比转小数
+        profitPercent: item.profitPercent / 100, // 百分比转小数
+      }));
+    
+    // 构建时段配置字符串
+    const timeSegmentMaConfig = JSON.stringify(sortedConfig);
+    
+    try {
+      // 只更新策略股票的配置模板
+      await updateStrategyStock({
+        ...timeSegmentCurrentRecord,
+        timeSegmentMaConfig,
+      } as any);
+      
+      message.success('时段配置模板保存成功');
+      
+      // 刷新数据
+      actionRef.current?.reload();
+      
+      // 关闭对话框
+      setTimeSegmentModalVisible(false);
+      setTimeSegmentCurrentRecord(null);
+      setTimeSegmentSelectedAccounts([]);
+      setTimeSegmentSelectAll(false);
+      
+      // 通知父组件时段配置对话框已完成
+      if (onTimeSegmentConfigComplete) {
+        onTimeSegmentConfigComplete();
+      }
+    } catch (error) {
+      console.error('保存时段配置失败:', error);
+      message.error('保存时段配置失败，请重试');
+    }
+  };
+  
+  // 批量更新策略股票关系状态
+  const handleBatchUpdateStatus = async (status: string) => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要更新的记录');
       return;
     }
 
-    // 校验时间段格式和重复
-    const timeSegments = values.timeSegmentMaConfigInput || [];
-    const timeSegmentSet = new Set();
-    
-    for (const item of timeSegments) {
-      // 校验时间格式
-      if (!validateTimeSegment(item.timeSegment)) {
-        message.error(`时间段格式错误：${item.timeSegment}，请使用HH:mm格式（如09:30）`);
-        return;
-      }
-      
-      // 校验时间段重复
-      if (timeSegmentSet.has(item.timeSegment)) {
-        message.error(`时间段重复：${item.timeSegment}，请确保每个时间段唯一`);
-        return;
-      }
-      timeSegmentSet.add(item.timeSegment);
-    }
-
-    const hide = message.loading('保存时段配置中...');
+    const hide = message.loading('批量更新状态中...');
     
     try {
-      // 处理时段配置数据，按时间排序
-      const processedTimeSegmentConfig = timeSegments
-        .map((item: any) => ({
-          timeSegment: item.timeSegment,
-          maBelowPercent: item.maBelowPercent / 100, // 转换为小数
-          maAbovePercent: item.maAbovePercent / 100, // 转换为小数
-          profitPercent: item.profitPercent / 100, // 转换为小数
-        }))
-        .sort((a: any, b: any) => timeToMinutes(a.timeSegment) - timeToMinutes(b.timeSegment));
-
-      // 更新数据库
-      await updateStrategyStock({
-        ...timeSegmentCurrentRecord,
-        timeSegmentMaConfig: JSON.stringify(processedTimeSegmentConfig),
+      const result = await batchUpdateStrategyStockStatus({ 
+        ids: selectedRowKeys as number[], 
+        status 
       });
-
       hide();
-      message.success('时段配置保存成功');
-      setTimeSegmentModalVisible(false);
-      setTimeSegmentCurrentRecord(null);
+      message.success(`已成功更新 ${selectedRowKeys.length} 条记录的状态`);
+      setSelectedRowKeys([]);
       actionRef.current?.reload();
       return true;
     } catch (error) {
       hide();
-      message.error('时段配置保存失败');
+      message.error('批量更新状态失败');
       return false;
     }
   };
@@ -2482,14 +2567,143 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         onCancel={() => {
           setTimeSegmentModalVisible(false);
           setTimeSegmentCurrentRecord(null);
+          setTimeSegmentSelectedAccounts([]);
+          setTimeSegmentSelectAll(false);
+          // 通知父组件时段配置对话框已关闭
+          if (onTimeSegmentConfigComplete) {
+            onTimeSegmentConfigComplete();
+          }
         }}
-        onOk={() => {
-          timeSegmentForm.submit();
-        }}
-        width={1000}
-        okText="保存配置"
-        cancelText="取消"
+        footer={null}
+        width={1200}
       >
+        <div style={{ marginBottom: 24 }}>
+          {/* 操作按钮区域 */}
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'flex-end',
+            gap: 12, 
+            marginBottom: 16,
+            padding: 16,
+            backgroundColor: '#f5f5f5',
+            borderRadius: 6,
+            border: '1px solid #d9d9d9'
+          }}>
+            <Button 
+              onClick={() => {
+                setTimeSegmentModalVisible(false);
+                setTimeSegmentCurrentRecord(null);
+                setTimeSegmentSelectedAccounts([]);
+                setTimeSegmentSelectAll(false);
+                // 通知父组件时段配置对话框已关闭
+                if (onTimeSegmentConfigComplete) {
+                  onTimeSegmentConfigComplete();
+                }
+              }}
+            >
+              取消
+            </Button>
+            <Button 
+              type="dashed" 
+              onClick={generateDefaultTimeSegments}
+              icon={<ThunderboltOutlined />}
+            >
+              重置为默认
+            </Button>
+            <Button 
+              type="primary"
+              onClick={() => {
+                timeSegmentForm.submit();
+              }}
+            >
+              保存
+            </Button>
+            <Button 
+              type="primary"
+              disabled={timeSegmentSelectedAccounts.length === 0}
+              onClick={() => {
+                timeSegmentForm.validateFields().then(values => {
+                  handleApplyTimeSegmentConfigToAccounts(values);
+                });
+              }}
+            >
+              应用到账户 ({timeSegmentSelectedAccounts.length})
+            </Button>
+          </div>
+          
+          {/* 账户选择区域 */}
+          {timeSegmentAllAccounts.length > 0 && (
+            <div style={{ 
+              marginBottom: 16, 
+              padding: 16, 
+              backgroundColor: '#fafafa',
+              borderRadius: 6,
+              border: '1px solid #d9d9d9'
+            }}>
+              <div style={{ marginBottom: 12 }}>
+                <Checkbox
+                  checked={timeSegmentSelectAll}
+                  onChange={(e) => handleTimeSegmentSelectAll(e.target.checked)}
+                  style={{ fontWeight: 'bold' }}
+                >
+                  全选账户 ({timeSegmentAllAccounts.length})
+                </Checkbox>
+              </div>
+              
+              <div style={{ 
+                display: 'flex', 
+                flexWrap: 'wrap', 
+                gap: 8,
+                marginBottom: 12
+              }}>
+                {timeSegmentAllAccounts.map(account => (
+                  <Checkbox
+                    key={account.account}
+                    checked={timeSegmentSelectedAccounts.includes(account.account)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        handleTimeSegmentAccountChange([...timeSegmentSelectedAccounts, account.account]);
+                      } else {
+                        handleTimeSegmentAccountChange(timeSegmentSelectedAccounts.filter(acc => acc !== account.account));
+                      }
+                    }}
+                    style={{
+                      padding: '4px 8px',
+                      backgroundColor: timeSegmentSelectedAccounts.includes(account.account) ? '#e6f7ff' : '#fff',
+                      border: '1px solid #d9d9d9',
+                      borderRadius: 4,
+                      minWidth: 120
+                    }}
+                  >
+                    {account.name}
+                  </Checkbox>
+                ))}
+              </div>
+              
+              <div style={{ fontSize: '12px', color: '#666' }}>
+                {timeSegmentSelectedAccounts.length === 0 
+                  ? '请选择要应用配置的账户' 
+                  : `已选择 ${timeSegmentSelectedAccounts.length} 个账户`}
+              </div>
+              
+              {/* 覆盖提示 */}
+              {timeSegmentSelectedAccounts.length > 0 && (
+                <div style={{ 
+                  marginTop: 12,
+                  padding: 8,
+                  backgroundColor: '#fff7e6',
+                  border: '1px solid #ffd591',
+                  borderRadius: 4,
+                  fontSize: '12px',
+                  color: '#d46b08'
+                }}>
+                  <strong>⚠️ 重要提示：</strong>应用到账户将会覆盖选中账户的原有时段配置，请确认后再操作。
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        
         <Form
           form={timeSegmentForm}
           onFinish={handleSaveTimeSegmentConfig}
@@ -2625,13 +2839,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
                         style={{ flex: 1 }}
                       >
                         添加时段
-                      </Button>
-                      <Button 
-                        type="default" 
-                        onClick={generateDefaultTimeSegments}
-                        icon={<ThunderboltOutlined />}
-                      >
-                        重置为默认
                       </Button>
                     </div>
                   )}

@@ -1703,3 +1703,21 @@ export async function batchUpdateStrategyUserStockTotalFundShares(
     ...(options || {}),
   });
 }
+
+/** 批量更新策略用户股票关系的时段分时配置 */
+export async function batchUpdateStrategyUserStockTimeSegmentConfig(
+  params: {
+    ids: number[];
+    timeSegmentMaConfig: string;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.ApiResponse>('/api/strategy/user-stock/batch-time-segment-config', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: params,
+    ...(options || {}),
+  });
+}

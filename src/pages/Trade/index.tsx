@@ -44,10 +44,35 @@ const Trade: React.FC = () => {
   const [timezone, setTimezone] = useState<string>('Asia/Shanghai');
   const [timezones] = useState<string[]>(['America/New_York', 'Asia/Shanghai']);
   const [showSensitiveInfo, setShowSensitiveInfo] = useState<boolean>(false);
+  const [accountOptions, setAccountOptions] = useState<{ label: string; value: string }[]>([]);
 
   // 获取当前语言环境
   const currentLocale = getLocale();
   const intl = useIntl();
+
+  // 获取账号选项数据
+  useEffect(() => {
+    const fetchAccountOptions = async () => {
+      try {
+        const response = await listAccountInfo({
+          current: 1,
+          pageSize: 1000,
+        }, {});
+        
+        if (response && response.data) {
+          const options = response.data.map((account: API.AccountInfo) => ({
+            label: `${account.name} (${account.account})${account.enable ? '' : ' [已禁用]'}`,
+            value: account.account,
+          }));
+          setAccountOptions(options);
+        }
+      } catch (error) {
+        console.error('获取账号选项失败:', error);
+      }
+    };
+    
+    fetchAccountOptions();
+  }, []);
 
   // 根据当前语言环境选择货币符号
   const getCurrencySymbol = () => {
@@ -197,6 +222,23 @@ const Trade: React.FC = () => {
       dataIndex: 'accountName',
       valueType: 'textarea',
       sorter: true,
+      renderFormItem: (item, { type, defaultRender, ...rest }, form) => {
+        if (type === 'form') {
+          return null;
+        }
+        return (
+          <Select
+            showSearch
+            placeholder={intl.formatMessage({ id: 'pages.trade.selectAccount', defaultMessage: '请选择账号' })}
+            optionFilterProp="children"
+            filterOption={(input, option) =>
+              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+            }
+            options={accountOptions}
+            allowClear
+          />
+        );
+      },
     },
     {
       title: <FormattedMessage id="pages.searchTable.code" defaultMessage="Stock Code" />,
@@ -883,7 +925,16 @@ const Trade: React.FC = () => {
         search={{
           labelWidth: 120,
         }}
-        request={listOrderInfo}
+        request={async (params, sort, filter) => {
+          // 处理账号名称参数，将其转换为account参数
+          const requestParams = { ...params };
+          if (params.accountName) {
+            requestParams.account = params.accountName;
+            delete requestParams.accountName;
+          }
+          
+          return await listOrderInfo(requestParams, sort, filter);
+        }}
         columns={orderColumns}
         options={{
           reload: true,

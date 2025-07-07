@@ -32,6 +32,9 @@ const StrategyPage: React.FC = () => {
   // 编辑股票代码参数
   const [editStockCode, setEditStockCode] = useState<string | undefined>(undefined);
   
+  // 新增：标识是否需要打开时段配置对话框
+  const [openTimeSegmentConfig, setOpenTimeSegmentConfig] = useState<boolean>(false);
+  
   // 新增：用于策略用户股票关系的预填数据
   const [userStockPreFillData, setUserStockPreFillData] = useState<{
     strategyId: number;
@@ -124,6 +127,9 @@ const StrategyPage: React.FC = () => {
       setSelectedStrategyName(strategyName || `策略${strategyId}`);
       setEditStockCode(stockCode);
       
+      // 标识需要打开时段配置对话框
+      setOpenTimeSegmentConfig(true);
+      
       // 切换到策略标的tab
       setActiveTab('2');
       
@@ -134,7 +140,7 @@ const StrategyPage: React.FC = () => {
         }
       }, 100);
       
-      message.success(`已切换到策略标的页面，正在编辑股票 ${stockCode}`);
+      message.success(`已切换到策略标的页面，正在打开股票 ${stockCode} 的时段配置对话框`);
     } catch (error) {
       console.error('获取策略信息失败:', error);
       message.error('获取策略信息失败');
@@ -228,6 +234,8 @@ const StrategyPage: React.FC = () => {
             editStockCode={editStockCode}
             onEditComplete={() => setEditStockCode(undefined)}
             onJumpToUserStock={handleJumpToUserStock}
+            openTimeSegmentConfig={openTimeSegmentConfig}
+            onTimeSegmentConfigComplete={() => setOpenTimeSegmentConfig(false)}
           />
         </TabPane>
 

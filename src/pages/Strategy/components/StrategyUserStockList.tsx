@@ -1,5 +1,5 @@
 import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState, useMemo } from 'react';
-import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select, DatePicker, Modal, Checkbox, Dropdown, Menu, InputNumber, Input, Card, Statistic, Row, Col, Form } from 'antd';
+import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select, DatePicker, Modal, Checkbox, Dropdown, Menu, InputNumber, Input, Card, Statistic, Row, Col, Form, Typography, Divider, Badge } from 'antd';
 import {
   ActionType,
   ModalForm,
@@ -15,7 +15,7 @@ import {
   ProFormList,
 } from '@ant-design/pro-components';
 import { FormattedMessage, useIntl } from '@umijs/max';
-import { PlusOutlined, InfoCircleOutlined, FilterOutlined, CloseCircleOutlined, QuestionCircleOutlined, SaveOutlined, ThunderboltOutlined, DownOutlined } from '@ant-design/icons';
+import { PlusOutlined, InfoCircleOutlined, FilterOutlined, CloseCircleOutlined, QuestionCircleOutlined, SaveOutlined, ThunderboltOutlined, DownOutlined, DeleteOutlined } from '@ant-design/icons';
 import { 
   listStrategyUserStock, 
   createStrategyUserStock, 
@@ -101,6 +101,19 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
   const [batchCreateForm] = Form.useForm();
   const [updateForm] = Form.useForm();
   
+  // 时段配置相关状态
+  const [timeSegmentModalVisible, setTimeSegmentModalVisible] = useState<boolean>(false);
+  const [timeSegmentCurrentRecord, setTimeSegmentCurrentRecord] = useState<API.StrategyUserStockItem | null>(null);
+  const [timeSegmentForm] = Form.useForm();
+  
+  // 默认时段分时平均线配置
+  const defaultTimeSegmentMaConfig: Array<{
+    timeSegment: string;
+    maBelowPercent: number;
+    maAbovePercent: number;
+    profitPercent: number;
+  }> = [];
+  
   // 公开刷新方法
   useImperativeHandle(ref, () => ({
     reload: () => {
@@ -160,6 +173,28 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     } catch (error) {
       console.warn('解析BuyRatioConfig失败，使用默认配置:', error);
       return getDefaultBuyRatioConfig();
+    }
+  };
+
+  // 解析时段分时平均线配置
+  const parseTimeSegmentMaConfig = (configString: string | undefined) => {
+    if (!configString) {
+      return defaultTimeSegmentMaConfig;
+    }
+    try {
+      const config = JSON.parse(configString);
+      if (Array.isArray(config) && config.length > 0) {
+        return config.map((item: any) => ({
+          timeSegment: item.timeSegment || '09:30',
+          maBelowPercent: item.maBelowPercent || 0.002,
+          maAbovePercent: item.maAbovePercent || 0.001,
+          profitPercent: item.profitPercent || 0.01,
+        }));
+      }
+      return defaultTimeSegmentMaConfig;
+    } catch (error) {
+      console.warn('解析时段分时平均线配置失败:', error);
+      return defaultTimeSegmentMaConfig;
     }
   };
 
@@ -314,6 +349,34 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     fetchStrategyStockData();
   }, []);
 
+  // 监听currentRow变化，动态设置编辑表单值
+  useEffect(() => {
+    if (currentRow && updateModalVisible) {
+      const formValues = {
+        ...currentRow,
+        // 将数据库中的小数值转换为百分比显示
+        fundPercent: currentRow?.fundPercent ? currentRow.fundPercent * 100 : undefined,
+        profitRatio: currentRow?.profitRatio ? currentRow.profitRatio * 100 : undefined,
+        // 将数据库中的enableOpeningBuy值转换为表单字符串值
+        enableOpeningBuy: currentRow?.enableOpeningBuy === true ? 'true' : 
+                         currentRow?.enableOpeningBuy === false ? 'false' : 'null',
+        // 解析时段配置
+        timeSegments: currentRow ? (() => {
+          const config = parseTimeSegmentMaConfig((currentRow as any).timeSegmentMaConfig);
+          return config.map(item => ({
+            timeSegment: item.timeSegment,
+            maBelowPercent: item.maBelowPercent * 100,
+            maAbovePercent: item.maAbovePercent * 100,
+            profitPercent: item.profitPercent * 100,
+          }));
+        })() : [],
+      };
+      
+      console.log('设置编辑表单值:', JSON.stringify(formValues, null, 2));
+      updateForm.setFieldsValue(formValues);
+    }
+  }, [currentRow, updateModalVisible]);
+
   // 添加策略用户股票关系
   const handleAdd = async (fields: any) => {
     console.log('handleAdd被调用，提交的完整字段:', JSON.stringify(fields, null, 2));
@@ -355,15 +418,69 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       fields.maxAmount = undefined;
     }
     
+    // 处理时段配置
+    if (fields.timeSegments && fields.timeSegments.length > 0) {
+      // 验证时间段格式
+      for (const segment of fields.timeSegments) {
+        if (!validateTimeSegment(segment.timeSegment)) {
+          message.error(`时间段格式错误：${segment.timeSegment}，请使用HH:mm格式`);
+          hide();
+          return false;
+        }
+      }
+      
+      // 检查时间段是否重复
+      const timeSet = new Set();
+      const duplicates: string[] = [];
+      
+      for (const segment of fields.timeSegments) {
+        if (timeSet.has(segment.timeSegment)) {
+          duplicates.push(segment.timeSegment);
+        } else {
+          timeSet.add(segment.timeSegment);
+        }
+      }
+      
+      if (duplicates.length > 0) {
+        message.error(`时间段重复：${duplicates.join(', ')}`);
+        hide();
+        return false;
+      }
+      
+      // 按时间顺序排序
+      fields.timeSegments.sort((a: any, b: any) => timeToMinutes(a.timeSegment) - timeToMinutes(b.timeSegment));
+      
+      // 转换数据格式（百分比转小数）
+      const configData = fields.timeSegments.map((segment: any) => ({
+        timeSegment: segment.timeSegment,
+        maBelowPercent: segment.maBelowPercent / 100,
+        maAbovePercent: segment.maAbovePercent / 100,
+        profitPercent: segment.profitPercent / 100,
+      }));
+      
+      fields.timeSegmentMaConfig = JSON.stringify(configData);
+    }
+    
+    // 从表单数据中移除timeSegments字段，因为后端不需要这个字段
+    delete fields.timeSegments;
+    
+    console.log('处理后的提交数据:', JSON.stringify(fields, null, 2));
+    
     try {
       await createStrategyUserStock(fields);
       hide();
-      message.success(intl.formatMessage({ id: 'pages.message.created' }));
-      actionRef.current?.reload();
+      message.success(intl.formatMessage({ id: 'pages.message.success' }));
+      
+      // 刷新表格
+      if (actionRef.current) {
+        actionRef.current.reload();
+      }
+      
       return true;
     } catch (error) {
       hide();
-      message.error(intl.formatMessage({ id: 'pages.message.createFailed' }));
+      console.error('创建策略用户股票关系失败:', error);
+      message.error(intl.formatMessage({ id: 'pages.message.error' }));
       return false;
     }
   };
@@ -490,18 +607,72 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       fields.maxAmount = undefined;
     }
     
+    // 处理时段配置
+    if (fields.timeSegments && fields.timeSegments.length > 0) {
+      // 验证时间段格式
+      for (const segment of fields.timeSegments) {
+        if (!validateTimeSegment(segment.timeSegment)) {
+          message.error(`时间段格式错误：${segment.timeSegment}，请使用HH:mm格式`);
+          hide();
+          return false;
+        }
+      }
+      
+      // 检查时间段是否重复
+      const timeSet = new Set();
+      const duplicates: string[] = [];
+      
+      for (const segment of fields.timeSegments) {
+        if (timeSet.has(segment.timeSegment)) {
+          duplicates.push(segment.timeSegment);
+        } else {
+          timeSet.add(segment.timeSegment);
+        }
+      }
+      
+      if (duplicates.length > 0) {
+        message.error(`时间段重复：${duplicates.join(', ')}`);
+        hide();
+        return false;
+      }
+      
+      // 按时间顺序排序
+      fields.timeSegments.sort((a: any, b: any) => timeToMinutes(a.timeSegment) - timeToMinutes(b.timeSegment));
+      
+      // 转换数据格式（百分比转小数）
+      const configData = fields.timeSegments.map((segment: any) => ({
+        timeSegment: segment.timeSegment,
+        maBelowPercent: segment.maBelowPercent / 100,
+        maAbovePercent: segment.maAbovePercent / 100,
+        profitPercent: segment.profitPercent / 100,
+      }));
+      
+      fields.timeSegmentMaConfig = JSON.stringify(configData);
+    }
+    
+    // 从表单数据中移除timeSegments字段，因为后端不需要这个字段
+    delete fields.timeSegments;
+    
+    console.log('处理后的更新数据:', JSON.stringify(fields, null, 2));
+    
     try {
       await updateStrategyUserStock({
         ...currentRow,
         ...fields,
       });
       hide();
-      message.success(intl.formatMessage({ id: 'pages.message.updated' }));
-      actionRef.current?.reload();
+      message.success(intl.formatMessage({ id: 'pages.message.success' }));
+      
+      // 刷新表格
+      if (actionRef.current) {
+        actionRef.current.reload();
+      }
+      
       return true;
     } catch (error) {
       hide();
-      message.error(intl.formatMessage({ id: 'pages.message.updateFailed' }));
+      console.error('更新策略用户股票关系失败:', error);
+      message.error(intl.formatMessage({ id: 'pages.message.error' }));
       return false;
     }
   };
@@ -1063,11 +1234,6 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
   // 表格列定义
   const columns: ProColumns<API.StrategyUserStockItem>[] = [
     {
-      title: 'ID',
-      dataIndex: 'id',
-      hideInSearch: true,
-    },
-    {
       title: <FormattedMessage id="pages.strategy.job.name" defaultMessage="Strategy" />,
       dataIndex: 'strategyName',
       sorter: true,
@@ -1106,19 +1272,13 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       },
     },
     {
-      title: <FormattedMessage id="pages.strategy.user.stockRelation.accountName" defaultMessage="Account Name" />,
-      dataIndex: 'accountName',
-      sorter: true,
-      hideInSearch: true,
-    },
-    {
       title: <FormattedMessage id="pages.strategy.user.stockRelation.stockCode" defaultMessage="Stock Code" />,
       dataIndex: 'stockCode',
       sorter: true,
       render: (text, record) => (
         <a
           onClick={() => {
-            // 通过回调函数通知父组件切换tab
+            // 通过回调函数通知父组件切换到策略标的tab并打开时段配置对话框
             if (record.strategyId && record.stockCode && onStockClick) {
               onStockClick(record.strategyId, record.stockCode);
             }
@@ -1128,6 +1288,63 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           {text}
         </a>
       ),
+    },
+    {
+      title: (
+        <>
+          <>时段分时配置</>
+          <Tooltip title="不同时段的分时平均线买入配置和盈利点">
+            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </>
+      ),
+      dataIndex: 'timeSegmentMaConfig',
+      valueType: 'text',
+      hideInSearch: true,
+      width: 280,
+      render: (_, record) => {
+        if (!(record as any).timeSegmentMaConfig) {
+          return <Tag color="default">使用策略标的配置</Tag>;
+        }
+        
+        try {
+          const config = parseTimeSegmentMaConfig((record as any).timeSegmentMaConfig);
+          if (!Array.isArray(config) || config.length === 0) {
+            return <Tag color="default">使用策略标的配置</Tag>;
+          }
+          
+          return (
+            <div>
+              {config.map((item: any, index: number) => (
+                <Tag key={index} color="blue" style={{ marginBottom: 2 }}>
+                  {item.timeSegment}: 分时下方{(item.maBelowPercent * 100).toFixed(2)}%/分时上方{(item.maAbovePercent * 100).toFixed(2)}%/盈利点{((item.profitPercent || 0) * 100).toFixed(2)}%
+                </Tag>
+              ))}
+            </div>
+          );
+        } catch (error) {
+          return <Tag color="red">配置错误</Tag>;
+        }
+      },
+    },
+    {
+      title: (
+        <span>
+          <>单次资金</>
+          <Tooltip title="单次买入资金 = 最大金额 × 首次份额比例">
+            <InfoCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </span>
+      ),
+      dataIndex: 'singleAmount',
+      valueType: 'money',
+      hideInSearch: true,
+      render: (_, record) => {
+        const strategyStockConfig = getStrategyStockConfig(record.strategyId, record.stockCode);
+        const buyRatioConfig = parseBuyRatioConfig(strategyStockConfig?.buyRatioConfig);
+        const singleAmount = calculateSingleAmount(record, buyRatioConfig);
+        return singleAmount > 0 ? `$${singleAmount.toLocaleString()}` : '-';
+      },
     },
     {
       title: (
@@ -1156,25 +1373,6 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       valueType: 'money',
       hideInSearch: true,
       render: (_, record) => record.maxAmount ? `$${record.maxAmount.toLocaleString()}` : '-',
-    },
-    {
-      title: (
-        <span>
-          <FormattedMessage id="pages.strategy.user.stockRelation.dailyCompletedOrders" defaultMessage="每日最大完成单数" />
-          <Tooltip title={<FormattedMessage id="pages.strategy.user.stockRelation.dailyCompletedOrdersTip" defaultMessage="每天最大完成单数限制，当当天已完成订单数量达到这个值时，将停止下单" />}>
-            <InfoCircleOutlined style={{ marginLeft: 4 }} />
-          </Tooltip>
-        </span>
-      ),
-      dataIndex: 'dailyCompletedOrders',
-      valueType: 'digit',
-      hideInSearch: true,
-      render: (text, record) => {
-        if (record.dailyCompletedOrders === null || record.dailyCompletedOrders === undefined) {
-          return '-';
-        }
-        return record.dailyCompletedOrders;
-      },
     },
     {
       title: (
@@ -1265,25 +1463,6 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       valueType: 'percent',
       hideInSearch: true,
       render: (_, record) => record.profitRatio ? `${(record.profitRatio * 100).toFixed(2)}%` : '-',
-    },
-    {
-      title: (
-        <span>
-          <>单次资金</>
-          <Tooltip title="单次买入资金 = 最大金额 × 首次份额比例">
-            <InfoCircleOutlined style={{ marginLeft: 4 }} />
-          </Tooltip>
-        </span>
-      ),
-      dataIndex: 'singleAmount',
-      valueType: 'money',
-      hideInSearch: true,
-      render: (_, record) => {
-        const strategyStockConfig = getStrategyStockConfig(record.strategyId, record.stockCode);
-        const buyRatioConfig = parseBuyRatioConfig(strategyStockConfig?.buyRatioConfig);
-        const singleAmount = calculateSingleAmount(record, buyRatioConfig);
-        return singleAmount > 0 ? `$${singleAmount.toLocaleString()}` : '-';
-      },
     },
     {
       title: (
@@ -1379,27 +1558,6 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     },
     {
       title: (
-        <span>
-          <FormattedMessage id="pages.strategy.user.stockRelation.timeZone" defaultMessage="时区" />
-          <Tooltip title={<FormattedMessage id="pages.strategy.user.stockRelation.timeZoneTip" defaultMessage="策略执行的时区，默认为美东时区" />}>
-            <InfoCircleOutlined style={{ marginLeft: 4 }} />
-          </Tooltip>
-        </span>
-      ),
-      dataIndex: 'timeZone',
-      valueType: 'select',
-      hideInSearch: true,
-      valueEnum: {
-        'America/New_York': <FormattedMessage id="pages.strategy.user.stockRelation.timeZone.newyork" defaultMessage="美东时区" />,
-        'Asia/Shanghai': <FormattedMessage id="pages.strategy.user.stockRelation.timeZone.shanghai" defaultMessage="北京时区" />,
-      },
-      render: (_, record) => {
-        const timeZone = record.timeZone || 'America/New_York';
-        return <FormattedMessage id={`pages.strategy.user.stockRelation.timeZone.${timeZone === 'America/New_York' ? 'newyork' : 'shanghai'}`} defaultMessage={timeZone === 'America/New_York' ? '美东时区' : '北京时区'} />;
-      },
-    },
-    {
-      title: (
         <>
           <>是否开盘买入</>
           <Tooltip title="是否在开盘时执行买入策略。优先级：用户设置 > 策略默认 > 系统默认(开启)">
@@ -1461,31 +1619,6 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           </Tag>
         );
       },
-    },
-    {
-      title: (
-        <span>
-          <>策略配置模版ID</>
-          <Tooltip title="该配置来源于哪个配置模版">
-            <InfoCircleOutlined style={{ marginLeft: 4 }} />
-          </Tooltip>
-        </span>
-      ),
-      dataIndex: 'configTemplateId',
-      hideInSearch: true,
-      render: (text, record) => {
-        if (record.configTemplateId === null || record.configTemplateId === undefined) {
-          return '-';
-        }
-        return record.configTemplateId;
-      },
-    },
-    {
-      title: <FormattedMessage id="pages.strategy.createTime" defaultMessage="Create Time" />,
-      dataIndex: 'createTime',
-      valueType: 'dateTime',
-      hideInSearch: true,
-      sorter: true,
     },
     {
       title: '是否启动二阶段策略',
@@ -1555,16 +1688,18 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         <a
           key="edit"
           onClick={() => {
-            // 转换数据，将小数转为百分比
-            const editItem = {...record};
-            if (editItem.fundPercent !== undefined) {
-              editItem.fundPercent = editItem.fundPercent * 100;
-            }
-            setCurrentRow(editItem);
+            // 直接设置原始记录数据，不进行转换
+            setCurrentRow(record);
             setUpdateModalVisible(true);
           }}
         >
           <FormattedMessage id="pages.common.edit" defaultMessage="Edit" />
+        </a>,
+        <a
+          key="timeSegmentConfig"
+          onClick={() => handleTimeSegmentConfig(record)}
+        >
+          时段配置
         </a>,
         <a
           key="saveAsTemplate"
@@ -1604,6 +1739,167 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     return null;
   };
   
+  // 处理时段配置
+  const handleTimeSegmentConfig = (record: API.StrategyUserStockItem) => {
+    setTimeSegmentCurrentRecord(record);
+    setTimeSegmentModalVisible(true);
+    
+    // 解析现有配置并设置表单初始值
+    const existingConfig = parseTimeSegmentMaConfig((record as any).timeSegmentMaConfig);
+    if (existingConfig.length > 0) {
+      const formValues = existingConfig.map(config => ({
+        timeSegment: config.timeSegment,
+        maBelowPercent: config.maBelowPercent * 100, // 转换为百分比显示
+        maAbovePercent: config.maAbovePercent * 100,
+        profitPercent: config.profitPercent * 100,
+      }));
+      timeSegmentForm.setFieldsValue({ timeSegments: formValues });
+    } else {
+      timeSegmentForm.setFieldsValue({ timeSegments: [] });
+    }
+  };
+
+  // 生成默认时段配置
+  const generateDefaultTimeSegments = () => {
+    const defaultSegments = [
+      { timeSegment: '09:30', maBelowPercent: 0.5, maAbovePercent: 0.1, profitPercent: 1 },
+      { timeSegment: '12:00', maBelowPercent: 1.0, maAbovePercent: -0.5, profitPercent: 1 },
+      { timeSegment: '14:00', maBelowPercent: 1.5, maAbovePercent: -1.0, profitPercent: 1 },
+    ];
+    
+    timeSegmentForm.setFieldsValue({ timeSegments: defaultSegments });
+  };
+
+  // 验证时间段格式
+  const validateTimeSegment = (timeSegment: string) => {
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    return timeRegex.test(timeSegment);
+  };
+
+  // 时间转换为分钟数，用于排序
+  const timeToMinutes = (timeStr: string) => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+
+  // 保存时段配置
+  const handleSaveTimeSegmentConfig = async (values: any) => {
+    if (!timeSegmentCurrentRecord) {
+      message.error('未选择配置记录');
+      return;
+    }
+
+    try {
+      const timeSegments = values.timeSegments || [];
+      
+      // 验证时间段格式
+      for (const segment of timeSegments) {
+        if (!validateTimeSegment(segment.timeSegment)) {
+          message.error(`时间段格式错误：${segment.timeSegment}，请使用HH:mm格式`);
+          return;
+        }
+      }
+      
+      // 检查时间段是否重复
+      const timeSet = new Set();
+      const duplicates: string[] = [];
+      
+      for (const segment of timeSegments) {
+        if (timeSet.has(segment.timeSegment)) {
+          duplicates.push(segment.timeSegment);
+        } else {
+          timeSet.add(segment.timeSegment);
+        }
+      }
+      
+      if (duplicates.length > 0) {
+        message.error(`时间段重复：${duplicates.join(', ')}`);
+        return;
+      }
+      
+      // 按时间顺序排序
+      timeSegments.sort((a: any, b: any) => timeToMinutes(a.timeSegment) - timeToMinutes(b.timeSegment));
+      
+      // 转换数据格式（百分比转小数）
+      const configData = timeSegments.map((segment: any) => ({
+        timeSegment: segment.timeSegment,
+        maBelowPercent: segment.maBelowPercent / 100,
+        maAbovePercent: segment.maAbovePercent / 100,
+        profitPercent: segment.profitPercent / 100,
+      }));
+      
+      const timeSegmentMaConfig = JSON.stringify(configData);
+      
+      // 调用更新接口，传递完整的记录信息
+      await updateStrategyUserStock({
+        ...timeSegmentCurrentRecord,
+        timeSegmentMaConfig,
+      } as any);
+      
+      message.success('时段配置保存成功');
+      setTimeSegmentModalVisible(false);
+      setTimeSegmentCurrentRecord(null);
+      
+      // 刷新表格
+      if (actionRef.current) {
+        actionRef.current.reload();
+      }
+    } catch (error) {
+      console.error('保存时段配置失败:', error);
+      message.error('保存时段配置失败');
+    }
+  };
+
+  // 从策略标的获取时段配置
+  const loadStrategyStockTimeSegmentConfig = async () => {
+    if (!timeSegmentCurrentRecord) {
+      message.error('未选择配置记录');
+      return;
+    }
+
+    try {
+      // 获取策略标的配置
+      const strategyStockConfig = getStrategyStockConfig(
+        timeSegmentCurrentRecord.strategyId,
+        timeSegmentCurrentRecord.stockCode
+      );
+      
+      if (!strategyStockConfig) {
+        message.error('未找到对应的策略标的配置');
+        return;
+      }
+
+      // 解析策略标的的时段配置
+      const strategyTimeSegmentConfig = parseTimeSegmentMaConfig(strategyStockConfig.timeSegmentMaConfig);
+      
+      if (strategyTimeSegmentConfig.length === 0) {
+        // 如果策略标的没有配置时段，使用默认配置
+        const defaultSegments = [
+          { timeSegment: '09:30', maBelowPercent: 0.5, maAbovePercent: 0.1, profitPercent: 1 },
+          { timeSegment: '12:00', maBelowPercent: 1.0, maAbovePercent: -0.5, profitPercent: 1 },
+          { timeSegment: '14:00', maBelowPercent: 1.5, maAbovePercent: -1.0, profitPercent: 1 },
+        ];
+        timeSegmentForm.setFieldsValue({ timeSegments: defaultSegments });
+        message.info('策略标的暂无时段配置，已加载默认配置');
+      } else {
+        // 转换为表单格式（百分比显示）
+        // parseTimeSegmentMaConfig返回的是原始小数值，需要乘以100显示为百分比
+        const formattedConfig = strategyTimeSegmentConfig.map((config: any) => ({
+          timeSegment: config.timeSegment,
+          maBelowPercent: config.maBelowPercent * 100,
+          maAbovePercent: config.maAbovePercent * 100,
+          profitPercent: config.profitPercent * 100,
+        }));
+        
+        timeSegmentForm.setFieldsValue({ timeSegments: formattedConfig });
+        message.success('已加载策略标的时段配置');
+      }
+    } catch (error) {
+      console.error('加载策略标的时段配置失败:', error);
+      message.error('加载策略标的时段配置失败');
+    }
+  };
+
   return (
     <>
       {renderFilterTag()}
@@ -2344,6 +2640,156 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               rules={[{ required: true }]}
             />
           </div>
+          
+          {/* 时段分时平均线配置 */}
+          <div style={{ width: '100%', marginTop: '16px' }}>
+            <ProFormList
+              name="timeSegments"
+              label="时段分时平均线配置"
+              tooltip="配置不同时段的分时平均线买入策略"
+              creatorButtonProps={{
+                creatorButtonText: '添加时段',
+                type: 'dashed',
+                style: { width: '100%' },
+              }}
+              copyIconProps={false}
+              deleteIconProps={{
+                tooltipText: '删除时段',
+              }}
+              itemRender={({ listDom, action }, { record, index }) => (
+                <div
+                  style={{
+                    border: '1px solid #d9d9d9',
+                    borderRadius: '6px',
+                    padding: '12px',
+                    marginBottom: '8px',
+                    backgroundColor: '#fafafa',
+                  }}
+                >
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    {listDom}
+                    <div style={{ display: 'flex', alignItems: 'center', paddingTop: '20px' }}>
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        size="small"
+                        onClick={() => {
+                          // 从action元素中提取onClick事件
+                          if (action && typeof action === 'object' && 'props' in action && action.props.onClick) {
+                            action.props.onClick();
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            >
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', width: '100%' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ marginBottom: '4px', fontWeight: 'bold' }}>时段开始时间</div>
+                  <ProFormText
+                    name="timeSegment"
+                    placeholder="09:30"
+                    rules={[
+                      { required: true, message: '请输入时段开始时间' },
+                      { 
+                        pattern: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
+                        message: '时间格式错误，请使用HH:mm格式' 
+                      }
+                    ]}
+                    fieldProps={{
+                      style: { width: '100%' }
+                    }}
+                    formItemProps={{
+                      style: { marginBottom: '0' }
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ marginBottom: '4px', fontWeight: 'bold' }}>下方百分比</div>
+                  <ProFormDigit
+                    name="maBelowPercent"
+                    placeholder="0.5"
+                    rules={[{ required: true, message: '请输入下方百分比' }]}
+                    min={-100}
+                    max={100}
+                    fieldProps={{
+                      precision: 2,
+                      addonAfter: '%',
+                      style: { width: '100%' }
+                    }}
+                    formItemProps={{
+                      style: { marginBottom: '0' }
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ marginBottom: '4px', fontWeight: 'bold' }}>上方百分比</div>
+                  <ProFormDigit
+                    name="maAbovePercent"
+                    placeholder="0.1"
+                    rules={[{ required: true, message: '请输入上方百分比' }]}
+                    min={-100}
+                    max={100}
+                    fieldProps={{
+                      precision: 2,
+                      addonAfter: '%',
+                      style: { width: '100%' }
+                    }}
+                    formItemProps={{
+                      style: { marginBottom: '0' }
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ marginBottom: '4px', fontWeight: 'bold' }}>盈利点</div>
+                  <ProFormDigit
+                    name="profitPercent"
+                    placeholder="1.0"
+                    rules={[{ required: true, message: '请输入盈利点' }]}
+                    min={-100}
+                    max={100}
+                    fieldProps={{
+                      precision: 2,
+                      addonAfter: '%',
+                      style: { width: '100%' }
+                    }}
+                    formItemProps={{
+                      style: { marginBottom: '0' }
+                    }}
+                  />
+                </div>
+              </div>
+            </ProFormList>
+            
+            <div style={{ marginTop: '8px' }}>
+              <Button 
+                type="dashed" 
+                onClick={() => {
+                  const currentSegments = createForm.getFieldValue('timeSegments') || [];
+                  const defaultSegments = [
+                    { timeSegment: '09:30', maBelowPercent: 0.5, maAbovePercent: 0.1, profitPercent: 1 },
+                    { timeSegment: '12:00', maBelowPercent: 1.0, maAbovePercent: -0.5, profitPercent: 1 },
+                    { timeSegment: '14:00', maBelowPercent: 1.5, maAbovePercent: -1.0, profitPercent: 1 },
+                  ];
+                  createForm.setFieldsValue({ timeSegments: defaultSegments });
+                }}
+                style={{ width: '100%' }}
+              >
+                重置为默认时段
+              </Button>
+            </div>
+            
+            <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+              <p><strong>说明：</strong></p>
+              <p>• 时段开始时间：该时段配置的生效时间，格式为HH:mm</p>
+              <p>• 分时平均线下方百分比：股价低于分时平均线的百分比阈值</p>
+              <p>• 分时平均线上方百分比：股价高于分时平均线的百分比阈值</p>
+              <p>• 盈利点：该时段的盈利目标百分比</p>
+            </div>
+          </div>
         </div>
       </ModalForm>
       
@@ -2358,18 +2804,15 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           footer: null, // 隐藏默认底部按钮
         }}
         open={updateModalVisible}
-        onOpenChange={setUpdateModalVisible}
+        onOpenChange={(visible) => {
+          setUpdateModalVisible(visible);
+          if (!visible) {
+            setCurrentRow(undefined);
+            updateForm.resetFields(); // 清空表单值
+          }
+        }}
         onFinish={handleUpdate}
         submitter={false} // 禁用默认提交按钮
-        initialValues={{
-          ...currentRow,
-          // 将数据库中的小数值转换为百分比显示
-          fundPercent: currentRow?.fundPercent ? currentRow.fundPercent * 100 : undefined,
-          profitRatio: currentRow?.profitRatio ? currentRow.profitRatio * 100 : undefined,
-          // 将数据库中的enableOpeningBuy值转换为表单字符串值
-          enableOpeningBuy: currentRow?.enableOpeningBuy === true ? 'true' : 
-                           currentRow?.enableOpeningBuy === false ? 'false' : 'null',
-        }}
       >
         {/* 顶部按钮区域 */}
         <div style={{ marginBottom: '16px', textAlign: 'right' }}>
@@ -2617,6 +3060,156 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               }}
               rules={[{ required: true }]}
             />
+          </div>
+          
+          {/* 时段分时平均线配置 */}
+          <div style={{ width: '100%', marginTop: '16px' }}>
+            <ProFormList
+              name="timeSegments"
+              label="时段分时平均线配置"
+              tooltip="配置不同时段的分时平均线买入策略"
+              creatorButtonProps={{
+                creatorButtonText: '添加时段',
+                type: 'dashed',
+                style: { width: '100%' },
+              }}
+              copyIconProps={false}
+              deleteIconProps={{
+                tooltipText: '删除时段',
+              }}
+              itemRender={({ listDom, action }, { record, index }) => (
+                <div
+                  style={{
+                    border: '1px solid #d9d9d9',
+                    borderRadius: '6px',
+                    padding: '12px',
+                    marginBottom: '8px',
+                    backgroundColor: '#fafafa',
+                  }}
+                >
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    {listDom}
+                    <div style={{ display: 'flex', alignItems: 'center', paddingTop: '20px' }}>
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        size="small"
+                        onClick={() => {
+                          // 从action元素中提取onClick事件
+                          if (action && typeof action === 'object' && 'props' in action && action.props.onClick) {
+                            action.props.onClick();
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            >
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', width: '100%' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ marginBottom: '4px', fontWeight: 'bold' }}>时段开始时间</div>
+                  <ProFormText
+                    name="timeSegment"
+                    placeholder="09:30"
+                    rules={[
+                      { required: true, message: '请输入时段开始时间' },
+                      { 
+                        pattern: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
+                        message: '时间格式错误，请使用HH:mm格式' 
+                      }
+                    ]}
+                    fieldProps={{
+                      style: { width: '100%' }
+                    }}
+                    formItemProps={{
+                      style: { marginBottom: '0' }
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ marginBottom: '4px', fontWeight: 'bold' }}>下方百分比</div>
+                  <ProFormDigit
+                    name="maBelowPercent"
+                    placeholder="0.5"
+                    rules={[{ required: true, message: '请输入下方百分比' }]}
+                    min={-100}
+                    max={100}
+                    fieldProps={{
+                      precision: 2,
+                      addonAfter: '%',
+                      style: { width: '100%' }
+                    }}
+                    formItemProps={{
+                      style: { marginBottom: '0' }
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ marginBottom: '4px', fontWeight: 'bold' }}>上方百分比</div>
+                  <ProFormDigit
+                    name="maAbovePercent"
+                    placeholder="0.1"
+                    rules={[{ required: true, message: '请输入上方百分比' }]}
+                    min={-100}
+                    max={100}
+                    fieldProps={{
+                      precision: 2,
+                      addonAfter: '%',
+                      style: { width: '100%' }
+                    }}
+                    formItemProps={{
+                      style: { marginBottom: '0' }
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ marginBottom: '4px', fontWeight: 'bold' }}>盈利点</div>
+                  <ProFormDigit
+                    name="profitPercent"
+                    placeholder="1.0"
+                    rules={[{ required: true, message: '请输入盈利点' }]}
+                    min={-100}
+                    max={100}
+                    fieldProps={{
+                      precision: 2,
+                      addonAfter: '%',
+                      style: { width: '100%' }
+                    }}
+                    formItemProps={{
+                      style: { marginBottom: '0' }
+                    }}
+                  />
+                </div>
+              </div>
+            </ProFormList>
+            
+            <div style={{ marginTop: '8px' }}>
+              <Button 
+                type="dashed" 
+                onClick={() => {
+                  const currentSegments = updateForm.getFieldValue('timeSegments') || [];
+                  const defaultSegments = [
+                    { timeSegment: '09:30', maBelowPercent: 0.5, maAbovePercent: 0.1, profitPercent: 1 },
+                    { timeSegment: '12:00', maBelowPercent: 1.0, maAbovePercent: -0.5, profitPercent: 1 },
+                    { timeSegment: '14:00', maBelowPercent: 1.5, maAbovePercent: -1.0, profitPercent: 1 },
+                  ];
+                  updateForm.setFieldsValue({ timeSegments: defaultSegments });
+                }}
+                style={{ width: '100%' }}
+              >
+                重置为默认时段
+              </Button>
+            </div>
+            
+            <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+              <p><strong>说明：</strong></p>
+              <p>• 时段开始时间：该时段配置的生效时间，格式为HH:mm</p>
+              <p>• 下方百分比：股价低于分时平均线的百分比阈值</p>
+              <p>• 上方百分比：股价高于分时平均线的百分比阈值</p>
+              <p>• 盈利点：该时段的盈利目标百分比</p>
+            </div>
           </div>
         </div>
       </ModalForm>
@@ -3372,16 +3965,384 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           <div style={{ width: 'calc(33.33% - 8px)' }}>
             <ProFormSelect
               name="status"
-              label="状态"
+              label={<FormattedMessage id="pages.strategy.user.stockRelation.status" defaultMessage="Status" />}
               valueEnum={{
-                '0': '禁用',
-                '1': '启用',
+                '0': <FormattedMessage id="pages.strategy.status.disabled" defaultMessage="Disabled" />,
+                '1': <FormattedMessage id="pages.strategy.status.enabled" defaultMessage="Enabled" />,
               }}
               rules={[{ required: true }]}
             />
           </div>
+          
+          {/* 时段分时平均线配置 */}
+          <div style={{ width: '100%', marginTop: '16px' }}>
+            <ProFormList
+              name="timeSegments"
+              label="时段分时平均线配置"
+              tooltip="配置不同时段的分时平均线买入策略"
+              creatorButtonProps={{
+                creatorButtonText: '添加时段',
+                type: 'dashed',
+                style: { width: '100%' },
+              }}
+              copyIconProps={false}
+              deleteIconProps={{
+                tooltipText: '删除时段',
+              }}
+              itemRender={({ listDom, action }, { record, index }) => (
+                <div
+                  style={{
+                    border: '1px solid #d9d9d9',
+                    borderRadius: '6px',
+                    padding: '12px',
+                    marginBottom: '8px',
+                    backgroundColor: '#fafafa',
+                  }}
+                >
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    {listDom}
+                    <div style={{ display: 'flex', alignItems: 'center', paddingTop: '20px' }}>
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        size="small"
+                        onClick={() => {
+                          // 从action元素中提取onClick事件
+                          if (action && typeof action === 'object' && 'props' in action && action.props.onClick) {
+                            action.props.onClick();
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            >
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', width: '100%' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ marginBottom: '4px', fontWeight: 'bold' }}>时段开始时间</div>
+                  <ProFormText
+                    name="timeSegment"
+                    placeholder="09:30"
+                    rules={[
+                      { required: true, message: '请输入时段开始时间' },
+                      { 
+                        pattern: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
+                        message: '时间格式错误，请使用HH:mm格式' 
+                      }
+                    ]}
+                    fieldProps={{
+                      style: { width: '100%' }
+                    }}
+                    formItemProps={{
+                      style: { marginBottom: '0' }
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ marginBottom: '4px', fontWeight: 'bold' }}>下方百分比</div>
+                  <ProFormDigit
+                    name="maBelowPercent"
+                    placeholder="0.5"
+                    rules={[{ required: true, message: '请输入下方百分比' }]}
+                    min={-100}
+                    max={100}
+                    fieldProps={{
+                      precision: 2,
+                      addonAfter: '%',
+                      style: { width: '100%' }
+                    }}
+                    formItemProps={{
+                      style: { marginBottom: '0' }
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ marginBottom: '4px', fontWeight: 'bold' }}>上方百分比</div>
+                  <ProFormDigit
+                    name="maAbovePercent"
+                    placeholder="0.1"
+                    rules={[{ required: true, message: '请输入上方百分比' }]}
+                    min={-100}
+                    max={100}
+                    fieldProps={{
+                      precision: 2,
+                      addonAfter: '%',
+                      style: { width: '100%' }
+                    }}
+                    formItemProps={{
+                      style: { marginBottom: '0' }
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ marginBottom: '4px', fontWeight: 'bold' }}>盈利点</div>
+                  <ProFormDigit
+                    name="profitPercent"
+                    placeholder="1.0"
+                    rules={[{ required: true, message: '请输入盈利点' }]}
+                    min={-100}
+                    max={100}
+                    fieldProps={{
+                      precision: 2,
+                      addonAfter: '%',
+                      style: { width: '100%' }
+                    }}
+                    formItemProps={{
+                      style: { marginBottom: '0' }
+                    }}
+                  />
+                </div>
+              </div>
+            </ProFormList>
+            
+            <div style={{ marginTop: '8px' }}>
+              <Button 
+                type="dashed" 
+                onClick={() => {
+                  const currentSegments = createForm.getFieldValue('timeSegments') || [];
+                  const defaultSegments = [
+                    { timeSegment: '09:30', maBelowPercent: 0.5, maAbovePercent: 0.1, profitPercent: 1 },
+                    { timeSegment: '12:00', maBelowPercent: 1.0, maAbovePercent: -0.5, profitPercent: 1 },
+                    { timeSegment: '14:00', maBelowPercent: 1.5, maAbovePercent: -1.0, profitPercent: 1 },
+                  ];
+                  createForm.setFieldsValue({ timeSegments: defaultSegments });
+                }}
+                style={{ width: '100%' }}
+              >
+                重置为默认时段
+              </Button>
+            </div>
+            
+            <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+              <p><strong>说明：</strong></p>
+              <p>• 时段开始时间：该时段配置的生效时间，格式为HH:mm</p>
+              <p>• 下方百分比：股价低于分时平均线的百分比阈值</p>
+              <p>• 上方百分比：股价高于分时平均线的百分比阈值</p>
+              <p>• 盈利点：该时段的盈利目标百分比</p>
+            </div>
+          </div>
         </div>
       </ModalForm>
+      
+      {/* 时段配置模态框 */}
+      <Modal
+        title="时段分时平均线配置"
+        open={timeSegmentModalVisible}
+        onCancel={() => setTimeSegmentModalVisible(false)}
+        footer={null}
+        width={1000}
+        destroyOnClose
+      >
+        <Form
+          form={timeSegmentForm}
+          onFinish={handleSaveTimeSegmentConfig}
+          layout="vertical"
+        >
+          {/* 账户和股票信息显示 */}
+          {timeSegmentCurrentRecord && (
+            <div style={{ 
+              marginBottom: '16px', 
+              padding: '12px', 
+              backgroundColor: '#f5f5f5', 
+              borderRadius: '6px',
+              border: '1px solid #d9d9d9'
+            }}>
+              <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+                <div>
+                  <span style={{ fontWeight: 'bold', color: '#1890ff' }}>账户：</span>
+                  <span style={{ fontSize: '14px' }}>
+                    {timeSegmentCurrentRecord.account} ({timeSegmentCurrentRecord.accountName})
+                  </span>
+                </div>
+                <div>
+                  <span style={{ fontWeight: 'bold', color: '#52c41a' }}>股票：</span>
+                  <span style={{ fontSize: '14px' }}>
+                    {timeSegmentCurrentRecord.stockCode}
+                  </span>
+                </div>
+                <div>
+                  <span style={{ fontWeight: 'bold', color: '#722ed1' }}>策略：</span>
+                  <span style={{ fontSize: '14px' }}>
+                    {timeSegmentCurrentRecord.strategyName}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 顶部说明和按钮区域 */}
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+              <div style={{ flex: 1 }}>
+                <p style={{ color: '#666', fontSize: '14px', margin: 0 }}>
+                  配置不同时段的分时平均线买入策略。每个时段设置开始时间、下方百分比、上方百分比和盈利点。
+                </p>
+                <p style={{ color: '#1890ff', fontSize: '12px', margin: '4px 0 0 0' }}>
+                  <strong>提示：</strong>如果没有配置任何时段，则默认使用策略标的配置
+                </p>
+              </div>
+              <div style={{ marginLeft: '16px', display: 'flex', gap: '8px' }}>
+                <Button
+                  type="dashed"
+                  onClick={loadStrategyStockTimeSegmentConfig}
+                  size="small"
+                >
+                  重置为策略标的配置
+                </Button>
+                <Button
+                  onClick={() => {
+                    timeSegmentForm.setFieldsValue({ timeSegments: [] });
+                    message.success('已清空时段配置');
+                  }}
+                  size="small"
+                >
+                  清空
+                </Button>
+                <Button
+                  onClick={() => setTimeSegmentModalVisible(false)}
+                  size="small"
+                >
+                  取消
+                </Button>
+                <Button
+                  type="primary"
+                  onClick={() => timeSegmentForm.submit()}
+                  size="small"
+                >
+                  确定
+                </Button>
+              </div>
+            </div>
+          </div>
+          
+          <Form.List name="timeSegments">
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map(({ key, name, ...restField }) => (
+                  <div
+                    key={key}
+                    style={{
+                      border: '1px solid #d9d9d9',
+                      borderRadius: '6px',
+                      padding: '12px',
+                      marginBottom: '8px',
+                      backgroundColor: '#fafafa',
+                    }}
+                  >
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1 }}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'timeSegment']}
+                          label="时段开始时间"
+                          rules={[
+                            { required: true, message: '请输入时段开始时间' },
+                            { 
+                              pattern: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
+                              message: '时间格式错误，请使用HH:mm格式' 
+                            }
+                          ]}
+                          style={{ marginBottom: '0' }}
+                        >
+                          <Input placeholder="09:30" />
+                        </Form.Item>
+                      </div>
+                      
+                      <div style={{ flex: 1 }}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'maBelowPercent']}
+                          label="下方百分比"
+                          rules={[{ required: true, message: '请输入下方百分比' }]}
+                          style={{ marginBottom: '0' }}
+                        >
+                          <InputNumber
+                            placeholder="0.5"
+                            min={-100}
+                            max={100}
+                            precision={2}
+                            addonAfter="%"
+                            style={{ width: '100%' }}
+                          />
+                        </Form.Item>
+                      </div>
+                      
+                      <div style={{ flex: 1 }}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'maAbovePercent']}
+                          label="上方百分比"
+                          rules={[{ required: true, message: '请输入上方百分比' }]}
+                          style={{ marginBottom: '0' }}
+                        >
+                          <InputNumber
+                            placeholder="0.1"
+                            min={-100}
+                            max={100}
+                            precision={2}
+                            addonAfter="%"
+                            style={{ width: '100%' }}
+                          />
+                        </Form.Item>
+                      </div>
+                      
+                      <div style={{ flex: 1 }}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'profitPercent']}
+                          label="盈利点"
+                          rules={[{ required: true, message: '请输入盈利点' }]}
+                          style={{ marginBottom: '0' }}
+                        >
+                          <InputNumber
+                            placeholder="1.0"
+                            min={-100}
+                            max={100}
+                            precision={2}
+                            addonAfter="%"
+                            style={{ width: '100%' }}
+                          />
+                        </Form.Item>
+                      </div>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', paddingTop: '20px' }}>
+                        <Button
+                          type="text"
+                          danger
+                          icon={<DeleteOutlined />}
+                          onClick={() => remove(name)}
+                          size="small"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                <Form.Item>
+                  <Button
+                    type="dashed"
+                    onClick={() => add()}
+                    block
+                    icon={<PlusOutlined />}
+                  >
+                    添加时段
+                  </Button>
+                </Form.Item>
+              </>
+            )}
+          </Form.List>
+          
+          <div style={{ marginTop: '16px', fontSize: '12px', color: '#666' }}>
+            <p><strong>说明：</strong></p>
+            <p>• 时段开始时间：该时段配置的生效时间，格式为HH:mm</p>
+            <p>• 下方百分比：股价低于分时平均线的百分比阈值</p>
+            <p>• 上方百分比：股价高于分时平均线的百分比阈值</p>
+            <p>• 盈利点：该时段的盈利目标百分比</p>
+          </div>
+        </Form>
+      </Modal>
     </>
   );
 });
