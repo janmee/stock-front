@@ -263,6 +263,7 @@ declare namespace API {
     buyRatioConfig?: string;
     enableOpeningBuy?: boolean; // 是否启用开盘买入
     configTemplateId?: number; // 策略配置模版ID
+    timeSegmentMaConfig?: string; // 时段分时平均线配置
   };
 
   type StrategyStockList = {

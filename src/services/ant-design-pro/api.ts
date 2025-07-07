@@ -481,6 +481,7 @@ export async function createStrategyStock(body: API.StrategyStockItem, options?:
     limitStartShares: body.limitStartShares ?? 9,
     buyRatioConfig: body.buyRatioConfig,
     enableOpeningBuy: body.enableOpeningBuy,
+    timeSegmentMaConfig: body.timeSegmentMaConfig,
     status: body.status
   };
   
@@ -515,6 +516,7 @@ export async function updateStrategyStock(body: API.StrategyStockItem, options?:
     limitStartShares: body.limitStartShares ?? 9,
     buyRatioConfig: body.buyRatioConfig,
     enableOpeningBuy: body.enableOpeningBuy,
+    timeSegmentMaConfig: body.timeSegmentMaConfig,
     status: body.status
   };
   
