@@ -1162,6 +1162,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     let totalMaxHolding = 0;
     const accountsSet = new Set<string>();
     const stockAmountMap = new Map<string, number>(); // 股票代码 -> 总资金
+    const stockSingleAmountMap = new Map<string, number>(); // 股票代码 -> 单次资金
 
     currentTableData.forEach(record => {
       const strategyStockConfig = getStrategyStockConfig(record.strategyId, record.stockCode);
@@ -1188,6 +1189,10 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       if (record.stockCode) {
         const currentAmount = stockAmountMap.get(record.stockCode) || 0;
         stockAmountMap.set(record.stockCode, currentAmount + maxHolding);
+        
+        // 统计每个股票的单次资金占用
+        const currentSingleAmount = stockSingleAmountMap.get(record.stockCode) || 0;
+        stockSingleAmountMap.set(record.stockCode, currentSingleAmount + singleAmount);
       }
     });
 
@@ -1206,13 +1211,17 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     // 找出资金占用最大的股票
     let maxStockCode = '';
     let maxStockAmount = 0;
+    let maxStockSingleAmount = 0;
     let maxStockRatio = 0;
+    let maxStockSingleRatio = 0;
     
     stockAmountMap.forEach((amount, stockCode) => {
       if (amount > maxStockAmount) {
         maxStockAmount = amount;
         maxStockCode = stockCode;
+        maxStockSingleAmount = stockSingleAmountMap.get(stockCode) || 0;
         maxStockRatio = totalAccountAmount > 0 ? (amount / totalAccountAmount) * 100 : 0;
+        maxStockSingleRatio = totalAccountAmount > 0 ? (maxStockSingleAmount / totalAccountAmount) * 100 : 0;
       }
     });
 
@@ -1227,7 +1236,10 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       recordCount: currentTableData.length,
       accountCount: accountsSet.size,
       maxStockCode,
+      maxStockAmount,
+      maxStockSingleAmount,
       maxStockRatio,
+      maxStockSingleRatio,
     };
   }, [currentTableData, strategyStockMap, accountTotalAmountMap]);
 
@@ -1330,21 +1342,16 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     {
       title: (
         <span>
-          <>单次资金</>
-          <Tooltip title="单次买入资金 = 最大金额 × 首次份额比例">
+          <FormattedMessage id="pages.strategy.user.stockRelation.profitRatio" defaultMessage="盈利比例" />
+          <Tooltip title={<FormattedMessage id="pages.strategy.user.stockRelation.profitRatioTip" defaultMessage="用户自定义的盈利比例，如果设置了该值，策略将优先使用此比例进行止盈" />}>
             <InfoCircleOutlined style={{ marginLeft: 4 }} />
           </Tooltip>
         </span>
       ),
-      dataIndex: 'singleAmount',
-      valueType: 'money',
+      dataIndex: 'profitRatio',
+      valueType: 'percent',
       hideInSearch: true,
-      render: (_, record) => {
-        const strategyStockConfig = getStrategyStockConfig(record.strategyId, record.stockCode);
-        const buyRatioConfig = parseBuyRatioConfig(strategyStockConfig?.buyRatioConfig);
-        const singleAmount = calculateSingleAmount(record, buyRatioConfig);
-        return singleAmount > 0 ? `$${singleAmount.toLocaleString()}` : '-';
-      },
+      render: (_, record) => record.profitRatio ? `${(record.profitRatio * 100).toFixed(2)}%` : '-',
     },
     {
       title: (
@@ -1453,16 +1460,33 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     {
       title: (
         <span>
-          <FormattedMessage id="pages.strategy.user.stockRelation.profitRatio" defaultMessage="盈利比例" />
-          <Tooltip title={<FormattedMessage id="pages.strategy.user.stockRelation.profitRatioTip" defaultMessage="用户自定义的盈利比例，如果设置了该值，策略将优先使用此比例进行止盈" />}>
+          <>单次资金</>
+          <Tooltip title="单次买入资金 = 最大金额 × 首次份额比例">
             <InfoCircleOutlined style={{ marginLeft: 4 }} />
           </Tooltip>
         </span>
       ),
-      dataIndex: 'profitRatio',
-      valueType: 'percent',
+      dataIndex: 'singleAmount',
+      valueType: 'money',
       hideInSearch: true,
-      render: (_, record) => record.profitRatio ? `${(record.profitRatio * 100).toFixed(2)}%` : '-',
+      render: (_, record) => {
+        const strategyStockConfig = getStrategyStockConfig(record.strategyId, record.stockCode);
+        const buyRatioConfig = parseBuyRatioConfig(strategyStockConfig?.buyRatioConfig);
+        const singleAmount = calculateSingleAmount(record, buyRatioConfig);
+        
+        if (singleAmount <= 0) return '-';
+        
+        // 获取账户总资金
+        const accountTotalAmount = record.account ? accountTotalAmountMap.get(record.account) : undefined;
+        let percentageText = '';
+        
+        if (accountTotalAmount && accountTotalAmount > 0) {
+          const percentage = (singleAmount / accountTotalAmount) * 100;
+          percentageText = ` (${percentage.toFixed(2)}%)`;
+        }
+        
+        return `$${singleAmount.toLocaleString()}${percentageText}`;
+      },
     },
     {
       title: (
@@ -1966,13 +1990,17 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Statistic 
-              title="资金最大使用股票" 
-              value={summaryData.maxStockCode ? `${summaryData.maxStockCode}(${summaryData.maxStockRatio.toFixed(2)}%)` : '无'}
+              title="资金最大使用股票单次资金" 
+              value={summaryData.maxStockCode ? `${summaryData.maxStockCode}(${summaryData.maxStockSingleAmount.toLocaleString()}/${summaryData.maxStockSingleRatio.toFixed(2)}%)` : '无'}
               valueStyle={{ color: '#ff4d4f' }}
             />
           </Col>
           <Col xs={24} sm={12} md={6}>
-            {/* 空列，保持布局对称 */}
+            <Statistic 
+              title="资金最大使用股票总资金" 
+              value={summaryData.maxStockCode ? `${summaryData.maxStockCode}(${summaryData.maxStockAmount.toLocaleString()}/${summaryData.maxStockRatio.toFixed(2)}%)` : '无'}
+              valueStyle={{ color: '#ff4d4f' }}
+            />
           </Col>
         </Row>
       </Card>
