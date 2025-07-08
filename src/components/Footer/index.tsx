@@ -14,7 +14,7 @@ const Footer: React.FC = () => {
   
   const defaultMessage = intl.formatMessage({
     id: 'app.copyright.produced',
-    defaultMessage: 'mwang.online',
+    defaultMessage: 'janmee.online',
   });
 
   const currentYear = new Date().getFullYear();

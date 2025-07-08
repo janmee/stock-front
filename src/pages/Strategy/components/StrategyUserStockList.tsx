@@ -1,5 +1,5 @@
 import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState, useMemo } from 'react';
-import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select, DatePicker, Modal, Checkbox, Dropdown, Menu, InputNumber, Input, Card, Statistic, Row, Col, Form, Typography, Divider, Badge } from 'antd';
+import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select, DatePicker, Modal, Checkbox, Dropdown, Menu, InputNumber, Input, Card, Statistic, Row, Col, Form, Typography, Divider, Badge, Radio } from 'antd';
 import {
   ActionType,
   ModalForm,
@@ -3366,81 +3366,63 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         
         <div style={{ marginBottom: 16 }}>
           <h4>选择要应用的模版：</h4>
-          <Select
+          <Radio.Group 
+            value={selectedTemplate} 
+            onChange={(e) => setSelectedTemplate(e.target.value)}
             style={{ width: '100%' }}
-            placeholder="请选择模版"
-            value={selectedTemplate}
-            onChange={setSelectedTemplate}
           >
-            {templates.map((template: API.StrategyConfigTemplateItem) => (
-              <Select.Option key={template.id} value={template.id}>
-                <div>
-                  <strong>{template.name}</strong>
-                  {template.applicableScenario && <div style={{ fontSize: '12px', color: '#666' }}>{template.applicableScenario}</div>}
-                  {template.marketCondition && <div style={{ fontSize: '12px', color: '#1890ff' }}>行情: {template.marketCondition}</div>}
-                  {template.volatilityRange && <div style={{ fontSize: '12px', color: '#52c41a' }}>波动范围: {template.volatilityRange}</div>}
-                  {template.sourceStockCode && <div style={{ fontSize: '11px', color: '#666' }}>来源股票: {template.sourceStockCode}</div>}
-                  <div style={{ fontSize: '11px', color: '#999' }}>
-                    创建时间: {template.createTime}
-                  </div>
+            <div style={{ maxHeight: 300, overflow: 'auto' }}>
+              {templates.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#999', padding: 20 }}>
+                  暂无匹配的模版
                 </div>
-              </Select.Option>
-            ))}
-          </Select>
-        </div>
-        
-        <div style={{ marginBottom: 16 }}>
-          <h4>模版管理：</h4>
-          <div style={{ maxHeight: 300, overflow: 'auto' }}>
-            {templates.length === 0 ? (
-              <div style={{ textAlign: 'center', color: '#999', padding: 20 }}>
-                暂无匹配的模版
-              </div>
-            ) : (
-              templates.map((template: API.StrategyConfigTemplateItem) => (
-                <div key={template.id} style={{ 
-                  padding: 8, 
-                  border: '1px solid #d9d9d9', 
-                  borderRadius: 4, 
-                  marginBottom: 8,
-                  backgroundColor: selectedTemplate === template.id ? '#e6f7ff' : '#fff'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              ) : (
+                templates.map((template: API.StrategyConfigTemplateItem) => (
+                  <div key={template.id} style={{ 
+                    padding: 12, 
+                    border: '1px solid #d9d9d9', 
+                    borderRadius: 4, 
+                    marginBottom: 8,
+                    backgroundColor: selectedTemplate === template.id ? '#e6f7ff' : '#fff',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 12
+                  }}>
+                    <Radio value={template.id} style={{ marginTop: 2 }} />
                     <div style={{ flex: 1 }}>
-                      <strong>{template.name}</strong>
-                      {template.applicableScenario && <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>{template.applicableScenario}</div>}
-                      {template.marketCondition && <div style={{ fontSize: '12px', color: '#1890ff', marginTop: 2 }}>行情: {template.marketCondition}</div>}
-                      {template.volatilityRange && <div style={{ fontSize: '12px', color: '#52c41a', marginTop: 2 }}>波动范围: {template.volatilityRange}</div>}
-                      {template.strategyId && <div style={{ fontSize: '11px', color: '#999', marginTop: 2 }}>策略ID: {template.strategyId}</div>}
-                      {template.sourceStockCode && <div style={{ fontSize: '11px', color: '#666', marginTop: 2 }}>来源股票: {template.sourceStockCode}</div>}
-                      {(template.minMarketCap || template.maxMarketCap) && (
-                        <div style={{ fontSize: '11px', color: '#999', marginTop: 2 }}>
-                          市值范围: {template.minMarketCap || 0} - {template.maxMarketCap || '∞'} 亿美元
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{template.name}</div>
+                          {template.applicableScenario && (
+                            <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>
+                              {template.applicableScenario}
+                            </div>
+                          )}
+                          <div style={{ fontSize: '11px', color: '#999', marginTop: 4 }}>
+                            创建时间: {template.createTime}
+                          </div>
                         </div>
-                      )}
-                      <div style={{ fontSize: '11px', color: '#999', marginTop: 4 }}>
-                        创建时间: {template.createTime}
+                        <Button
+                          type="link"
+                          danger
+                          size="small"
+                          onClick={() => {
+                            Modal.confirm({
+                              title: '确认删除',
+                              content: `确定要删除模版"${template.name}"吗？`,
+                              onOk: () => handleDeleteTemplate(template.id!),
+                            });
+                          }}
+                        >
+                          删除
+                        </Button>
                       </div>
                     </div>
-                    <Button
-                      type="link"
-                      danger
-                      size="small"
-                      onClick={() => {
-                        Modal.confirm({
-                          title: '确认删除',
-                          content: `确定要删除模版"${template.name}"吗？`,
-                          onOk: () => handleDeleteTemplate(template.id!),
-                        });
-                      }}
-                    >
-                      删除
-                    </Button>
                   </div>
-                </div>
-              ))
-            )}
-          </div>
+                ))
+              )}
+            </div>
+          </Radio.Group>
         </div>
         
         <div style={{ color: '#666', fontSize: '12px' }}>

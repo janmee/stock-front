@@ -11,6 +11,7 @@ import {currentUser as queryCurrentUser} from './services/ant-design-pro/api';
 import React from 'react';
 import {AvatarDropdown, AvatarName} from './components/RightContent/AvatarDropdown';
 import {message} from 'antd';
+import BackToTop from '@/components/BackToTop';
 
 const isDev = process.env.NODE_ENV === 'development';
 const loginPath = '/user/login';
@@ -178,21 +179,6 @@ export const layout: RunTimeLayoutConfig = ({initialState, setInitialState}) => 
         width: '331px',
       },
     ],
-    // links: isDev ?
-    links:
-      [
-        <Link
-          key="openapi"
-          to="/"
-          target="_blank"
-          // ref="https://www.yuque.com/mwangli/kleih7/axga8dz9imansvl4"
-        >
-          <a href={"https://www.yuque.com/mwangli/kleih7/axga8dz9imansvl4"} target={"_blank"}>
-            <LinkOutlined/>
-            <span>项目文档</span>
-          </a>
-        </Link>,
-      ],
     // : [],
     menuHeaderRender: undefined,
     // 自定义 403 页面
@@ -214,6 +200,7 @@ export const layout: RunTimeLayoutConfig = ({initialState, setInitialState}) => 
           {/*    }));*/}
           {/*  }}*/}
           {/*/>*/}
+          <BackToTop/>
         </>
       );
     },

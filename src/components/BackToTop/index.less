@@ -1,0 +1,94 @@
+.back-to-top {
+  position: fixed;
+  right: 30px;
+  bottom: 50px;
+  z-index: 1000;
+  
+  .back-to-top-button {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+    border: none;
+    
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    }
+    
+    &:active {
+      transform: translateY(0);
+    }
+    
+    &:focus {
+      outline: none;
+    }
+    
+    // 确保图标居中
+    .anticon {
+      font-size: 18px;
+    }
+  }
+}
+
+// 响应式设计 - 平板端适配
+@media (max-width: 1024px) {
+  .back-to-top {
+    right: 25px;
+    bottom: 60px;
+  }
+}
+
+// 响应式设计 - 移动端适配
+@media (max-width: 768px) {
+  .back-to-top {
+    right: 20px;
+    bottom: 80px; // 避免与移动端底部导航冲突
+    
+    .back-to-top-button {
+      width: 45px;
+      height: 45px;
+      
+      .anticon {
+        font-size: 16px;
+      }
+    }
+  }
+}
+
+// 适配小屏幕
+@media (max-width: 480px) {
+  .back-to-top {
+    right: 15px;
+    bottom: 70px;
+    
+    .back-to-top-button {
+      width: 40px;
+      height: 40px;
+      
+      .anticon {
+        font-size: 14px;
+      }
+    }
+  }
+}
+
+// 适配超小屏幕
+@media (max-width: 320px) {
+  .back-to-top {
+    right: 10px;
+    bottom: 60px;
+    
+    .back-to-top-button {
+      width: 35px;
+      height: 35px;
+      
+      .anticon {
+        font-size: 12px;
+      }
+    }
+  }
+} 

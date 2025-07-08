@@ -1,38 +1,29 @@
-import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState } from 'react';
-import { Button, message, Popconfirm, Select, Tooltip, Tag, Space, Switch, Input, InputNumber, Form, Modal, Dropdown, Menu, Spin, Table, Checkbox } from 'antd';
+import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState, useMemo } from 'react';
+import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select, DatePicker, Modal, Checkbox, Dropdown, Menu, InputNumber, Input, Card, Statistic, Row, Col, Form, Typography, Divider, Badge, Radio, Table } from 'antd';
 import {
   ActionType,
   ModalForm,
-  PageContainer,
-  ProColumns,
   ProFormDigit,
   ProFormSelect,
   ProFormText,
   ProFormTextArea,
-  ProFormSwitch,
   ProTable,
+  ProColumns,
+  ProFormDateTimePicker,
+  ProFormSwitch,
+  ProFormRadio,
+  ProFormCheckbox,
+  ProFormTimePicker,
+  ProFormDependency,
 } from '@ant-design/pro-components';
+import { PlusOutlined, DownOutlined, UpOutlined, SettingOutlined, ThunderboltOutlined, ExclamationCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, MinusCircleOutlined, EditOutlined, DeleteOutlined, CopyOutlined, SyncOutlined, FilterOutlined, EyeOutlined, EyeInvisibleOutlined, ClockCircleOutlined, InfoCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { getConfigTemplateList, saveConfigTemplate, deleteConfigTemplate, applyConfigTemplate, listStrategyStock, createStrategyStock, updateStrategyStock, deleteStrategyStock, updateStrategyStockStatus, updateStrategyStockOpeningBuy, batchUpdateStrategyStockOpeningBuy, listStrategyJob, listStrategyUserStock, batchUpdateStrategyUserStockTimeSegmentConfig, batchUpdateStrategyStockStatus, listAccountInfo, getAccountConfigStatus } from '@/services/ant-design-pro/api';
+import { useModel } from '@umijs/max';
+import { history } from '@umijs/max';
 import { FormattedMessage, useIntl } from '@umijs/max';
-import { PlusOutlined, InfoCircleOutlined, FilterOutlined, CloseCircleOutlined, QuestionCircleOutlined, MinusCircleOutlined, SaveOutlined, ThunderboltOutlined, DownOutlined } from '@ant-design/icons';
-import { 
-  listStrategyStock, 
-  createStrategyStock, 
-  updateStrategyStock, 
-  deleteStrategyStock,
-  listStrategyJob,
-  updateStrategyStockStatus,
-  updateStrategyStockOpeningBuy,
-  batchUpdateStrategyStockOpeningBuy,
-  batchUpdateStrategyStockStatus,
-  saveConfigTemplate,
-  applyConfigTemplate,
-  getConfigTemplateList,
-  deleteConfigTemplate,
-  listAccountInfo,
-  listStrategyUserStock,
-  getAccountConfigStatus,
-  batchUpdateStrategyUserStockTimeSegmentConfig,
-} from '@/services/ant-design-pro/api';
+import { ConfigProvider } from 'antd';
+import zhCN from 'antd/locale/zh_CN';
+import enUS from 'antd/locale/en_US';
 
 interface StrategyStockListProps {
   strategyId?: number;
@@ -2473,77 +2464,58 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         )}
         
         <div style={{ marginBottom: 16 }}>
-          <strong>选择模版：</strong>
-        </div>
-        <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-          {templates.map((template) => (
-            <div
-              key={template.id}
-              style={{
-                border: selectedTemplate === template.id ? '2px solid #1890ff' : '1px solid #d9d9d9',
-                borderRadius: 4,
-                padding: 12,
-                marginBottom: 8,
-                cursor: 'pointer',
-                backgroundColor: selectedTemplate === template.id ? '#f0f8ff' : 'white',
-              }}
-              onClick={() => setSelectedTemplate(template.id)}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontWeight: 'bold', fontSize: 14 }}>{template.name}</div>
-                  {template.applicableScenario && (
-                    <div style={{ color: '#666', fontSize: 12, marginTop: 4 }}>
-                      {template.applicableScenario}
+          <h4>选择要应用的模版：</h4>
+          <Radio.Group 
+            value={selectedTemplate} 
+            onChange={(e) => setSelectedTemplate(e.target.value)}
+            style={{ width: '100%' }}
+          >
+            <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+              {templates.map((template) => (
+                <div key={template.id} style={{ 
+                  padding: 12, 
+                  border: '1px solid #d9d9d9', 
+                  borderRadius: 4, 
+                  marginBottom: 8,
+                  backgroundColor: selectedTemplate === template.id ? '#e6f7ff' : '#fff',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 12
+                }}>
+                  <Radio value={template.id} style={{ marginTop: 2 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{template.name}</div>
+                        {template.applicableScenario && (
+                          <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>
+                            {template.applicableScenario}
+                          </div>
+                        )}
+                        <div style={{ fontSize: '11px', color: '#999', marginTop: 4 }}>
+                          创建时间: {template.createTime}
+                        </div>
+                      </div>
+                      <Button
+                        type="link"
+                        danger
+                        size="small"
+                        onClick={() => {
+                          Modal.confirm({
+                            title: '确认删除',
+                            content: `确定要删除模版"${template.name}"吗？`,
+                            onOk: () => handleDeleteTemplate(template.id!),
+                          });
+                        }}
+                      >
+                        删除
+                      </Button>
                     </div>
-                  )}
-                  {template.marketCondition && (
-                    <div style={{ color: '#1890ff', fontSize: 12, marginTop: 2 }}>
-                      行情: {template.marketCondition}
-                    </div>
-                  )}
-                  {template.volatilityRange && (
-                    <div style={{ color: '#52c41a', fontSize: 12, marginTop: 2 }}>
-                      波动范围: {template.volatilityRange}
-                    </div>
-                  )}
-                  {template.strategyId && (
-                    <div style={{ color: '#999', fontSize: 11, marginTop: 2 }}>
-                      策略ID: {template.strategyId}
-                    </div>
-                  )}
-                  {template.sourceStockCode && (
-                    <div style={{ color: '#999', fontSize: 11, marginTop: 2 }}>
-                      来源股票: {template.sourceStockCode}
-                    </div>
-                  )}
-                  {(template.minMarketCap || template.maxMarketCap) && (
-                    <div style={{ color: '#999', fontSize: 11, marginTop: 2 }}>
-                      市值范围: {template.minMarketCap || 0} - {template.maxMarketCap || '∞'} 亿美元
-                    </div>
-                  )}
-                  <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
-                    创建时间: {template.createTime}
                   </div>
                 </div>
-                <Button
-                  type="text"
-                  danger
-                  size="small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    Modal.confirm({
-                      title: '确认删除',
-                      content: '确定要删除这个模版吗？',
-                      onOk: () => handleDeleteTemplate(template.id!),
-                    });
-                  }}
-                >
-                  删除
-                </Button>
-              </div>
+              ))}
             </div>
-          ))}
+          </Radio.Group>
         </div>
         {templates.length === 0 && (
           <div style={{ textAlign: 'center', color: '#999', padding: 20 }}>
@@ -2555,7 +2527,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             )}
           </div>
         )}
-        <div style={{ marginTop: 16, color: '#666', fontSize: 12 }}>
+        <div style={{ color: '#666', fontSize: '12px' }}>
           <strong>说明：</strong>选择一个模版后，将其配置应用到当前选中的 {selectedRowKeys.length} 个目标配置中。
         </div>
       </Modal>
