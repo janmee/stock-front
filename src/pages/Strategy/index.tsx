@@ -11,6 +11,8 @@ import StrategyStockList from './components/StrategyStockList';
 import StrategyUserStockList from './components/StrategyUserStockList';
 import StrategyConfigTemplateManagement from './components/StrategyConfigTemplateManagement';
 import AccountFundAllocation from './components/AccountFundAllocation';
+import UserTimeSegmentTemplateManagement from './components/UserTimeSegmentTemplateManagement';
+import StockTimeSegmentTemplateManagement from './components/StockTimeSegmentTemplateManagement';
 import { PlusOutlined } from '@ant-design/icons';
 
 const TabPane = Tabs.TabPane;
@@ -236,6 +238,26 @@ const StrategyPage: React.FC = () => {
             onJumpToUserStock={handleJumpToUserStock}
             openTimeSegmentConfig={openTimeSegmentConfig}
             onTimeSegmentConfigComplete={() => setOpenTimeSegmentConfig(false)}
+          />
+        </TabPane>
+
+        <TabPane 
+          tab={<FormattedMessage id="pages.strategy.tabs.userTimeSegmentTemplate" defaultMessage="用户档位配置" />}
+          key="6"
+        >
+          <UserTimeSegmentTemplateManagement 
+            strategyId={selectedStrategyId}
+            strategyName={selectedStrategyName}
+          />
+        </TabPane>
+
+        <TabPane 
+          tab={<FormattedMessage id="pages.strategy.tabs.stockTimeSegmentTemplate" defaultMessage="股票档位配置" />}
+          key="7"
+        >
+          <StockTimeSegmentTemplateManagement 
+            strategyId={selectedStrategyId}
+            strategyName={selectedStrategyName}
           />
         </TabPane>
 
