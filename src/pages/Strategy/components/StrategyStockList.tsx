@@ -16,14 +16,16 @@ import {
   ProFormTimePicker,
   ProFormDependency,
 } from '@ant-design/pro-components';
-import { PlusOutlined, DownOutlined, UpOutlined, SettingOutlined, ThunderboltOutlined, ExclamationCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, MinusCircleOutlined, EditOutlined, DeleteOutlined, CopyOutlined, SyncOutlined, FilterOutlined, EyeOutlined, EyeInvisibleOutlined, ClockCircleOutlined, InfoCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
-import { getConfigTemplateList, saveConfigTemplate, deleteConfigTemplate, applyConfigTemplate, listStrategyStock, createStrategyStock, updateStrategyStock, deleteStrategyStock, updateStrategyStockStatus, updateStrategyStockOpeningBuy, batchUpdateStrategyStockOpeningBuy, listStrategyJob, listStrategyUserStock, batchUpdateStrategyUserStockTimeSegmentConfig, batchUpdateStrategyStockStatus, listAccountInfo, getAccountConfigStatus } from '@/services/ant-design-pro/api';
+import { PlusOutlined, DownOutlined, UpOutlined, SettingOutlined, ThunderboltOutlined, ExclamationCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, MinusCircleOutlined, EditOutlined, DeleteOutlined, CopyOutlined, SyncOutlined, FilterOutlined, EyeOutlined, EyeInvisibleOutlined, ClockCircleOutlined, InfoCircleOutlined, QuestionCircleOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
+import { getConfigTemplateList, saveConfigTemplate, deleteConfigTemplate, applyConfigTemplate, listStrategyStock, createStrategyStock, updateStrategyStock, deleteStrategyStock, updateStrategyStockStatus, updateStrategyStockOpeningBuy, batchUpdateStrategyStockOpeningBuy, listStrategyJob, listStrategyUserStock, batchUpdateStrategyUserStockTimeSegmentConfig, batchUpdateStrategyStockStatus, listAccountInfo, getAccountConfigStatus, getConfigTemplateById, listTimeSegmentTemplates, createTimeSegmentTemplate, getTimeSegmentTemplateById, deleteTimeSegmentTemplate, getTimeSegmentTemplateLevels, listTimeSegmentTemplatesByLevel, applyTimeSegmentTemplateToStrategyStock, batchUpdateStrategyStockTimeSegmentConfig } from '@/services/ant-design-pro/api';
 import { useModel } from '@umijs/max';
 import { history } from '@umijs/max';
 import { FormattedMessage, useIntl } from '@umijs/max';
 import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import enUS from 'antd/locale/en_US';
+
+const { Option } = Select;
 
 interface StrategyStockListProps {
   strategyId?: number;
@@ -89,7 +91,12 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     };
     
     fetchStrategyOptions();
-  }, []);
+    
+    // 如果有策略ID，加载相关数据
+    if (strategyId) {
+      loadTimeSegmentTemplateLevelMap();
+    }
+  }, [strategyId]);
 
   // 监听openTimeSegmentConfig变化，自动打开时段配置对话框
   useEffect(() => {
@@ -662,14 +669,28 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       hideInSearch: true,
       width: 280,
       render: (_, record) => {
+        const levelText = (record as any).timeSegmentTemplateId 
+          ? timeSegmentTemplateLevelMap.get((record as any).timeSegmentTemplateId) 
+          : null;
+        
         if (!record.timeSegmentMaConfig) {
-          return <Tag color="default">未配置</Tag>;
+          return (
+            <div>
+              <Tag color="default">未配置</Tag>
+              {levelText && <Tag color="purple" style={{ marginTop: 2 }}>档位: {levelText}</Tag>}
+            </div>
+          );
         }
         
         try {
           const config = JSON.parse(record.timeSegmentMaConfig);
           if (!Array.isArray(config) || config.length === 0) {
-            return <Tag color="default">未配置</Tag>;
+            return (
+              <div>
+                <Tag color="default">未配置</Tag>
+                {levelText && <Tag color="purple" style={{ marginTop: 2 }}>档位: {levelText}</Tag>}
+              </div>
+            );
           }
           
           return (
@@ -679,10 +700,16 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
                   {item.timeSegment}: 分时下方{(item.maBelowPercent * 100).toFixed(2)}%/分时上方{(item.maAbovePercent * 100).toFixed(2)}%/盈利点{((item.profitPercent || 0) * 100).toFixed(2)}%
                 </Tag>
               ))}
+              {levelText && <Tag color="purple" style={{ marginTop: 2 }}>档位: {levelText}</Tag>}
             </div>
           );
         } catch (error) {
-          return <Tag color="red">配置错误</Tag>;
+          return (
+            <div>
+              <Tag color="red">配置错误</Tag>
+              {levelText && <Tag color="purple" style={{ marginTop: 2 }}>档位: {levelText}</Tag>}
+            </div>
+          );
         }
       },
     },
@@ -1090,6 +1117,234 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
   const [timeSegmentAllAccounts, setTimeSegmentAllAccounts] = useState<{account: string, name: string}[]>([]);
   const [timeSegmentSelectAll, setTimeSegmentSelectAll] = useState<boolean>(false);
 
+  // 新增：时段配置档位相关状态
+  const [timeSegmentTemplateModalVisible, setTimeSegmentTemplateModalVisible] = useState<boolean>(false);
+  const [timeSegmentApplyTemplateModalVisible, setTimeSegmentApplyTemplateModalVisible] = useState<boolean>(false);
+  const [timeSegmentTemplates, setTimeSegmentTemplates] = useState<any[]>([]);
+  const [selectedTimeSegmentTemplate, setSelectedTimeSegmentTemplate] = useState<number>();
+  const [timeSegmentTemplateForm] = Form.useForm();
+  const timeSegmentTemplateFormRef = useRef<any>();
+  const [timeSegmentTemplateLevels, setTimeSegmentTemplateLevels] = useState<{value: string, label: string}[]>([]);
+  const [timeSegmentTemplateSearchForm] = Form.useForm();
+  const [timeSegmentTemplateSearchParams, setTimeSegmentTemplateSearchParams] = useState<any>({
+    stockCode: '',
+    templateLevel: '',
+  });
+
+  // 档位等级映射状态
+  const [timeSegmentTemplateLevelMap, setTimeSegmentTemplateLevelMap] = useState<Map<number, string>>(new Map());
+  
+  // 加载时段配置档位列表
+  const loadTimeSegmentTemplates = async (searchParams?: any) => {
+    try {
+      const searchConditions = {
+        configType: 'STOCK',
+        strategyId: strategyId,
+        current: 1,
+        pageSize: 1000,
+        ...searchParams,
+      };
+
+      const response = await listTimeSegmentTemplates(searchConditions);
+      if (response.success && response.data) {
+        setTimeSegmentTemplates(response.data.records || []);
+      }
+    } catch (error) {
+      console.error('加载时段配置档位列表失败:', error);
+    }
+  };
+
+  // 加载档位等级选项
+  const loadTimeSegmentTemplateLevels = async () => {
+    try {
+      const response = await getTimeSegmentTemplateLevels();
+      if (response.success && response.data) {
+        setTimeSegmentTemplateLevels(response.data);
+      }
+    } catch (error) {
+      console.error('加载档位等级选项失败:', error);
+    }
+  };
+
+  // 加载档位等级映射
+  const loadTimeSegmentTemplateLevelMap = async () => {
+    try {
+      const response = await listTimeSegmentTemplates({
+        configType: 'strategy_stock',
+        strategyId: strategyId,
+        current: 1,
+        pageSize: 1000, // 获取所有档位
+      });
+      
+      if (response.success && response.data && response.data.records) {
+        const levelMap = new Map<number, string>();
+        response.data.records.forEach((template: any) => {
+          if (template.id && template.templateLevel) {
+            levelMap.set(template.id, template.templateLevel);
+          }
+        });
+        setTimeSegmentTemplateLevelMap(levelMap);
+      }
+    } catch (error) {
+      console.error('加载档位等级映射失败:', error);
+    }
+  };
+
+  // 保存时段配置为档位
+  const handleSaveTimeSegmentAsTemplate = async (values: any) => {
+    if (!timeSegmentCurrentRecord) {
+      message.error('当前记录不存在');
+      return false;
+    }
+
+    // 验证表单数据
+    const timeSegmentFormValues = timeSegmentForm.getFieldsValue();
+    const { timeSegmentMaConfigInput } = timeSegmentFormValues;
+    
+    if (!timeSegmentMaConfigInput || timeSegmentMaConfigInput.length === 0) {
+      message.error('请先配置时段数据');
+      return false;
+    }
+
+    // 检查档位名称是否重复
+    try {
+      const response = await listTimeSegmentTemplates({ 
+        configType: 'STOCK',
+        strategyId: strategyId,
+        templateName: values.templateName
+      });
+      if (response.success && response.data && response.data.records.length > 0) {
+        message.error(`档位名称"${values.templateName}"已存在，请使用其他名称`);
+        return false;
+      }
+    } catch (error) {
+      console.error('检查档位名称重复时出错:', error);
+    }
+
+    const hide = message.loading('保存时段配置档位中...');
+    try {
+      // 构建时段配置数据
+      const sortedConfig = timeSegmentMaConfigInput
+        .sort((a: any, b: any) => timeToMinutes(a.timeSegment) - timeToMinutes(b.timeSegment))
+        .map((item: any) => ({
+          timeSegment: item.timeSegment,
+          maBelowPercent: item.maBelowPercent / 100,
+          maAbovePercent: item.maAbovePercent / 100,
+          profitPercent: item.profitPercent / 100,
+        }));
+
+      // 构建档位数据
+      const templateData: API.TimeSegmentTemplateItem = {
+        templateName: values.templateName,
+        templateLevel: values.templateLevel,
+        useScenario: values.useScenario,
+        strategyId: timeSegmentCurrentRecord.strategyId,
+        strategyName: timeSegmentCurrentRecord.strategyName,
+        stockCode: timeSegmentCurrentRecord.stockCode,
+        timeSegmentMaConfig: JSON.stringify(sortedConfig),
+        configType: 'STOCK',
+      };
+
+      await createTimeSegmentTemplate(templateData);
+      
+      hide();
+      message.success('时段配置档位保存成功');
+      setTimeSegmentTemplateModalVisible(false);
+      timeSegmentTemplateForm.resetFields();
+      return true;
+    } catch (error) {
+      hide();
+      message.error('时段配置档位保存失败');
+      return false;
+    }
+  };
+
+  // 应用时段配置档位
+  const handleApplyTimeSegmentTemplate = async () => {
+    if (!selectedTimeSegmentTemplate) {
+      message.error('请选择要应用的时段配置档位');
+      return;
+    }
+
+    if (!timeSegmentCurrentRecord) {
+      message.error('当前记录不存在');
+      return;
+    }
+
+    const hide = message.loading('应用时段配置档位中...');
+    try {
+      // 获取档位详情
+      const templateResponse = await getTimeSegmentTemplateById(selectedTimeSegmentTemplate);
+      if (!templateResponse.success || !templateResponse.data) {
+        message.error('获取档位数据失败');
+        return;
+      }
+
+      const template = templateResponse.data;
+      if (!template.timeSegmentMaConfig) {
+        message.error('档位配置数据为空');
+        return;
+      }
+
+      // 应用档位配置到策略标的
+      const applyResponse = await applyTimeSegmentTemplateToStrategyStock({
+        templateId: selectedTimeSegmentTemplate,
+        strategyStockIds: [timeSegmentCurrentRecord.id!],
+      });
+      
+      if (applyResponse.success) {
+        // 转换为表单格式（百分比显示）
+        const timeSegmentConfig = JSON.parse(template.timeSegmentMaConfig);
+        const formattedConfig = timeSegmentConfig.map((item: any) => ({
+          timeSegment: item.timeSegment,
+          maBelowPercent: item.maBelowPercent * 100,
+          maAbovePercent: item.maAbovePercent * 100,
+          profitPercent: item.profitPercent * 100,
+        }));
+
+        // 应用到表单
+        timeSegmentForm.setFieldsValue({
+          timeSegmentMaConfigInput: formattedConfig,
+        });
+
+        hide();
+        message.success('时段配置档位应用成功');
+        setTimeSegmentApplyTemplateModalVisible(false);
+        setSelectedTimeSegmentTemplate(undefined);
+        
+        // 重新加载档位等级映射
+        await loadTimeSegmentTemplateLevelMap();
+      } else {
+        hide();
+        message.error('应用时段配置档位失败');
+      }
+    } catch (error) {
+      hide();
+      message.error('应用时段配置档位失败');
+    }
+  };
+
+  // 删除时段配置档位
+  const handleDeleteTimeSegmentTemplate = async (id: number) => {
+    const hide = message.loading('删除中...');
+    try {
+      await deleteTimeSegmentTemplate(id);
+      hide();
+      message.success('时段配置档位删除成功');
+      loadTimeSegmentTemplates();
+    } catch (error: any) {
+      hide();
+      const errorMessage = error?.response?.data?.message || error?.message || '时段配置档位删除失败';
+      message.error({
+        content: errorMessage,
+        duration: 6,
+        style: {
+          whiteSpace: 'pre-line',
+        },
+      });
+    }
+  };
+
   // 处理时段配置
   const handleTimeSegmentConfig = (record: API.StrategyStockItem) => {
     setTimeSegmentCurrentRecord(record);
@@ -1328,11 +1583,11 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     const timeSegmentMaConfig = JSON.stringify(sortedConfig);
     
     try {
-      // 只更新策略股票的配置模板
-      await updateStrategyStock({
-        ...timeSegmentCurrentRecord,
+      // 使用批量更新时段配置接口，单独编辑时清空档位ID
+      await batchUpdateStrategyStockTimeSegmentConfig({
+        ids: [timeSegmentCurrentRecord.id!],
         timeSegmentMaConfig,
-      } as any);
+      });
       
       message.success('时段配置模板保存成功');
       
@@ -1344,6 +1599,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       setTimeSegmentCurrentRecord(null);
       setTimeSegmentSelectedAccounts([]);
       setTimeSegmentSelectAll(false);
+      
+      // 重新加载档位等级映射
+      await loadTimeSegmentTemplateLevelMap();
       
       // 通知父组件时段配置对话框已完成
       if (onTimeSegmentConfigComplete) {
@@ -1379,6 +1637,32 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       message.error('批量更新状态失败');
       return false;
     }
+  };
+
+  useEffect(() => {
+    loadTimeSegmentTemplateLevels();
+    loadTimeSegmentTemplateLevelMap();
+  }, []);
+
+  // 处理档位搜索
+  const handleTimeSegmentTemplateSearch = () => {
+    const values = timeSegmentTemplateSearchForm.getFieldsValue();
+    const searchConditions = {
+      stockCode: values.stockCode || '',
+      templateLevel: values.templateLevel || '',
+    };
+    setTimeSegmentTemplateSearchParams(searchConditions);
+    loadTimeSegmentTemplates(searchConditions);
+  };
+
+  // 重置档位搜索
+  const handleTimeSegmentTemplateSearchReset = () => {
+    timeSegmentTemplateSearchForm.resetFields();
+    setTimeSegmentTemplateSearchParams({
+      stockCode: '',
+      templateLevel: '',
+    });
+    loadTimeSegmentTemplates();
   };
   
   return (
@@ -2583,6 +2867,32 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
               重置为默认
             </Button>
             <Button 
+              type="dashed"
+              onClick={() => {
+                const initialValues = {
+                  templateName: `${timeSegmentCurrentRecord?.stockCode || ''}_时段配置_档位`,
+                  useScenario: '策略股票时段配置',
+                  strategyId: timeSegmentCurrentRecord?.strategyId,
+                  strategyName: timeSegmentCurrentRecord?.strategyName,
+                  stockCode: timeSegmentCurrentRecord?.stockCode,
+                  configType: 'STOCK',
+                };
+                timeSegmentTemplateForm.setFieldsValue(initialValues);
+                setTimeSegmentTemplateModalVisible(true);
+              }}
+            >
+              保存为档位
+            </Button>
+            <Button 
+              type="dashed"
+              onClick={() => {
+                loadTimeSegmentTemplates();
+                setTimeSegmentApplyTemplateModalVisible(true);
+              }}
+            >
+              应用档位
+            </Button>
+            <Button 
               type="primary"
               onClick={() => {
                 timeSegmentForm.submit();
@@ -2831,6 +3141,193 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             </div>
           </div>
         </Form>
+      </Modal>
+
+      {/* 时段配置档位保存对话框 */}
+      <ModalForm
+        title="保存时段配置档位"
+        width="500px"
+        formRef={timeSegmentTemplateFormRef}
+        modalProps={{
+          destroyOnClose: true,
+        }}
+        open={timeSegmentTemplateModalVisible}
+        onOpenChange={(visible) => {
+          setTimeSegmentTemplateModalVisible(visible);
+          if (!visible) {
+            timeSegmentTemplateForm.resetFields();
+          }
+        }}
+        onFinish={handleSaveTimeSegmentAsTemplate}
+      >
+        {/* 档位等级放在最上方 */}
+        <ProFormSelect
+          name="templateLevel"
+          label="档位等级"
+          placeholder="请选择档位等级"
+          options={timeSegmentTemplateLevels}
+          rules={[{ required: true, message: '请选择档位等级' }]}
+          fieldProps={{
+            onChange: (value) => {
+              // 根据选中的档位等级自动生成档位名称
+              const stockCode = timeSegmentCurrentRecord?.stockCode || '';
+              const templateName = `${stockCode}_时段配置_${value}档`;
+              timeSegmentTemplateFormRef.current?.setFieldsValue({ templateName });
+            },
+          }}
+        />
+        <ProFormText
+          name="templateName"
+          label="档位名称"
+          rules={[{ required: true, message: '请输入档位名称' }]}
+          placeholder="请输入档位名称"
+        />
+        <ProFormTextArea
+          name="useScenario"
+          label="使用场景"
+          placeholder="请输入使用场景（可选）"
+          fieldProps={{
+            rows: 3,
+          }}
+          // 移除必填规则，应用场景可以为空
+        />
+        <ProFormText
+          name="strategyName"
+          label="策略名称"
+          disabled
+          placeholder="策略名称"
+        />
+        <ProFormText
+          name="stockCode"
+          label="股票代码"
+          disabled
+          placeholder="股票代码"
+        />
+      </ModalForm>
+
+      {/* 应用时段配置档位对话框 */}
+      <Modal
+        title="应用时段配置档位"
+        open={timeSegmentApplyTemplateModalVisible}
+        onCancel={() => {
+          setTimeSegmentApplyTemplateModalVisible(false);
+          setSelectedTimeSegmentTemplate(undefined);
+          timeSegmentTemplateSearchForm.resetFields();
+          setTimeSegmentTemplateSearchParams({
+            stockCode: '',
+            templateLevel: '',
+          });
+        }}
+        onOk={handleApplyTimeSegmentTemplate}
+        width={800}
+        okText="应用"
+        cancelText="取消"
+      >
+        {/* 搜索表单 */}
+        <Form
+          form={timeSegmentTemplateSearchForm}
+          layout="inline"
+          style={{ marginBottom: 16, padding: 16, background: '#f5f5f5', borderRadius: 4 }}
+        >
+          <Form.Item name="stockCode" label="股票代码">
+            <Input placeholder="请输入股票代码" allowClear style={{ width: 150 }} />
+          </Form.Item>
+          <Form.Item name="templateLevel" label="档位等级">
+            <Select placeholder="请选择档位等级" allowClear style={{ width: 150 }}>
+              {timeSegmentTemplateLevels.map(level => (
+                <Option key={level.value} value={level.value}>
+                  {level.label}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item>
+            <Space>
+              <Button type="primary" icon={<SearchOutlined />} onClick={handleTimeSegmentTemplateSearch}>
+                搜索
+              </Button>
+              <Button icon={<ReloadOutlined />} onClick={handleTimeSegmentTemplateSearchReset}>
+                重置
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+
+        <div style={{ marginBottom: 16 }}>
+          <h4>选择要应用的时段配置档位：</h4>
+          <Radio.Group 
+            value={selectedTimeSegmentTemplate} 
+            onChange={(e) => setSelectedTimeSegmentTemplate(e.target.value)}
+            style={{ width: '100%' }}
+          >
+            <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+              {timeSegmentTemplates.map((template) => (
+                <div key={template.id} style={{ 
+                  padding: 12, 
+                  border: '1px solid #d9d9d9', 
+                  borderRadius: 4, 
+                  marginBottom: 8,
+                  backgroundColor: selectedTimeSegmentTemplate === template.id ? '#e6f7ff' : '#fff',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 12
+                }}>
+                  <Radio value={template.id} style={{ marginTop: 2 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{template.templateName}</div>
+                        {template.templateLevel && (
+                          <div style={{ fontSize: '12px', color: '#1890ff', marginTop: 2 }}>
+                            档位等级: {template.templateLevel}
+                          </div>
+                        )}
+                        {template.stockCode && (
+                          <div style={{ fontSize: '12px', color: '#52c41a', marginTop: 2 }}>
+                            股票代码: {template.stockCode}
+                          </div>
+                        )}
+                        {template.useScenario && (
+                          <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>
+                            使用场景: {template.useScenario}
+                          </div>
+                        )}
+                        <div style={{ fontSize: '11px', color: '#999', marginTop: 4 }}>
+                          创建时间: {template.createTime}
+                        </div>
+                      </div>
+                      <Button
+                        type="link"
+                        danger
+                        size="small"
+                        onClick={() => {
+                          Modal.confirm({
+                            title: '确认删除',
+                            content: `确定要删除档位"${template.templateName}"吗？`,
+                            onOk: () => handleDeleteTimeSegmentTemplate(template.id!),
+                          });
+                        }}
+                      >
+                        删除
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Radio.Group>
+        </div>
+        {timeSegmentTemplates.length === 0 && (
+          <div style={{ textAlign: 'center', color: '#999', padding: 20 }}>
+            暂无时段配置档位
+            <div style={{ fontSize: '12px', marginTop: 8 }}>
+              请先创建时段配置档位
+            </div>
+          </div>
+        )}
+        <div style={{ color: '#666', fontSize: '12px' }}>
+          <strong>说明：</strong>选择一个时段配置档位后，将其配置应用到当前的时段配置中。
+        </div>
       </Modal>
     </>
   );

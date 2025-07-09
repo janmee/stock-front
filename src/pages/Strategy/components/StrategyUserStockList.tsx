@@ -35,12 +35,21 @@ import {
   batchUpdateStrategyUserStockUnsoldStackLimit,
   batchUpdateStrategyUserStockLimitStartShares,
   batchUpdateStrategyUserStockTotalFundShares,
+  batchUpdateStrategyUserStockTimeSegmentConfig,
   saveConfigTemplate,
   applyConfigTemplate,
   getConfigTemplateList,
   deleteConfigTemplate,
   listStrategyStock,
   listAccountInfo,
+  createTimeSegmentTemplate,
+  updateTimeSegmentTemplate,
+  deleteTimeSegmentTemplate,
+  getTimeSegmentTemplateById,
+  listTimeSegmentTemplates,
+  getTimeSegmentTemplateLevels,
+  listTimeSegmentTemplatesByLevel,
+  applyTimeSegmentTemplateToUserStock,
 } from '@/services/ant-design-pro/api';
 
 interface StrategyUserStockListProps {
@@ -115,6 +124,9 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
   const [selectedTemplateLevel, setSelectedTemplateLevel] = useState<string>('');
   const [templatesByLevel, setTemplatesByLevel] = useState<any[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  
+  // 档位等级映射状态
+  const [timeSegmentTemplateLevelMap, setTimeSegmentTemplateLevelMap] = useState<Map<number, string>>(new Map());
   
   // 默认时段分时平均线配置
   const defaultTimeSegmentMaConfig: Array<{
@@ -255,35 +267,74 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        // 获取策略列表
-        const strategyRes = await listStrategyJob({
+        // 获取策略选项
+        const strategyResponse = await listStrategyJob({
           current: 1,
-          pageSize: 100,
+          pageSize: 1000,
         });
-        if (strategyRes && strategyRes.data) {
-          const options = strategyRes.data.map((item: any) => ({
-            label: item.name,
-            value: item.id,
+        
+        if (strategyResponse.success && strategyResponse.data) {
+          const options = strategyResponse.data.map((job: API.StrategyJobItem) => ({
+            label: job.name || `策略${job.id}`,
+            value: job.id!,
           }));
           setStrategyOptions(options);
         }
         
-        // 获取账户列表
-        const accountRes = await listAccount({});
-        if (accountRes && accountRes.data) {
-          const options = accountRes.data.map((item: any) => ({
-            label: `${item.account} (${item.name})`,
-            value: item.account,
+        // 获取账户选项
+        const accountResponse = await listAccount();
+        if (accountResponse.success && accountResponse.data) {
+          const options = accountResponse.data.map((account: any) => ({
+            label: account.name || account.account,
+            value: account.account,
           }));
           setAccountOptions(options);
         }
       } catch (error) {
-        console.error('获取选项数据失败:', error);
+        console.error('获取选项失败:', error);
       }
     };
-    
+
+    const fetchStrategyStockData = async () => {
+      try {
+        if (!strategyId) return;
+        
+        const response = await listStrategyStock({
+          current: 1,
+          pageSize: 1000,
+          strategyId: strategyId,
+        });
+        
+        if (response.success && response.data) {
+          const stockMap = new Map<string, API.StrategyStockItem>();
+          response.data.forEach((stock: API.StrategyStockItem) => {
+            if (stock.stockCode) {
+              stockMap.set(stock.stockCode, stock);
+            }
+          });
+          setStrategyStockMap(stockMap);
+        }
+      } catch (error) {
+        console.error('获取策略股票数据失败:', error);
+      }
+    };
+
     fetchOptions();
-  }, []);
+    fetchStrategyStockData();
+    loadTemplates();
+    loadTemplateLevels();
+    loadTimeSegmentTemplateLevelMap();
+    
+    // 处理预填数据
+    if (preFillData) {
+      console.log('检测到预填数据:', preFillData);
+      // 延迟一点时间确保组件完全加载
+      setTimeout(() => {
+        // 触发创建模态框
+        setCreateModalVisible(true);
+      }, 500);
+    }
+  }, [strategyId, preFillData]);
 
   // 处理预填数据
   useEffect(() => {
@@ -1325,18 +1376,33 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       hideInSearch: true,
       width: 280,
       render: (_, record) => {
+        const levelText = (record as any).timeSegmentTemplateId 
+          ? timeSegmentTemplateLevelMap.get((record as any).timeSegmentTemplateId) 
+          : null;
+        
         if (!(record as any).timeSegmentMaConfig) {
-          return <Tag color="default">使用策略标的配置</Tag>;
+          return (
+            <div>
+              <Tag color="default">使用策略标的配置</Tag>
+              {levelText && <Tag color="purple" style={{ marginTop: 2 }}>档位: {levelText}</Tag>}
+            </div>
+          );
         }
         
         try {
           const config = parseTimeSegmentMaConfig((record as any).timeSegmentMaConfig);
           if (!Array.isArray(config) || config.length === 0) {
-            return <Tag color="default">使用策略标的配置</Tag>;
+            return (
+              <div>
+                <Tag color="default">使用策略标的配置</Tag>
+                {levelText && <Tag color="purple" style={{ marginTop: 2 }}>档位: {levelText}</Tag>}
+              </div>
+            );
           }
           
           return (
             <div>
+              {levelText && <Tag color="purple" style={{ marginBottom: 2 }}>档位: {levelText}</Tag>}
               {config.map((item: any, index: number) => (
                 <Tag key={index} color="blue" style={{ marginBottom: 2 }}>
                   {item.timeSegment}: 分时下方{(item.maBelowPercent * 100).toFixed(2)}%/分时上方{(item.maAbovePercent * 100).toFixed(2)}%/盈利点{((item.profitPercent || 0) * 100).toFixed(2)}%
@@ -1345,7 +1411,12 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             </div>
           );
         } catch (error) {
-          return <Tag color="red">配置错误</Tag>;
+          return (
+            <div>
+              <Tag color="red">配置错误</Tag>
+              {levelText && <Tag color="purple" style={{ marginTop: 2 }}>档位: {levelText}</Tag>}
+            </div>
+          );
         }
       },
     },
@@ -1868,11 +1939,11 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       
       const timeSegmentMaConfig = JSON.stringify(configData);
       
-      // 调用更新接口，传递完整的记录信息
-      await updateStrategyUserStock({
-        ...timeSegmentCurrentRecord,
+      // 使用批量更新接口，单独编辑时清空档位ID
+      await batchUpdateStrategyUserStockTimeSegmentConfig({
+        ids: [timeSegmentCurrentRecord.id!],
         timeSegmentMaConfig,
-      } as any);
+      });
       
       message.success('时段配置保存成功');
       setTimeSegmentModalVisible(false);
@@ -1882,6 +1953,9 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       if (actionRef.current) {
         actionRef.current.reload();
       }
+      
+      // 重新加载档位等级映射
+      await loadTimeSegmentTemplateLevelMap();
     } catch (error) {
       console.error('保存时段配置失败:', error);
       message.error('保存时段配置失败');
@@ -1998,58 +2072,82 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
 
   // 根据档位等级获取模板
   const loadTemplatesByLevel = async (level: string) => {
-    if (!level) {
-      setTemplatesByLevel([]);
-      return;
-    }
-    
     try {
-      const response = await request('/api/timeSegmentTemplate/listByLevel', {
-        params: {
-          templateLevel: level,
-          strategyId: strategyId,
-          stockCode: timeSegmentCurrentRecord?.stockCode,
-          configType: 'USER'
-        }
+      const response = await listTimeSegmentTemplatesByLevel({
+        templateLevel: level,
+        configType: 'user_stock',
+        strategyId: strategyId,
       });
-      if (response.success) {
+      
+      if (response.success && response.data) {
         setTemplatesByLevel(response.data);
+      } else {
+        setTemplatesByLevel([]);
       }
     } catch (error) {
-      console.error('获取档位模板失败:', error);
+      console.error('加载档位配置失败:', error);
       setTemplatesByLevel([]);
+    }
+  };
+
+  // 加载档位等级映射
+  const loadTimeSegmentTemplateLevelMap = async () => {
+    try {
+      const response = await listTimeSegmentTemplates({
+        configType: 'user_stock',
+        strategyId: strategyId,
+        current: 1,
+        pageSize: 1000, // 获取所有档位
+      });
+      
+      if (response.success && response.data && response.data.records) {
+        const levelMap = new Map<number, string>();
+        response.data.records.forEach((template: any) => {
+          if (template.id && template.templateLevel) {
+            levelMap.set(template.id, template.templateLevel);
+          }
+        });
+        setTimeSegmentTemplateLevelMap(levelMap);
+      }
+    } catch (error) {
+      console.error('加载档位等级映射失败:', error);
     }
   };
 
   // 应用档位模板
   const applyTemplate = async (templateId: number) => {
+    if (!timeSegmentCurrentRecord) return;
+    
     try {
-      // 获取档位配置详情
-      const response = await request(`/api/timeSegmentTemplate/get/${templateId}`, {
-        method: 'GET',
+      const template = await getTimeSegmentTemplateById(templateId);
+      if (!template.success || !template.data) {
+        message.error('获取档位配置失败');
+        return;
+      }
+      
+      const templateData = template.data;
+      
+      // 应用档位配置到用户股票关系
+      const applyResponse = await applyTimeSegmentTemplateToUserStock({
+        templateId: templateId,
+        userStockIds: [timeSegmentCurrentRecord.id!],
       });
       
-      if (response.success && response.data) {
-        const template = response.data;
+      if (applyResponse.success) {
+        // 批量更新时段配置，同时保存档位ID
+        await batchUpdateStrategyUserStockTimeSegmentConfig({
+          ids: [timeSegmentCurrentRecord.id!],
+          timeSegmentMaConfig: templateData.timeSegmentMaConfig || '',
+        });
         
-        // 解析时段配置
-        const timeSegmentConfig = parseTimeSegmentMaConfig(template.timeSegmentMaConfig);
+        message.success('应用档位配置成功');
+        setTimeSegmentModalVisible(false);
+        actionRef.current?.reload();
         
-        if (timeSegmentConfig.length > 0) {
-          // 转换为表单格式（百分比显示）
-          const formattedConfig = timeSegmentConfig.map((config: any) => ({
-            timeSegment: config.timeSegment,
-            maBelowPercent: config.maBelowPercent * 100,
-            maAbovePercent: config.maAbovePercent * 100,
-            profitPercent: config.profitPercent * 100,
-          }));
-          
-          // 设置表单值
-          timeSegmentForm.setFieldsValue({ timeSegments: formattedConfig });
-          message.success(`已应用${template.templateName}档位配置`);
-        } else {
-          message.warning('该档位配置没有时段设置');
-        }
+        // 重新加载档位等级映射
+        await loadTimeSegmentTemplateLevelMap();
+      } else {
+        message.error('应用档位配置失败');
       }
     } catch (error) {
       console.error('应用档位配置失败:', error);
@@ -4575,24 +4673,34 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         onFinish={handleSaveTimeSegmentTemplate}
         initialValues={timeSegmentTemplateInitialValues}
       >
-        <ProFormText
-          name="templateName"
-          label="档位名称"
-          rules={[{ required: true, message: '请输入档位名称' }]}
-          placeholder="请输入档位名称"
-        />
+        {/* 档位等级放在最上方 */}
         <ProFormSelect
           name="templateLevel"
           label="档位等级"
           rules={[{ required: true, message: '请选择档位等级' }]}
           options={templateLevels}
           placeholder="请选择档位等级"
+          fieldProps={{
+            onChange: (value) => {
+              // 根据选中的档位等级自动生成档位名称
+              const stockCode = timeSegmentTemplateInitialValues?.stockCode || '';
+              const accountName = timeSegmentTemplateInitialValues?.accountName || '';
+              const templateName = `${stockCode}_${accountName}_${value}档`;
+              saveTimeSegmentTemplateFormRef.current?.setFieldsValue({ templateName });
+            },
+          }}
+        />
+        <ProFormText
+          name="templateName"
+          label="档位名称"
+          rules={[{ required: true, message: '请输入档位名称' }]}
+          placeholder="请输入档位名称"
         />
         <ProFormText
           name="useScenario"
           label="使用场景"
-          rules={[{ required: true, message: '请输入使用场景' }]}
-          placeholder="请输入使用场景"
+          placeholder="请输入使用场景（可选）"
+          // 移除必填规则，应用场景可以为空
         />
         <ProFormText
           name="stockCode"

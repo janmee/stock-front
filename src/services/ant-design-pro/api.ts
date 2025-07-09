@@ -1712,12 +1712,110 @@ export async function batchUpdateStrategyUserStockTimeSegmentConfig(
   },
   options?: { [key: string]: any },
 ) {
-  return request<API.ApiResponse>('/api/strategy/user-stock/batch-time-segment-config', {
+  return request<API.Response<void>>('/api/strategy/user-stock/batch-time-segment-config', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     data: params,
     ...(options || {}),
+  });
+}
+
+export async function batchUpdateStrategyStockTimeSegmentConfig(
+  params: {
+    ids: number[];
+    timeSegmentMaConfig: string;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.Response<void>>('/api/strategy/stock/batch-time-segment-config', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: params,
+    ...(options || {}),
+  });
+}
+
+// 时段档位配置模版相关接口
+export async function createTimeSegmentTemplate(params: API.TimeSegmentTemplateItem) {
+  return request<API.Response<boolean>>('/api/timeSegmentTemplate/create', {
+    method: 'POST',
+    data: params,
+  });
+}
+
+export async function updateTimeSegmentTemplate(params: API.TimeSegmentTemplateItem) {
+  return request<API.Response<boolean>>('/api/timeSegmentTemplate/update', {
+    method: 'PUT',
+    data: params,
+  });
+}
+
+export async function deleteTimeSegmentTemplate(id: number) {
+  return request<API.Response<boolean>>(`/api/timeSegmentTemplate/delete/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function getTimeSegmentTemplateById(id: number) {
+  return request<API.Response<API.TimeSegmentTemplateItem>>(`/api/timeSegmentTemplate/get/${id}`, {
+    method: 'GET',
+  });
+}
+
+export async function listTimeSegmentTemplates(params?: {
+  current?: number;
+  pageSize?: number;
+  templateName?: string;
+  templateLevel?: string;
+  configType?: string;
+  strategyId?: number;
+  stockCode?: string;
+  account?: string;
+}) {
+  return request<API.Response<{ records: API.TimeSegmentTemplateItem[]; total: number }>>('/api/timeSegmentTemplate/list', {
+    method: 'GET',
+    params,
+  });
+}
+
+export async function getTimeSegmentTemplateLevels() {
+  return request<API.Response<{ value: string; label: string }[]>>('/api/timeSegmentTemplate/templateLevels', {
+    method: 'GET',
+  });
+}
+
+export async function listTimeSegmentTemplatesByLevel(params: {
+  templateLevel: string;
+  strategyId?: number;
+  stockCode?: string;
+  configType?: string;
+}) {
+  return request<API.Response<API.TimeSegmentTemplateItem[]>>('/api/timeSegmentTemplate/listByLevel', {
+    method: 'GET',
+    params,
+  });
+}
+
+export async function applyTimeSegmentTemplateToStrategyStock(params: {
+  templateId: number;
+  strategyStockIds: number[];
+}) {
+  return request<API.Response<boolean>>('/api/timeSegmentTemplate/applyToStrategyStock', {
+    method: 'POST',
+    data: params,
+  });
+}
+
+export async function applyTimeSegmentTemplateToUserStock(params: {
+  templateId: number;
+  userStockIds: number[];
+}) {
+  return request<API.Response<boolean>>('/api/timeSegmentTemplate/applyToUserStock', {
+    method: 'POST',
+    data: params,
   });
 }

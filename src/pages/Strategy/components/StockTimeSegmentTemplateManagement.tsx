@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Input, Select, message, Popconfirm, Space, Tag, Tooltip } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, PlayCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { Table, Button, Modal, Form, Input, Select, message, Popconfirm, Space, Tag, Tooltip, Row, Col } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, PlayCircleOutlined, QuestionCircleOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import { request } from '@umijs/max';
 import { FormattedMessage } from '@umijs/max';
 
@@ -24,8 +24,8 @@ interface TimeSegmentTemplate {
 }
 
 interface StockTimeSegmentTemplateManagementProps {
-  strategyId?: number;
-  strategyName?: string;
+  strategyId: number;
+  strategyName: string;
 }
 
 const StockTimeSegmentTemplateManagement: React.FC<StockTimeSegmentTemplateManagementProps> = ({
@@ -44,6 +44,13 @@ const StockTimeSegmentTemplateManagement: React.FC<StockTimeSegmentTemplateManag
   const [templateLevels, setTemplateLevels] = useState<any[]>([]);
   const [form] = Form.useForm();
   const [applyForm] = Form.useForm();
+  const [searchForm] = Form.useForm();
+
+  // 搜索条件状态
+  const [searchParams, setSearchParams] = useState({
+    stockCode: '',
+    templateLevel: '',
+  });
 
   // 默认时段配置
   const defaultTimeSegmentMaConfig = [
@@ -87,17 +94,20 @@ const StockTimeSegmentTemplateManagement: React.FC<StockTimeSegmentTemplateManag
   };
 
   // 加载档位模板列表
-  const loadTemplates = async () => {
+  const loadTemplates = async (params?: any) => {
     setLoading(true);
     try {
+      const searchConditions = {
+        configType: 'STOCK',
+        strategyId: strategyId,
+        current: 1,
+        pageSize: 1000,
+        ...params,
+      };
+
       const response = await request('/api/timeSegmentTemplate/list', {
         method: 'GET',
-        params: {
-          configType: 'STOCK',
-          strategyId: strategyId,
-          current: 1,
-          pageSize: 1000,
-        },
+        params: searchConditions,
       });
       if (response.success) {
         setTemplates(response.data.records || []);
@@ -149,6 +159,27 @@ const StockTimeSegmentTemplateManagement: React.FC<StockTimeSegmentTemplateManag
     loadStrategyStocks();
     loadTemplateLevels();
   }, [strategyId]);
+
+  // 处理搜索
+  const handleSearch = () => {
+    const values = searchForm.getFieldsValue();
+    const searchConditions = {
+      stockCode: values.stockCode || '',
+      templateLevel: values.templateLevel || '',
+    };
+    setSearchParams(searchConditions);
+    loadTemplates(searchConditions);
+  };
+
+  // 重置搜索
+  const handleReset = () => {
+    searchForm.resetFields();
+    setSearchParams({
+      stockCode: '',
+      templateLevel: '',
+    });
+    loadTemplates();
+  };
 
   // 处理新增/编辑
   const handleSave = async (values: any) => {
@@ -382,6 +413,44 @@ const StockTimeSegmentTemplateManagement: React.FC<StockTimeSegmentTemplateManag
 
   return (
     <div>
+      {/* 搜索表单 */}
+      <Form
+        form={searchForm}
+        layout="inline"
+        style={{ marginBottom: 16, padding: 16, background: '#f5f5f5', borderRadius: 4 }}
+      >
+        <Row gutter={16} style={{ width: '100%' }}>
+          <Col span={8}>
+            <Form.Item name="stockCode" label="股票代码">
+              <Input placeholder="请输入股票代码" allowClear />
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item name="templateLevel" label="档位等级">
+              <Select placeholder="请选择档位等级" allowClear>
+                {templateLevels.map(level => (
+                  <Option key={level.value} value={level.value}>
+                    {level.label}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item>
+              <Space>
+                <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+                  搜索
+                </Button>
+                <Button icon={<ReloadOutlined />} onClick={handleReset}>
+                  重置
+                </Button>
+              </Space>
+            </Form.Item>
+          </Col>
+        </Row>
+      </Form>
+
       <div style={{ marginBottom: 16 }}>
         <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
           <FormattedMessage id="template.add" defaultMessage="新增档位配置" />

@@ -449,4 +449,20 @@ declare namespace API {
     configId?: number;
     enabled: boolean;
   };
+
+  type TimeSegmentTemplateItem = {
+    id?: number;
+    templateName?: string;
+    templateLevel?: string;
+    useScenario?: string;
+    strategyId?: number;
+    strategyName?: string;
+    stockCode?: string;
+    account?: string;
+    accountName?: string;
+    timeSegmentMaConfig?: string;
+    configType?: string;
+    createTime?: string;
+    updateTime?: string;
+  };
 }
