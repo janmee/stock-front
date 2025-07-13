@@ -482,6 +482,8 @@ export async function createStrategyStock(body: API.StrategyStockItem, options?:
     buyRatioConfig: body.buyRatioConfig,
     enableOpeningBuy: body.enableOpeningBuy,
     timeSegmentMaConfig: body.timeSegmentMaConfig,
+    marketCapScale: body.marketCapScale,
+    enableProfitSellBeforeClose: body.enableProfitSellBeforeClose,
     status: body.status
   };
   
@@ -517,6 +519,8 @@ export async function updateStrategyStock(body: API.StrategyStockItem, options?:
     buyRatioConfig: body.buyRatioConfig,
     enableOpeningBuy: body.enableOpeningBuy,
     timeSegmentMaConfig: body.timeSegmentMaConfig,
+    marketCapScale: body.marketCapScale,
+    enableProfitSellBeforeClose: body.enableProfitSellBeforeClose,
     status: body.status
   };
   
@@ -1473,6 +1477,23 @@ export async function updateStrategyStockOpeningBuy(
     method: 'POST',
     data: {
       enableOpeningBuy: params.enableOpeningBuy,
+    },
+    ...(options || {}),
+  });
+}
+
+/** 更新策略股票关系收盘前盈利卖出状态 POST /api/strategy/stock/profit-sell-before-close/{id} */
+export async function updateStrategyStockProfitSellBeforeClose(
+  params: {
+    id: number;
+    enableProfitSellBeforeClose: boolean;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.ApiResponse>(`/api/strategy/stock/profit-sell-before-close/${params.id}`, {
+    method: 'POST',
+    data: {
+      enableProfitSellBeforeClose: params.enableProfitSellBeforeClose,
     },
     ...(options || {}),
   });

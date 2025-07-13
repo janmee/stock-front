@@ -265,6 +265,8 @@ declare namespace API {
     enableOpeningBuy?: boolean; // 是否启用开盘买入
     configTemplateId?: number; // 策略配置模版ID
     timeSegmentMaConfig?: string; // 时段分时平均线配置
+    marketCapScale?: string; // 市值规模：小盘股、中盘股、大盘股、ETF
+    enableProfitSellBeforeClose?: boolean; // 是否收盘前盈利卖出
   };
 
   type StrategyStockList = {

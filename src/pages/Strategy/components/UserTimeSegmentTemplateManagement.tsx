@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Modal, Form, Input, Select, message, Popconfirm, Space, Tag, Tooltip, Row, Col } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, PlayCircleOutlined, QuestionCircleOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, PlayCircleOutlined, QuestionCircleOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import { request } from '@umijs/max';
 import { FormattedMessage } from '@umijs/max';
+import TimeSegmentConfigForm from './TimeSegmentConfigForm';
 
 const { Option } = Select;
-const { TextArea } = Input;
 
 interface TimeSegmentTemplate {
   id: number;
@@ -82,6 +82,18 @@ const UserTimeSegmentTemplateManagement: React.FC<UserTimeSegmentTemplateManagem
       console.warn('解析时段分时平均线配置失败:', error);
       return defaultTimeSegmentMaConfig;
     }
+  };
+
+  // 校验时间段格式
+  const validateTimeSegment = (timeSegment: string) => {
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    return timeRegex.test(timeSegment);
+  };
+
+  // 将时间字符串转换为分钟数（用于排序）
+  const timeToMinutes = (timeStr: string) => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
   };
 
   // 获取档位等级选项
@@ -214,14 +226,50 @@ const UserTimeSegmentTemplateManagement: React.FC<UserTimeSegmentTemplateManagem
     loadTemplates();
   };
 
-  // 处理新增/编辑
+  // 处理编辑
   const handleSave = async (values: any) => {
     try {
+      // 处理时段配置
+      const { timeSegmentMaConfigInput, ...otherValues } = values;
+      
+      let timeSegmentMaConfig = '';
+      if (timeSegmentMaConfigInput && timeSegmentMaConfigInput.length > 0) {
+        // 验证时段格式和重复性
+        const timeSegments = timeSegmentMaConfigInput.map((item: any) => item.timeSegment);
+        const uniqueTimeSegments = [...new Set(timeSegments)];
+        
+        if (uniqueTimeSegments.length !== timeSegments.length) {
+          message.error('时段配置中存在重复的时间段');
+          return;
+        }
+        
+        // 验证时段格式
+        for (const item of timeSegmentMaConfigInput) {
+          if (!validateTimeSegment(item.timeSegment)) {
+            message.error(`时段 ${item.timeSegment} 格式不正确，请使用 HH:mm 格式`);
+            return;
+          }
+        }
+        
+        // 按时间排序并转换百分比为小数
+        const sortedConfig = timeSegmentMaConfigInput
+          .sort((a: any, b: any) => timeToMinutes(a.timeSegment) - timeToMinutes(b.timeSegment))
+          .map((item: any) => ({
+            timeSegment: item.timeSegment,
+            maBelowPercent: item.maBelowPercent / 100, // 百分比转小数
+            maAbovePercent: item.maAbovePercent / 100, // 百分比转小数
+            profitPercent: item.profitPercent / 100, // 百分比转小数
+          }));
+        
+        timeSegmentMaConfig = JSON.stringify(sortedConfig);
+      }
+
       const templateData = {
-        ...values,
+        ...otherValues,
+        timeSegmentMaConfig,
         configType: 'USER',
-        strategyId: values.strategyId || strategyId,
-        strategyName: values.strategyName || strategyName,
+        strategyId: otherValues.strategyId || strategyId,
+        strategyName: otherValues.strategyName || strategyName,
       };
 
       if (editingTemplate) {
@@ -230,12 +278,6 @@ const UserTimeSegmentTemplateManagement: React.FC<UserTimeSegmentTemplateManagem
           data: { ...templateData, id: editingTemplate.id },
         });
         message.success('更新档位配置成功');
-      } else {
-        await request('/api/timeSegmentTemplate/create', {
-          method: 'POST',
-          data: templateData,
-        });
-        message.success('创建档位配置成功');
       }
 
       setModalVisible(false);
@@ -280,17 +322,23 @@ const UserTimeSegmentTemplateManagement: React.FC<UserTimeSegmentTemplateManagem
     }
   };
 
-  // 打开新增对话框
-  const handleAdd = () => {
-    setEditingTemplate(null);
-    form.resetFields();
-    setModalVisible(true);
-  };
-
   // 打开编辑对话框
   const handleEdit = (template: TimeSegmentTemplate) => {
     setEditingTemplate(template);
-    form.setFieldsValue(template);
+    
+    // 解析时段配置并转换为表单格式
+    const timeSegmentMaConfig = parseTimeSegmentMaConfig(template.timeSegmentMaConfig);
+    const formattedConfig = timeSegmentMaConfig.map((config: any) => ({
+      timeSegment: config.timeSegment,
+      maBelowPercent: config.maBelowPercent * 100, // 转换为百分比显示
+      maAbovePercent: config.maAbovePercent * 100,
+      profitPercent: config.profitPercent * 100,
+    }));
+    
+    form.setFieldsValue({
+      ...template,
+      timeSegmentMaConfigInput: formattedConfig,
+    });
     setModalVisible(true);
   };
 
@@ -331,14 +379,9 @@ const UserTimeSegmentTemplateManagement: React.FC<UserTimeSegmentTemplateManagem
     },
     {
       title: <FormattedMessage id="template.account" defaultMessage="账户" />,
-      dataIndex: 'account',
-      key: 'account',
-      render: (text: string, record: TimeSegmentTemplate) => (
-        <div>
-          <div>{text}</div>
-          <div style={{ fontSize: '12px', color: '#666' }}>{record.accountName}</div>
-        </div>
-      ),
+      dataIndex: 'accountName',
+      key: 'accountName',
+
     },
     {
       title: (
@@ -513,12 +556,6 @@ const UserTimeSegmentTemplateManagement: React.FC<UserTimeSegmentTemplateManagem
         </Row>
       </Form>
 
-      <div style={{ marginBottom: 16 }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-          <FormattedMessage id="template.add" defaultMessage="新增档位配置" />
-        </Button>
-      </div>
-
       <Table
         columns={columns}
         dataSource={templates}
@@ -531,9 +568,9 @@ const UserTimeSegmentTemplateManagement: React.FC<UserTimeSegmentTemplateManagem
         }}
       />
 
-      {/* 新增/编辑对话框 */}
+      {/* 编辑对话框 */}
       <Modal
-        title={editingTemplate ? <FormattedMessage id="template.edit" defaultMessage="编辑档位配置" /> : <FormattedMessage id="template.add" defaultMessage="新增档位配置" />}
+        title={<FormattedMessage id="template.edit" defaultMessage="编辑档位配置" />}
         open={modalVisible}
         onCancel={() => {
           setModalVisible(false);
@@ -541,9 +578,31 @@ const UserTimeSegmentTemplateManagement: React.FC<UserTimeSegmentTemplateManagem
           form.resetFields();
         }}
         footer={null}
-        width={600}
+        width={800}
       >
         <Form form={form} layout="vertical" onFinish={handleSave}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'flex-end',
+            gap: 12, 
+            marginBottom: 16,
+            padding: 16,
+            backgroundColor: '#f5f5f5',
+            borderRadius: 6,
+            border: '1px solid #d9d9d9'
+          }}>
+            <Button onClick={() => {
+              setModalVisible(false);
+              setEditingTemplate(null);
+              form.resetFields();
+            }}>
+              <FormattedMessage id="common.cancel" defaultMessage="取消" />
+            </Button>
+            <Button type="primary" htmlType="submit">
+              <FormattedMessage id="common.save" defaultMessage="保存" />
+            </Button>
+          </div>
+
           <Form.Item
             name="strategyId"
             label="策略"
@@ -611,31 +670,10 @@ const UserTimeSegmentTemplateManagement: React.FC<UserTimeSegmentTemplateManagem
             <Input placeholder="请输入账户别名" />
           </Form.Item>
 
-          <Form.Item
-            name="timeSegmentMaConfig"
-            label={<FormattedMessage id="template.config" defaultMessage="时段配置" />}
-            rules={[{ required: true, message: '请输入时段配置' }]}
-          >
-            <TextArea
-              rows={4}
-              placeholder="请输入时段配置JSON"
-            />
-          </Form.Item>
-
-          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-            <Space>
-              <Button onClick={() => {
-                setModalVisible(false);
-                setEditingTemplate(null);
-                form.resetFields();
-              }}>
-                <FormattedMessage id="common.cancel" defaultMessage="取消" />
-              </Button>
-              <Button type="primary" htmlType="submit">
-                <FormattedMessage id="common.save" defaultMessage="保存" />
-              </Button>
-            </Space>
-          </Form.Item>
+          <TimeSegmentConfigForm
+            fieldName="timeSegmentMaConfigInput"
+            form={form}
+          />
         </Form>
       </Modal>
 
@@ -659,6 +697,29 @@ const UserTimeSegmentTemplateManagement: React.FC<UserTimeSegmentTemplateManagem
         </div>
 
         <Form form={applyForm} layout="vertical" onFinish={handleApply}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'flex-end',
+            gap: 12, 
+            marginBottom: 16,
+            padding: 16,
+            backgroundColor: '#f5f5f5',
+            borderRadius: 6,
+            border: '1px solid #d9d9d9'
+          }}>
+            <Button onClick={() => {
+              setApplyModalVisible(false);
+              setSelectedTemplate(null);
+              setSelectedUserStockIds([]);
+              applyForm.resetFields();
+            }}>
+              <FormattedMessage id="common.cancel" defaultMessage="取消" />
+            </Button>
+            <Button type="primary" htmlType="submit" disabled={selectedUserStockIds.length === 0}>
+              <FormattedMessage id="common.apply" defaultMessage="应用" />
+            </Button>
+          </div>
+
           <Form.Item
             label={<FormattedMessage id="template.selectTargets" defaultMessage="选择应用目标" />}
             required
@@ -676,22 +737,6 @@ const UserTimeSegmentTemplateManagement: React.FC<UserTimeSegmentTemplateManagem
                 },
               }}
             />
-          </Form.Item>
-
-          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-            <Space>
-              <Button onClick={() => {
-                setApplyModalVisible(false);
-                setSelectedTemplate(null);
-                setSelectedUserStockIds([]);
-                applyForm.resetFields();
-              }}>
-                <FormattedMessage id="common.cancel" defaultMessage="取消" />
-              </Button>
-              <Button type="primary" htmlType="submit" disabled={selectedUserStockIds.length === 0}>
-                <FormattedMessage id="common.apply" defaultMessage="应用" />
-              </Button>
-            </Space>
           </Form.Item>
         </Form>
       </Modal>

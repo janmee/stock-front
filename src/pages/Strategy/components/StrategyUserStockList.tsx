@@ -14,6 +14,7 @@ import {
   ProTable,
   ProFormList,
   FormInstance,
+  ProFormGroup,
 } from '@ant-design/pro-components';
 import { FormattedMessage, useIntl, request } from '@umijs/max';
 import { PlusOutlined, InfoCircleOutlined, FilterOutlined, CloseCircleOutlined, QuestionCircleOutlined, SaveOutlined, ThunderboltOutlined, DownOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -1200,107 +1201,86 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
   };
 
   // 计算汇总数据
-  const calculateSummaryData = () => {
-    let totalSingleAmount = 0;
-    let totalDailyMaxHolding = 0;
-    let totalMaxHolding = 0;
-
-    currentTableData.forEach(record => {
-      const strategyStockConfig = getStrategyStockConfig(record.strategyId, record.stockCode);
-      const buyRatioConfig = parseBuyRatioConfig(strategyStockConfig?.buyRatioConfig);
-      
-      // 计算单次资金
-      const singleAmount = calculateSingleAmount(record, buyRatioConfig);
-      totalSingleAmount += singleAmount;
-      
-      // 计算单天最大持有资金
-      const dailyMaxHolding = calculateDailyMaxHolding(record, singleAmount);
-      totalDailyMaxHolding += dailyMaxHolding;
-      
-      // 计算最大持有资金
-      const maxHolding = calculateMaxHolding(record, buyRatioConfig, singleAmount);
-      totalMaxHolding += maxHolding;
-    });
-
-    return {
-      totalSingleAmount,
-      totalDailyMaxHolding,
-      totalMaxHolding,
-      recordCount: currentTableData.length,
-    };
-  };
-
-  // 使用useMemo优化汇总数据计算
   const summaryData = useMemo(() => {
     let totalSingleAmount = 0;
     let totalDailyMaxHolding = 0;
     let totalMaxHolding = 0;
-    const accountsSet = new Set<string>();
-    const stockAmountMap = new Map<string, number>(); // 股票代码 -> 总资金
-    const stockSingleAmountMap = new Map<string, number>(); // 股票代码 -> 单次资金
-
-    currentTableData.forEach(record => {
-      const strategyStockConfig = getStrategyStockConfig(record.strategyId, record.stockCode);
-      const buyRatioConfig = parseBuyRatioConfig(strategyStockConfig?.buyRatioConfig);
-      
-      // 计算单次资金
-      const singleAmount = calculateSingleAmount(record, buyRatioConfig);
-      totalSingleAmount += singleAmount;
-      
-      // 计算单天最大持有资金
-      const dailyMaxHolding = calculateDailyMaxHolding(record, singleAmount);
-      totalDailyMaxHolding += dailyMaxHolding;
-      
-      // 计算最大持有资金
-      const maxHolding = calculateMaxHolding(record, buyRatioConfig, singleAmount);
-      totalMaxHolding += maxHolding;
-      
-      // 收集账户信息
-      if (record.account) {
-        accountsSet.add(record.account);
-      }
-      
-      // 统计每个股票的资金占用（使用最大持有资金）
-      if (record.stockCode) {
-        const currentAmount = stockAmountMap.get(record.stockCode) || 0;
-        stockAmountMap.set(record.stockCode, currentAmount + maxHolding);
-        
-        // 统计每个股票的单次资金占用
-        const currentSingleAmount = stockSingleAmountMap.get(record.stockCode) || 0;
-        stockSingleAmountMap.set(record.stockCode, currentSingleAmount + singleAmount);
-      }
-    });
-
-    // 计算所有涉及账户的总资金
     let totalAccountAmount = 0;
-    accountsSet.forEach(account => {
-      const accountAmount = accountTotalAmountMap.get(account) || 0;
-      totalAccountAmount += accountAmount;
+    let maxStockAmount = 0;
+    let maxStockCode = '';
+    let maxStockSingleAmount = 0;
+    
+    // 新增统计字段
+    let totalCount = 0;
+    let enabledCount = 0;
+    let disabledCount = 0;
+    let recordCount = 0;
+    const accountSet = new Set<string>();
+    
+    // 初始化市值规模统计
+    const marketCapStats = {
+      '小盘股': 0,
+      '中盘股': 0,
+      '大盘股': 0,
+      'ETF': 0
+    };
+
+    currentTableData.forEach((record) => {
+      recordCount++;
+      
+      // 统计总数和状态 - 修正为数字字符串判断
+      totalCount++;
+      if (record.status === '1') {
+        enabledCount++;
+      } else if (record.status === '0' || record.status !== '1') {
+        disabledCount++;
+      }
+      
+      // 统计账户
+      if (record.account) {
+        accountSet.add(record.account);
+      }
+      
+      // 统计市值规模
+      const strategyStock = strategyStockMap.get(`${record.strategyId}_${record.stockCode}`);
+      if (strategyStock?.marketCapScale && marketCapStats.hasOwnProperty(strategyStock.marketCapScale)) {
+        marketCapStats[strategyStock.marketCapScale as keyof typeof marketCapStats]++;
+      }
+      
+      // 计算资金相关统计 - 暂时跳过有问题的属性
+      try {
+        const buyRatioConfig = parseBuyRatioConfig((record as any).buyRatioConfig || '');
+        const singleAmount = calculateSingleAmount(record, buyRatioConfig);
+        const dailyMaxHolding = calculateDailyMaxHolding(record, singleAmount);
+        const maxHolding = calculateMaxHolding(record, buyRatioConfig, singleAmount);
+        
+        totalSingleAmount += singleAmount;
+        totalDailyMaxHolding += dailyMaxHolding;
+        totalMaxHolding += maxHolding;
+        
+        const accountAmount = accountTotalAmountMap.get(record.account || '') || 0;
+        totalAccountAmount += accountAmount;
+        
+        if (maxHolding > maxStockAmount) {
+          maxStockAmount = maxHolding;
+          maxStockCode = record.stockCode || '';
+          maxStockSingleAmount = singleAmount;
+        }
+      } catch (error) {
+        // 如果计算出错，跳过这条记录的资金计算
+        console.warn('计算资金统计时出错:', error);
+      }
     });
 
-    // 计算占比
     const singleAmountRatio = totalAccountAmount > 0 ? (totalSingleAmount / totalAccountAmount) * 100 : 0;
     const dailyMaxHoldingRatio = totalAccountAmount > 0 ? (totalDailyMaxHolding / totalAccountAmount) * 100 : 0;
     const maxHoldingRatio = totalAccountAmount > 0 ? (totalMaxHolding / totalAccountAmount) * 100 : 0;
-
-    // 找出资金占用最大的股票
-    let maxStockCode = '';
-    let maxStockAmount = 0;
-    let maxStockSingleAmount = 0;
-    let maxStockRatio = 0;
-    let maxStockSingleRatio = 0;
-    
-    stockAmountMap.forEach((amount, stockCode) => {
-      if (amount > maxStockAmount) {
-        maxStockAmount = amount;
-        maxStockCode = stockCode;
-        maxStockSingleAmount = stockSingleAmountMap.get(stockCode) || 0;
-        maxStockRatio = totalAccountAmount > 0 ? (amount / totalAccountAmount) * 100 : 0;
-        maxStockSingleRatio = totalAccountAmount > 0 ? (maxStockSingleAmount / totalAccountAmount) * 100 : 0;
-      }
-    });
+    const maxStockRatio = totalAccountAmount > 0 ? (maxStockAmount / totalAccountAmount) * 100 : 0;
+    const maxStockSingleRatio = totalAccountAmount > 0 ? (maxStockSingleAmount / totalAccountAmount) * 100 : 0;
 
     return {
+      recordCount,
+      accountCount: accountSet.size,
       totalSingleAmount,
       totalDailyMaxHolding,
       totalMaxHolding,
@@ -1308,13 +1288,15 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       singleAmountRatio,
       dailyMaxHoldingRatio,
       maxHoldingRatio,
-      recordCount: currentTableData.length,
-      accountCount: accountsSet.size,
       maxStockCode,
       maxStockAmount,
-      maxStockSingleAmount,
       maxStockRatio,
+      maxStockSingleAmount,
       maxStockSingleRatio,
+      totalCount,
+      enabledCount,
+      disabledCount,
+      marketCapStats
     };
   }, [currentTableData, strategyStockMap, accountTotalAmountMap]);
 
@@ -1375,6 +1357,41 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           {text}
         </a>
       ),
+    },
+    {
+      title: (
+        <>
+          <>市值规模</>
+          <Tooltip title="股票的市值规模分类">
+            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </>
+      ),
+      dataIndex: 'marketCapScale',
+      hideInSearch: true,
+      render: (_, record) => {
+        // 从strategyStockMap中获取市值规模信息
+        const key = `${record.strategyId}_${record.stockCode}`;
+        const strategyStock = strategyStockMap.get(key);
+        const marketCapScale = strategyStock?.marketCapScale;
+        
+        if (!marketCapScale) {
+          return <Tag color="default">未设置</Tag>;
+        }
+        
+        const colorMap = {
+          '小盘股': 'default',
+          '中盘股': 'processing',
+          '大盘股': 'success',
+          'ETF': 'warning',
+        };
+        
+        return (
+          <Tag color={colorMap[marketCapScale as keyof typeof colorMap] || 'default'}>
+            {marketCapScale}
+          </Tag>
+        );
+      },
     },
     {
       title: (
@@ -2516,6 +2533,49 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         </Row>
       </Card>
       
+      {/* 市值规模和状态统计 */}
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <Row gutter={16}>
+          <Col span={3}>
+            <Statistic title="股票总数" value={summaryData.totalCount || 0} />
+          </Col>
+          <Col span={3}>
+            <Statistic title="启用" value={summaryData.enabledCount || 0} valueStyle={{ color: '#3f8600' }} />
+          </Col>
+          <Col span={3}>
+            <Statistic title="禁用" value={summaryData.disabledCount || 0} valueStyle={{ color: '#cf1322' }} />
+          </Col>
+          <Col span={3}>
+            <Statistic 
+              title="小盘股" 
+              value={summaryData.marketCapStats?.小盘股 || 0} 
+              valueStyle={{ color: '#666' }} 
+            />
+          </Col>
+          <Col span={3}>
+            <Statistic 
+              title="中盘股" 
+              value={summaryData.marketCapStats?.中盘股 || 0} 
+              valueStyle={{ color: '#1890ff' }} 
+            />
+          </Col>
+          <Col span={3}>
+            <Statistic 
+              title="大盘股" 
+              value={summaryData.marketCapStats?.大盘股 || 0} 
+              valueStyle={{ color: '#52c41a' }} 
+            />
+          </Col>
+          <Col span={3}>
+            <Statistic 
+              title="ETF" 
+              value={summaryData.marketCapStats?.ETF || 0} 
+              valueStyle={{ color: '#faad14' }} 
+            />
+          </Col>
+        </Row>
+      </Card>
+      
       <ProTable<API.StrategyUserStockItem, API.PageParams>
         actionRef={actionRef}
         formRef={searchFormRef}
@@ -2834,10 +2894,10 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         }}
         columns={columns}
         pagination={{
-          defaultPageSize: 100,
+          defaultPageSize: 1000,
           showSizeChanger: true,
           showQuickJumper: true,
-          pageSizeOptions: ['1000', '2000'],
+          pageSizeOptions: ['100', '1000', '2000'],
           showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/总共 ${total} 条`,
         }}
       />

@@ -17,7 +17,7 @@ import {
   ProFormDependency,
 } from '@ant-design/pro-components';
 import { PlusOutlined, DownOutlined, UpOutlined, SettingOutlined, ThunderboltOutlined, ExclamationCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, MinusCircleOutlined, EditOutlined, DeleteOutlined, CopyOutlined, SyncOutlined, FilterOutlined, EyeOutlined, EyeInvisibleOutlined, ClockCircleOutlined, InfoCircleOutlined, QuestionCircleOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
-import { getConfigTemplateList, saveConfigTemplate, deleteConfigTemplate, applyConfigTemplate, listStrategyStock, createStrategyStock, updateStrategyStock, deleteStrategyStock, updateStrategyStockStatus, updateStrategyStockOpeningBuy, batchUpdateStrategyStockOpeningBuy, listStrategyJob, listStrategyUserStock, batchUpdateStrategyUserStockTimeSegmentConfig, batchUpdateStrategyStockStatus, listAccountInfo, getAccountConfigStatus, getConfigTemplateById, listTimeSegmentTemplates, createTimeSegmentTemplate, getTimeSegmentTemplateById, deleteTimeSegmentTemplate, getTimeSegmentTemplateLevels, listTimeSegmentTemplatesByLevel, applyTimeSegmentTemplateToStrategyStock, batchUpdateStrategyStockTimeSegmentConfig, batchSwitchStrategyStockTemplateLevel } from '@/services/ant-design-pro/api';
+import { getConfigTemplateList, saveConfigTemplate, deleteConfigTemplate, applyConfigTemplate, listStrategyStock, createStrategyStock, updateStrategyStock, deleteStrategyStock, updateStrategyStockStatus, updateStrategyStockOpeningBuy, updateStrategyStockProfitSellBeforeClose, batchUpdateStrategyStockOpeningBuy, listStrategyJob, listStrategyUserStock, batchUpdateStrategyUserStockTimeSegmentConfig, batchUpdateStrategyStockStatus, listAccountInfo, getAccountConfigStatus, getConfigTemplateById, listTimeSegmentTemplates, createTimeSegmentTemplate, getTimeSegmentTemplateById, deleteTimeSegmentTemplate, getTimeSegmentTemplateLevels, listTimeSegmentTemplatesByLevel, applyTimeSegmentTemplateToStrategyStock, batchUpdateStrategyStockTimeSegmentConfig, batchSwitchStrategyStockTemplateLevel } from '@/services/ant-design-pro/api';
 import { useModel } from '@umijs/max';
 import { history } from '@umijs/max';
 import { FormattedMessage, useIntl } from '@umijs/max';
@@ -447,6 +447,23 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     }
   };
 
+  // 更新策略股票关系收盘前盈利卖出状态
+  const handleUpdateProfitSellBeforeClose = async (id: number, enableProfitSellBeforeClose: boolean) => {
+    const hide = message.loading('更新中...');
+    
+    try {
+      await updateStrategyStockProfitSellBeforeClose({ id, enableProfitSellBeforeClose });
+      hide();
+      message.success('更新成功');
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error('更新失败');
+      return false;
+    }
+  };
+
   // 批量更新策略股票关系开盘买入状态
   const handleBatchUpdateOpeningBuy = async (enableOpeningBuy: boolean) => {
     if (selectedRowKeys.length === 0) {
@@ -663,6 +680,36 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     {
       title: (
         <>
+          <>市值规模</>
+          <Tooltip title="股票的市值规模分类">
+            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </>
+      ),
+      dataIndex: 'marketCapScale',
+      valueEnum: {
+        '小盘股': { text: '小盘股', status: 'Default' },
+        '中盘股': { text: '中盘股', status: 'Processing' },
+        '大盘股': { text: '大盘股', status: 'Success' },
+        'ETF': { text: 'ETF', status: 'Warning' },
+      },
+      render: (_, record) => {
+        const colorMap = {
+          '小盘股': 'default',
+          '中盘股': 'processing',
+          '大盘股': 'success',
+          'ETF': 'warning',
+        };
+        return record.marketCapScale ? (
+          <Tag color={colorMap[record.marketCapScale as keyof typeof colorMap] || 'default'}>
+            {record.marketCapScale}
+          </Tag>
+        ) : '-';
+      },
+    },
+    {
+      title: (
+        <>
           <>时段分时配置</>
           <Tooltip title="不同时段的分时平均线买入配置和盈利点">
             <QuestionCircleOutlined style={{ marginLeft: 4 }} />
@@ -811,6 +858,29 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           checked={record.enableOpeningBuy !== false} // 默认为true，只有明确设置为false时才显示否
           onChange={(checked) => {
             handleUpdateOpeningBuy(record.id!, checked);
+          }}
+        />
+      ),
+    },
+    {
+      title: (
+        <>
+          <>是否收盘前盈利卖出</>
+          <Tooltip title="是否在收盘前执行盈利卖出策略，默认关闭">
+            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </>
+      ),
+      dataIndex: 'enableProfitSellBeforeClose',
+      valueType: 'switch',
+      hideInSearch: true,
+      render: (_, record) => (
+        <Switch
+          checkedChildren="是"
+          unCheckedChildren="否"
+          checked={record.enableProfitSellBeforeClose === true} // 默认为false，只有明确设置为true时才显示是
+          onChange={(checked) => {
+            handleUpdateProfitSellBeforeClose(record.id!, checked);
           }}
         />
       ),
@@ -2467,6 +2537,30 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
           <ProFormSelect
+            name="marketCapScale"
+            label="市值规模"
+            tooltip="股票的市值规模分类"
+            valueEnum={{
+              '小盘股': '小盘股',
+              '中盘股': '中盘股',
+              '大盘股': '大盘股',
+              'ETF': 'ETF',
+            }}
+            placeholder="请选择市值规模"
+          />
+        </div>
+        
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
+          <ProFormSwitch
+            name="enableProfitSellBeforeClose"
+            label="是否收盘前盈利卖出"
+            tooltip="是否在收盘前执行盈利卖出策略，默认关闭"
+            initialValue={false}
+          />
+        </div>
+        
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
+          <ProFormSelect
             name="status"
             label={<FormattedMessage id="pages.strategy.stock.relation.status" defaultMessage="Status" />}
             valueEnum={{
@@ -2829,6 +2923,30 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             label="是否开盘买入"
             tooltip="是否在开盘时执行买入策略，默认开启"
             initialValue={true}
+          />
+        </div>
+        
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
+          <ProFormSelect
+            name="marketCapScale"
+            label="市值规模"
+            tooltip="股票的市值规模分类"
+            valueEnum={{
+              '小盘股': '小盘股',
+              '中盘股': '中盘股',
+              '大盘股': '大盘股',
+              'ETF': 'ETF',
+            }}
+            placeholder="请选择市值规模"
+          />
+        </div>
+        
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
+          <ProFormSwitch
+            name="enableProfitSellBeforeClose"
+            label="是否收盘前盈利卖出"
+            tooltip="是否在收盘前执行盈利卖出策略，默认关闭"
+            initialValue={false}
           />
         </div>
         
