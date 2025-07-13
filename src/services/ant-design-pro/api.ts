@@ -1394,8 +1394,27 @@ export async function runRegressionByStrategy(
  * @returns 执行结果
  */
 export async function executeStrategyJob(id: number) {
-  return request<API.Response<any>>(`/api/strategy/job/execute/${id}`, {
+  return request<API.Response<void>>(`/api/strategy/job/execute/${id}`, {
     method: 'POST',
+  });
+}
+
+/** 切换策略任务档位 POST /api/strategy/job/switch-template-level/{id} */
+export async function switchStrategyJobTemplateLevel(id: number, templateLevel: string) {
+  return request<API.Response<API.TemplateLevelApplyResult>>(`/api/strategy/job/switch-template-level/${id}`, {
+    method: 'POST',
+    data: { templateLevel },
+  });
+}
+
+/** 批量切换策略标的档位 POST /api/strategy/stock/batch-switch-template-level */
+export async function batchSwitchStrategyStockTemplateLevel(params: {
+  ids: number[];
+  templateLevel: string;
+}) {
+  return request<API.Response<API.TemplateLevelApplyResult>>('/api/strategy/stock/batch-switch-template-level', {
+    method: 'POST',
+    data: params,
   });
 }
 
@@ -1704,11 +1723,30 @@ export async function batchUpdateStrategyUserStockTotalFundShares(
   });
 }
 
+/** 更新策略用户股票关系的时段分时配置 */
+export async function updateStrategyUserStockTimeSegmentConfig(
+  params: {
+    id: number;
+    timeSegmentMaConfig: string;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.Response<void>>('/api/strategy/user-stock/time-segment-config', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: params,
+    ...(options || {}),
+  });
+}
+
 /** 批量更新策略用户股票关系的时段分时配置 */
 export async function batchUpdateStrategyUserStockTimeSegmentConfig(
   params: {
     ids: number[];
     timeSegmentMaConfig: string;
+    stockCode: string;
   },
   options?: { [key: string]: any },
 ) {
@@ -1740,10 +1778,11 @@ export async function batchUpdateStrategyStockTimeSegmentConfig(
 }
 
 // 时段档位配置模版相关接口
-export async function createTimeSegmentTemplate(params: API.TimeSegmentTemplateItem) {
+export async function createTimeSegmentTemplate(params: API.TimeSegmentTemplateItem, forceOverwrite?: boolean) {
   return request<API.Response<boolean>>('/api/timeSegmentTemplate/create', {
     method: 'POST',
     data: params,
+    params: forceOverwrite ? { forceOverwrite: true } : undefined,
   });
 }
 

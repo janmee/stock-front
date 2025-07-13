@@ -1,5 +1,5 @@
 import React, { useImperativeHandle, useRef, forwardRef, useState } from 'react';
-import { message, Switch } from 'antd';
+import { message, Switch, Button, Modal, Select, Tag, Descriptions, Card, Alert } from 'antd';
 import {
   ActionType,
   ModalForm,
@@ -13,8 +13,19 @@ import { FormattedMessage, useIntl } from '@umijs/max';
 import { 
   listStrategyJob, 
   updateStrategyJob, 
-  executeStrategyJob
+  executeStrategyJob,
+  switchStrategyJobTemplateLevel
 } from '@/services/ant-design-pro/api';
+
+const { Option } = Select;
+
+// 档位等级选项
+const templateLevelOptions = [
+  { value: 'S', label: 'S档位' },
+  { value: 'A', label: 'A档位' },
+  { value: 'B', label: 'B档位' },
+  { value: 'C', label: 'C档位' },
+];
 
 interface StrategyJobListProps {
   onStrategySelected?: (strategyId: number, strategyName: string) => void;
@@ -27,8 +38,22 @@ const StrategyJobList = forwardRef((props: StrategyJobListProps, ref) => {
   const { onStrategySelected } = props;
   const [updateModalVisible, setUpdateModalVisible] = useState<boolean>(false);
   const [currentRow, setCurrentRow] = useState<API.StrategyJobItem>();
+  const [switchTemplateLevelModalVisible, setSwitchTemplateLevelModalVisible] = useState<boolean>(false);
+  const [switchingRecord, setSwitchingRecord] = useState<API.StrategyJobItem>();
+  const [selectedTemplateLevel, setSelectedTemplateLevel] = useState<string>('');
+  const [resultDetailModalVisible, setResultDetailModalVisible] = useState<boolean>(false);
+  const [executionResult, setExecutionResult] = useState<API.TemplateLevelApplyResult | null>(null);
   const actionRef = useRef<ActionType>();
   const intl = useIntl();
+  
+  // 档位等级选项
+  const templateLevelOptions = [
+    { value: 'A', label: 'A档位' },
+    { value: 'B', label: 'B档位' },
+    { value: 'C', label: 'C档位' },
+    { value: 'D', label: 'D档位' },
+    { value: 'S', label: 'S档位' },
+  ];
   
   // 公开刷新方法
   useImperativeHandle(ref, () => ({
@@ -103,6 +128,231 @@ const StrategyJobList = forwardRef((props: StrategyJobListProps, ref) => {
       message.error(`${action}失败！`);
       return false;
     }
+  };
+
+  // 切换档位
+  const handleSwitchTemplateLevel = async () => {
+    if (!switchingRecord || !selectedTemplateLevel) {
+      message.error('请选择档位等级');
+      return;
+    }
+    
+    const hide = message.loading('正在切换档位...');
+    try {
+      const response = await switchStrategyJobTemplateLevel(switchingRecord.id!, selectedTemplateLevel);
+      hide();
+      
+      if (response && response.success && response.data) {
+        const result = response.data;
+        setExecutionResult(result);
+        
+        // 显示详细的执行结果
+        const statusType = result.isSuccess ? 'success' : 
+                          result.isPartialSuccess ? 'warning' : 
+                          result.isFailure ? 'error' : 'info';
+        
+        // 构建详细消息
+        const detailMessage = (
+          <div>
+            <div style={{ marginBottom: 8, fontWeight: 'bold' }}>
+              {result.statusMessage}
+            </div>
+            <div style={{ marginBottom: 4 }}>
+              {result.summaryMessage}
+            </div>
+            <div style={{ fontSize: '12px', color: '#666', marginBottom: 8 }}>
+              {result.detailMessage}
+            </div>
+            <Button 
+              size="small" 
+              type="link" 
+              onClick={() => setResultDetailModalVisible(true)}
+              style={{ padding: 0 }}
+            >
+              查看详情
+            </Button>
+          </div>
+        );
+        
+        // 根据结果类型显示不同的消息
+        if (result.isSuccess) {
+          message.success({
+            content: detailMessage,
+            duration: 8,
+          });
+        } else if (result.isPartialSuccess) {
+          message.warning({
+            content: detailMessage,
+            duration: 10,
+          });
+        } else if (result.isFailure) {
+          message.error({
+            content: detailMessage,
+            duration: 10,
+          });
+        } else {
+          message.info({
+            content: detailMessage,
+            duration: 6,
+          });
+        }
+      } else {
+        message.success('档位切换成功！');
+      }
+      
+      setSwitchTemplateLevelModalVisible(false);
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error('档位切换失败！');
+      return false;
+    }
+  };
+
+  // 渲染执行结果详情
+  const renderExecutionResultDetail = () => {
+    if (!executionResult) return null;
+
+    const getStatusColor = (status: string): "success" | "info" | "error" | "warning" => {
+      switch (status) {
+        case 'SUCCESS':
+          return 'success';
+        case 'PARTIAL_SUCCESS':
+          return 'warning';
+        case 'NO_CONFIG':
+          return 'error';
+        case 'NO_DATA':
+          return 'info';
+        default:
+          return 'info';
+      }
+    };
+
+    return (
+      <Modal
+        title="档位切换执行结果详情"
+        open={resultDetailModalVisible}
+        onCancel={() => setResultDetailModalVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setResultDetailModalVisible(false)}>
+            关闭
+          </Button>
+        ]}
+        width={800}
+      >
+        <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+          <Alert
+            type={getStatusColor(executionResult.status)}
+            message={executionResult.statusMessage}
+            description={executionResult.detailMessage}
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+          
+          <Card title="执行统计" style={{ marginBottom: 16 }}>
+            <Descriptions column={2} size="small">
+              <Descriptions.Item label="总处理数量">
+                {executionResult.totalProcessCount}
+              </Descriptions.Item>
+              <Descriptions.Item label="成功数量">
+                <span style={{ color: '#52c41a' }}>{executionResult.totalSuccessCount}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="未配置数量">
+                <span style={{ color: '#ff4d4f' }}>{executionResult.totalNoConfigCount}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="成功率">
+                {executionResult.totalProcessCount > 0 
+                  ? `${((executionResult.totalSuccessCount / executionResult.totalProcessCount) * 100).toFixed(1)}%`
+                  : '0%'
+                }
+              </Descriptions.Item>
+            </Descriptions>
+          </Card>
+
+          <Card title="策略标的统计" style={{ marginBottom: 16 }}>
+            <Descriptions column={2} size="small">
+              <Descriptions.Item label="总数量">
+                {executionResult.strategyStockTotalCount}
+              </Descriptions.Item>
+              <Descriptions.Item label="成功数量">
+                <span style={{ color: '#52c41a' }}>{executionResult.strategyStockSuccessCount}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="未配置数量">
+                <span style={{ color: '#ff4d4f' }}>{executionResult.strategyStockNoConfigCount}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="成功率">
+                {executionResult.strategyStockTotalCount > 0 
+                  ? `${((executionResult.strategyStockSuccessCount / executionResult.strategyStockTotalCount) * 100).toFixed(1)}%`
+                  : '0%'
+                }
+              </Descriptions.Item>
+            </Descriptions>
+            
+            {executionResult.strategyStockNoConfigList && executionResult.strategyStockNoConfigList.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <h4 style={{ marginBottom: 8, color: '#ff4d4f' }}>未找到配置的策略标的：</h4>
+                <div style={{ maxHeight: '120px', overflowY: 'auto', border: '1px solid #d9d9d9', borderRadius: 4, padding: 8 }}>
+                  {executionResult.strategyStockNoConfigList.map((item, index) => (
+                    <div key={item.id} style={{ 
+                      padding: '4px 8px', 
+                      backgroundColor: index % 2 === 0 ? '#fafafa' : '#fff',
+                      borderRadius: 2,
+                      marginBottom: 2
+                    }}>
+                      <span style={{ fontWeight: 'bold' }}>{item.stockCode}</span>
+                      {item.stockName && <span style={{ marginLeft: 8, color: '#666' }}>({item.stockName})</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+
+          <Card title="策略用户股票关系统计">
+            <Descriptions column={2} size="small">
+              <Descriptions.Item label="总数量">
+                {executionResult.strategyUserStockTotalCount}
+              </Descriptions.Item>
+              <Descriptions.Item label="成功数量">
+                <span style={{ color: '#52c41a' }}>{executionResult.strategyUserStockSuccessCount}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="未配置数量">
+                <span style={{ color: '#ff4d4f' }}>{executionResult.strategyUserStockNoConfigCount}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="成功率">
+                {executionResult.strategyUserStockTotalCount > 0 
+                  ? `${((executionResult.strategyUserStockSuccessCount / executionResult.strategyUserStockTotalCount) * 100).toFixed(1)}%`
+                  : '0%'
+                }
+              </Descriptions.Item>
+            </Descriptions>
+            
+            {executionResult.strategyUserStockNoConfigList && executionResult.strategyUserStockNoConfigList.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <h4 style={{ marginBottom: 8, color: '#ff4d4f' }}>未找到配置的策略用户股票关系：</h4>
+                <div style={{ maxHeight: '120px', overflowY: 'auto', border: '1px solid #d9d9d9', borderRadius: 4, padding: 8 }}>
+                  {executionResult.strategyUserStockNoConfigList.map((item, index) => (
+                    <div key={item.id} style={{ 
+                      padding: '4px 8px', 
+                      backgroundColor: index % 2 === 0 ? '#fafafa' : '#fff',
+                      borderRadius: 2,
+                      marginBottom: 2
+                    }}>
+                      <span style={{ fontWeight: 'bold' }}>{item.account}</span>
+                      {item.accountName && <span style={{ marginLeft: 8, color: '#666' }}>({item.accountName})</span>}
+                      <span style={{ margin: '0 8px', color: '#999' }}>-</span>
+                      <span style={{ fontWeight: 'bold' }}>{item.stockCode}</span>
+                      {item.stockName && <span style={{ marginLeft: 8, color: '#666' }}>({item.stockName})</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
+      </Modal>
+    );
   };
 
   // 表格列定义
@@ -186,6 +436,17 @@ const StrategyJobList = forwardRef((props: StrategyJobListProps, ref) => {
       sorter: true,
     },
     {
+      title: '档位',
+      dataIndex: 'templateLevel',
+      valueType: 'text',
+      hideInSearch: true,
+      render: (_, record) => (
+        <Tag color={record.templateLevel === 'S' ? 'red' : record.templateLevel === 'A' ? 'green' : 'blue'}>
+          {record.templateLevel ? `${record.templateLevel}档位` : '未设置'}
+        </Tag>
+      ),
+    },
+    {
       title: <FormattedMessage id="pages.common.actions" defaultMessage="Actions" />,
       dataIndex: 'option',
       valueType: 'option',
@@ -207,6 +468,18 @@ const StrategyJobList = forwardRef((props: StrategyJobListProps, ref) => {
         >
           <FormattedMessage id="pages.common.execute" defaultMessage="Execute" />
         </a>,
+        <Button
+          key="switch-level"
+          type="link"
+          onClick={() => {
+            setSwitchingRecord(record);
+            setSelectedTemplateLevel(record.templateLevel || '');
+            setSwitchTemplateLevelModalVisible(true);
+          }}
+          style={{ marginRight: 8 }}
+        >
+          切换档位
+        </Button>,
         <span key="status-wrapper" style={{ display: 'inline-flex', alignItems: 'center' }}>
           <span style={{ marginRight: 4 }}>
             <FormattedMessage id="pages.common.status" defaultMessage="状态" />:
@@ -321,6 +594,36 @@ const StrategyJobList = forwardRef((props: StrategyJobListProps, ref) => {
           rules={[{ required: true }]}
         />
       </ModalForm>
+
+      {/* 切换档位模态框 */}
+      <Modal
+        title="切换档位"
+        open={switchTemplateLevelModalVisible}
+        onCancel={() => setSwitchTemplateLevelModalVisible(false)}
+        onOk={handleSwitchTemplateLevel}
+        confirmLoading={false}
+        okText="确定"
+        cancelText="取消"
+      >
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', marginBottom: 8 }}>
+            档位等级
+          </label>
+          <Select
+            style={{ width: '100%' }}
+            placeholder="请选择档位等级"
+            value={selectedTemplateLevel}
+            onChange={setSelectedTemplateLevel}
+          >
+            {templateLevelOptions.map(option => (
+              <Option key={option.value} value={option.value}>
+                {option.label}
+              </Option>
+            ))}
+          </Select>
+        </div>
+      </Modal>
+      {renderExecutionResultDetail()}
     </>
   );
 });

@@ -1,5 +1,5 @@
 import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState, useMemo } from 'react';
-import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select, DatePicker, Modal, Checkbox, Dropdown, Menu, InputNumber, Input, Card, Statistic, Row, Col, Form, Typography, Divider, Badge, Radio, Table } from 'antd';
+import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select, DatePicker, Modal, Checkbox, Dropdown, Menu, InputNumber, Input, Card, Statistic, Row, Col, Form, Typography, Divider, Badge, Radio, Table, Alert, Descriptions } from 'antd';
 import {
   ActionType,
   ModalForm,
@@ -17,7 +17,7 @@ import {
   ProFormDependency,
 } from '@ant-design/pro-components';
 import { PlusOutlined, DownOutlined, UpOutlined, SettingOutlined, ThunderboltOutlined, ExclamationCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, MinusCircleOutlined, EditOutlined, DeleteOutlined, CopyOutlined, SyncOutlined, FilterOutlined, EyeOutlined, EyeInvisibleOutlined, ClockCircleOutlined, InfoCircleOutlined, QuestionCircleOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
-import { getConfigTemplateList, saveConfigTemplate, deleteConfigTemplate, applyConfigTemplate, listStrategyStock, createStrategyStock, updateStrategyStock, deleteStrategyStock, updateStrategyStockStatus, updateStrategyStockOpeningBuy, batchUpdateStrategyStockOpeningBuy, listStrategyJob, listStrategyUserStock, batchUpdateStrategyUserStockTimeSegmentConfig, batchUpdateStrategyStockStatus, listAccountInfo, getAccountConfigStatus, getConfigTemplateById, listTimeSegmentTemplates, createTimeSegmentTemplate, getTimeSegmentTemplateById, deleteTimeSegmentTemplate, getTimeSegmentTemplateLevels, listTimeSegmentTemplatesByLevel, applyTimeSegmentTemplateToStrategyStock, batchUpdateStrategyStockTimeSegmentConfig } from '@/services/ant-design-pro/api';
+import { getConfigTemplateList, saveConfigTemplate, deleteConfigTemplate, applyConfigTemplate, listStrategyStock, createStrategyStock, updateStrategyStock, deleteStrategyStock, updateStrategyStockStatus, updateStrategyStockOpeningBuy, batchUpdateStrategyStockOpeningBuy, listStrategyJob, listStrategyUserStock, batchUpdateStrategyUserStockTimeSegmentConfig, batchUpdateStrategyStockStatus, listAccountInfo, getAccountConfigStatus, getConfigTemplateById, listTimeSegmentTemplates, createTimeSegmentTemplate, getTimeSegmentTemplateById, deleteTimeSegmentTemplate, getTimeSegmentTemplateLevels, listTimeSegmentTemplatesByLevel, applyTimeSegmentTemplateToStrategyStock, batchUpdateStrategyStockTimeSegmentConfig, batchSwitchStrategyStockTemplateLevel } from '@/services/ant-design-pro/api';
 import { useModel } from '@umijs/max';
 import { history } from '@umijs/max';
 import { FormattedMessage, useIntl } from '@umijs/max';
@@ -54,6 +54,11 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
   const [selectedTemplate, setSelectedTemplate] = useState<number>();
   const [templateInitialValues, setTemplateInitialValues] = useState<any>({});
   const [currentTableData, setCurrentTableData] = useState<API.StrategyStockItem[]>([]);
+  // 批量切换档位相关状态
+  const [batchSwitchTemplateLevelModalVisible, setBatchSwitchTemplateLevelModalVisible] = useState<boolean>(false);
+  const [selectedBatchTemplateLevel, setSelectedBatchTemplateLevel] = useState<string>('');
+  const [batchSwitchResultDetailModalVisible, setBatchSwitchResultDetailModalVisible] = useState<boolean>(false);
+  const [batchSwitchExecutionResult, setBatchSwitchExecutionResult] = useState<API.TemplateLevelApplyResult | null>(null);
   const actionRef = useRef<ActionType>();
   const createFormRef = useRef<any>();
   const updateFormRef = useRef<any>();
@@ -1170,7 +1175,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
   const loadTimeSegmentTemplateLevelMap = async () => {
     try {
       const response = await listTimeSegmentTemplates({
-        configType: 'strategy_stock',
+        configType: 'STOCK',
         strategyId: strategyId,
         current: 1,
         pageSize: 1000, // 获取所有档位
@@ -1206,54 +1211,118 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       return false;
     }
 
-    // 检查档位名称是否重复
-    try {
-      const response = await listTimeSegmentTemplates({ 
-        configType: 'STOCK',
-        strategyId: strategyId,
-        templateName: values.templateName
-      });
-      if (response.success && response.data && response.data.records.length > 0) {
-        message.error(`档位名称"${values.templateName}"已存在，请使用其他名称`);
-        return false;
-      }
-    } catch (error) {
-      console.error('检查档位名称重复时出错:', error);
-    }
+    // 构建时段配置数据
+    const sortedConfig = timeSegmentMaConfigInput
+      .sort((a: any, b: any) => timeToMinutes(a.timeSegment) - timeToMinutes(b.timeSegment))
+      .map((item: any) => ({
+        timeSegment: item.timeSegment,
+        maBelowPercent: item.maBelowPercent / 100,
+        maAbovePercent: item.maAbovePercent / 100,
+        profitPercent: item.profitPercent / 100,
+      }));
 
-    const hide = message.loading('保存时段配置档位中...');
-    try {
-      // 构建时段配置数据
-      const sortedConfig = timeSegmentMaConfigInput
-        .sort((a: any, b: any) => timeToMinutes(a.timeSegment) - timeToMinutes(b.timeSegment))
-        .map((item: any) => ({
-          timeSegment: item.timeSegment,
-          maBelowPercent: item.maBelowPercent / 100,
-          maAbovePercent: item.maAbovePercent / 100,
-          profitPercent: item.profitPercent / 100,
-        }));
+    // 构建档位数据
+    const templateData: API.TimeSegmentTemplateItem = {
+      templateName: values.templateName,
+      templateLevel: values.templateLevel,
+      useScenario: values.useScenario,
+      strategyId: timeSegmentCurrentRecord.strategyId,
+      strategyName: timeSegmentCurrentRecord.strategyName,
+      stockCode: timeSegmentCurrentRecord.stockCode,
+      timeSegmentMaConfig: JSON.stringify(sortedConfig),
+      configType: 'STOCK',
+    };
 
-      // 构建档位数据
-      const templateData: API.TimeSegmentTemplateItem = {
-        templateName: values.templateName,
-        templateLevel: values.templateLevel,
-        useScenario: values.useScenario,
-        strategyId: timeSegmentCurrentRecord.strategyId,
-        strategyName: timeSegmentCurrentRecord.strategyName,
-        stockCode: timeSegmentCurrentRecord.stockCode,
-        timeSegmentMaConfig: JSON.stringify(sortedConfig),
-        configType: 'STOCK',
-      };
-
-      await createTimeSegmentTemplate(templateData);
+    // 处理409错误的公共函数
+    const handle409Error = (errorData: any) => {
+      console.log('检测到重复档位，显示确认对话框');
       
-      hide();
-      message.success('时段配置档位保存成功');
-      setTimeSegmentTemplateModalVisible(false);
-      timeSegmentTemplateForm.resetFields();
-      return true;
-    } catch (error) {
-      hide();
+      Modal.confirm({
+        title: '档位配置已存在',
+        content: errorData.errorMessage || errorData.message || '该档位配置已存在，是否覆盖原档位？',
+        okText: '覆盖',
+        cancelText: '取消',
+        width: 500,
+        maskClosable: false,
+        onOk: async () => {
+          try {
+            console.log('用户确认覆盖，开始强制覆盖保存');
+            // 强制覆盖保存
+            const overwriteResponse = await createTimeSegmentTemplate(templateData, true);
+            console.log('强制覆盖保存 - 响应数据:', overwriteResponse);
+            
+            if (overwriteResponse.success) {
+              message.success('档位配置覆盖保存成功');
+              setTimeSegmentTemplateModalVisible(false);
+              timeSegmentTemplateForm.resetFields();
+              return true;
+            } else {
+              message.error('档位配置覆盖保存失败: ' + (overwriteResponse.errorMessage || overwriteResponse.message));
+              return false;
+            }
+          } catch (overwriteError) {
+            console.error('档位配置覆盖保存失败:', overwriteError);
+            message.error('档位配置覆盖保存失败');
+            return false;
+          }
+        },
+        onCancel: () => {
+          console.log('用户取消覆盖');
+        }
+      });
+    };
+
+    try {
+      // 第一次尝试保存（不强制覆盖）
+      const response = await createTimeSegmentTemplate(templateData, false);
+      
+      console.log('保存档位配置 - 响应数据:', response);
+      
+      if (response.success) {
+        message.success('时段配置档位保存成功');
+        setTimeSegmentTemplateModalVisible(false);
+        timeSegmentTemplateForm.resetFields();
+        return true;
+      } else {
+        console.log('保存档位配置 - 检查错误码:', response.errorCode, '类型:', typeof response.errorCode);
+        
+        // 使用更宽松的错误码比较
+        if (response.errorCode === '409' || String(response.errorCode) === '409') {
+          handle409Error(response);
+          return false;
+        } else {
+          message.error('时段配置档位保存失败: ' + (response.errorMessage || response.message));
+          return false;
+        }
+      }
+    } catch (error: any) {
+      console.error('时段配置档位保存失败 - catch块:', error);
+      
+      // 检查是否是BizError类型的409错误
+      if (error.name === 'BizError' && error.info) {
+        const errorInfo = error.info;
+        console.log('BizError信息:', errorInfo);
+        
+        if (errorInfo.errorCode === 409 || errorInfo.errorCode === '409' || String(errorInfo.errorCode) === '409') {
+          console.log('检测到BizError类型的重复档位错误');
+          handle409Error(errorInfo);
+          return false;
+        }
+      }
+      
+      // 检查是否是HTTP响应错误中的409错误
+      if (error?.response?.data) {
+        const errorData = error.response.data;
+        console.log('HTTP响应错误数据:', errorData);
+        
+        if (errorData.errorCode === 409 || errorData.errorCode === '409' || String(errorData.errorCode) === '409') {
+          console.log('检测到HTTP响应类型的重复档位错误');
+          handle409Error(errorData);
+          return false;
+        }
+      }
+      
+      // 其他错误
       message.error('时段配置档位保存失败');
       return false;
     }
@@ -1309,8 +1378,15 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
 
         hide();
         message.success('时段配置档位应用成功');
+        
+        // 关闭应用档位对话框
         setTimeSegmentApplyTemplateModalVisible(false);
         setSelectedTimeSegmentTemplate(undefined);
+        timeSegmentTemplateSearchForm.resetFields();
+        setTimeSegmentTemplateSearchParams({
+          stockCode: '',
+          templateLevel: '',
+        });
         
         // 重新加载档位等级映射
         await loadTimeSegmentTemplateLevelMap();
@@ -1518,6 +1594,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         await batchUpdateStrategyUserStockTimeSegmentConfig({
           ids,
           timeSegmentMaConfig,
+          stockCode: timeSegmentCurrentRecord.stockCode || '',
         });
         
         message.success(`成功应用时段配置到 ${targetRecords.length} 个账户`);
@@ -1664,7 +1741,251 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     });
     loadTimeSegmentTemplates();
   };
-  
+
+  // 档位等级选项
+  const templateLevelOptions = [
+    { value: 'A', label: 'A档位' },
+    { value: 'B', label: 'B档位' },
+    { value: 'C', label: 'C档位' },
+    { value: 'D', label: 'D档位' },
+    { value: 'S', label: 'S档位' },
+  ];
+
+  // 批量切换档位
+  const handleBatchSwitchTemplateLevel = async () => {
+    if (!selectedBatchTemplateLevel) {
+      message.error('请选择档位等级');
+      return;
+    }
+    
+    if (selectedRowKeys.length === 0) {
+      message.error('请选择要切换档位的记录');
+      return;
+    }
+    
+    const hide = message.loading('正在批量切换档位...');
+    try {
+      const response = await batchSwitchStrategyStockTemplateLevel({
+        ids: selectedRowKeys as number[],
+        templateLevel: selectedBatchTemplateLevel
+      });
+      hide();
+      
+      if (response && response.success && response.data) {
+        const result = response.data;
+        setBatchSwitchExecutionResult(result);
+        
+        // 显示详细的执行结果
+        const statusType = result.isSuccess ? 'success' : 
+                          result.isPartialSuccess ? 'warning' : 
+                          result.isFailure ? 'error' : 'info';
+        
+        // 构建详细消息
+        const detailMessage = (
+          <div>
+            <div style={{ marginBottom: 8, fontWeight: 'bold' }}>
+              {result.statusMessage}
+            </div>
+            <div style={{ marginBottom: 4 }}>
+              {result.summaryMessage}
+            </div>
+            <div style={{ fontSize: '12px', color: '#666', marginBottom: 8 }}>
+              {result.detailMessage}
+            </div>
+            <Button 
+              size="small" 
+              type="link" 
+              onClick={() => setBatchSwitchResultDetailModalVisible(true)}
+              style={{ padding: 0 }}
+            >
+              查看详情
+            </Button>
+          </div>
+        );
+        
+        // 根据结果类型显示不同的消息
+        if (result.isSuccess) {
+          message.success({
+            content: detailMessage,
+            duration: 8,
+          });
+        } else if (result.isPartialSuccess) {
+          message.warning({
+            content: detailMessage,
+            duration: 10,
+          });
+        } else if (result.isFailure) {
+          message.error({
+            content: detailMessage,
+            duration: 10,
+          });
+        } else {
+          message.info({
+            content: detailMessage,
+            duration: 6,
+          });
+        }
+      } else {
+        message.success('批量切换档位成功！');
+      }
+      
+      setBatchSwitchTemplateLevelModalVisible(false);
+      setSelectedRowKeys([]);
+      setSelectedBatchTemplateLevel('');
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error('批量切换档位失败！');
+      return false;
+    }
+  };
+
+  // 渲染批量切换档位执行结果详情
+  const renderBatchSwitchExecutionResultDetail = () => {
+    if (!batchSwitchExecutionResult) return null;
+
+    const getStatusColor = (status: string): "success" | "info" | "error" | "warning" => {
+      switch (status) {
+        case 'SUCCESS':
+          return 'success';
+        case 'PARTIAL_SUCCESS':
+          return 'warning';
+        case 'NO_CONFIG':
+          return 'error';
+        case 'NO_DATA':
+          return 'info';
+        default:
+          return 'info';
+      }
+    };
+
+    return (
+      <Modal
+        title="批量切换档位执行结果详情"
+        open={batchSwitchResultDetailModalVisible}
+        onCancel={() => setBatchSwitchResultDetailModalVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setBatchSwitchResultDetailModalVisible(false)}>
+            关闭
+          </Button>
+        ]}
+        width={800}
+      >
+        <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+          <Alert
+            type={getStatusColor(batchSwitchExecutionResult.status)}
+            message={batchSwitchExecutionResult.statusMessage}
+            description={batchSwitchExecutionResult.detailMessage}
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+          
+          <Card title="执行统计" style={{ marginBottom: 16 }}>
+            <Descriptions column={2} size="small">
+              <Descriptions.Item label="总处理数量">
+                {batchSwitchExecutionResult.totalProcessCount}
+              </Descriptions.Item>
+              <Descriptions.Item label="成功数量">
+                <span style={{ color: '#52c41a' }}>{batchSwitchExecutionResult.totalSuccessCount}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="未配置数量">
+                <span style={{ color: '#ff4d4f' }}>{batchSwitchExecutionResult.totalNoConfigCount}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="成功率">
+                {batchSwitchExecutionResult.totalProcessCount > 0 
+                  ? `${((batchSwitchExecutionResult.totalSuccessCount / batchSwitchExecutionResult.totalProcessCount) * 100).toFixed(1)}%`
+                  : '0%'
+                }
+              </Descriptions.Item>
+            </Descriptions>
+          </Card>
+
+          <Card title="策略标的统计" style={{ marginBottom: 16 }}>
+            <Descriptions column={2} size="small">
+              <Descriptions.Item label="总数量">
+                {batchSwitchExecutionResult.strategyStockTotalCount}
+              </Descriptions.Item>
+              <Descriptions.Item label="成功数量">
+                <span style={{ color: '#52c41a' }}>{batchSwitchExecutionResult.strategyStockSuccessCount}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="未配置数量">
+                <span style={{ color: '#ff4d4f' }}>{batchSwitchExecutionResult.strategyStockNoConfigCount}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="成功率">
+                {batchSwitchExecutionResult.strategyStockTotalCount > 0 
+                  ? `${((batchSwitchExecutionResult.strategyStockSuccessCount / batchSwitchExecutionResult.strategyStockTotalCount) * 100).toFixed(1)}%`
+                  : '0%'
+                }
+              </Descriptions.Item>
+            </Descriptions>
+            
+            {batchSwitchExecutionResult.strategyStockNoConfigList && batchSwitchExecutionResult.strategyStockNoConfigList.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <h4 style={{ marginBottom: 8, color: '#ff4d4f' }}>未找到配置的策略标的：</h4>
+                <div style={{ maxHeight: '120px', overflowY: 'auto', border: '1px solid #d9d9d9', borderRadius: 4, padding: 8 }}>
+                  {batchSwitchExecutionResult.strategyStockNoConfigList.map((item, index) => (
+                    <div key={item.id} style={{ 
+                      padding: '4px 8px', 
+                      backgroundColor: index % 2 === 0 ? '#fafafa' : '#fff',
+                      borderRadius: 2,
+                      marginBottom: 2
+                    }}>
+                      <span style={{ fontWeight: 'bold' }}>{item.stockCode}</span>
+                      {item.stockName && <span style={{ marginLeft: 8, color: '#666' }}>({item.stockName})</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+
+          <Card title="策略用户股票关系统计">
+            <Descriptions column={2} size="small">
+              <Descriptions.Item label="总数量">
+                {batchSwitchExecutionResult.strategyUserStockTotalCount}
+              </Descriptions.Item>
+              <Descriptions.Item label="成功数量">
+                <span style={{ color: '#52c41a' }}>{batchSwitchExecutionResult.strategyUserStockSuccessCount}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="未配置数量">
+                <span style={{ color: '#ff4d4f' }}>{batchSwitchExecutionResult.strategyUserStockNoConfigCount}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="成功率">
+                {batchSwitchExecutionResult.strategyUserStockTotalCount > 0 
+                  ? `${((batchSwitchExecutionResult.strategyUserStockSuccessCount / batchSwitchExecutionResult.strategyUserStockTotalCount) * 100).toFixed(1)}%`
+                  : '0%'
+                }
+              </Descriptions.Item>
+            </Descriptions>
+            
+            {batchSwitchExecutionResult.strategyUserStockNoConfigList && batchSwitchExecutionResult.strategyUserStockNoConfigList.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <h4 style={{ marginBottom: 8, color: '#ff4d4f' }}>未找到配置的策略用户股票关系：</h4>
+                <div style={{ maxHeight: '120px', overflowY: 'auto', border: '1px solid #d9d9d9', borderRadius: 4, padding: 8 }}>
+                  {batchSwitchExecutionResult.strategyUserStockNoConfigList.map((item, index) => (
+                    <div key={item.id} style={{ 
+                      padding: '4px 8px', 
+                      backgroundColor: index % 2 === 0 ? '#fafafa' : '#fff',
+                      borderRadius: 2,
+                      marginBottom: 2
+                    }}>
+                      <span style={{ fontWeight: 'bold' }}>{item.account}</span>
+                      {item.accountName && <span style={{ marginLeft: 8, color: '#666' }}>({item.accountName})</span>}
+                      <span style={{ margin: '0 8px', color: '#999' }}>-</span>
+                      <span style={{ fontWeight: 'bold' }}>{item.stockCode}</span>
+                      {item.stockName && <span style={{ marginLeft: 8, color: '#666' }}>({item.stockName})</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
+      </Modal>
+    );
+  };
+
   return (
     <>
       {renderFilterTag()}
@@ -1739,6 +2060,19 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             }}
           >
             <ThunderboltOutlined /> 应用模版
+          </Button>,
+          <Button
+            key="batch-switch-level"
+            type="primary"
+            onClick={() => {
+              if (selectedRowKeys.length === 0) {
+                message.warning('请先选择要切换档位的记录');
+                return;
+              }
+              setBatchSwitchTemplateLevelModalVisible(true);
+            }}
+          >
+            <SettingOutlined /> 批量切换档位
           </Button>,
           <Dropdown.Button
             key="batch-opening-buy"
@@ -2825,6 +3159,8 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           setTimeSegmentCurrentRecord(null);
           setTimeSegmentSelectedAccounts([]);
           setTimeSegmentSelectAll(false);
+          // 刷新列表数据
+          actionRef.current?.reload();
           // 通知父组件时段配置对话框已关闭
           if (onTimeSegmentConfigComplete) {
             onTimeSegmentConfigComplete();
@@ -2851,6 +3187,8 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
                 setTimeSegmentCurrentRecord(null);
                 setTimeSegmentSelectedAccounts([]);
                 setTimeSegmentSelectAll(false);
+                // 刷新列表数据
+                actionRef.current?.reload();
                 // 通知父组件时段配置对话框已关闭
                 if (onTimeSegmentConfigComplete) {
                   onTimeSegmentConfigComplete();
@@ -2873,7 +3211,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
                   templateName: `${timeSegmentCurrentRecord?.stockCode || ''}_时段配置_档位`,
                   useScenario: '策略股票时段配置',
                   strategyId: timeSegmentCurrentRecord?.strategyId,
-                  strategyName: timeSegmentCurrentRecord?.strategyName,
+                  strategyName: timeSegmentCurrentRecord?.strategyName || strategyName,
                   stockCode: timeSegmentCurrentRecord?.stockCode,
                   configType: 'STOCK',
                 };
@@ -2886,7 +3224,18 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             <Button 
               type="dashed"
               onClick={() => {
-                loadTimeSegmentTemplates();
+                // 设置默认搜索条件为当前股票
+                const defaultSearchParams = {
+                  stockCode: timeSegmentCurrentRecord?.stockCode || '',
+                  templateLevel: '',
+                };
+                
+                // 设置搜索表单的默认值
+                timeSegmentTemplateSearchForm.setFieldsValue(defaultSearchParams);
+                setTimeSegmentTemplateSearchParams(defaultSearchParams);
+                
+                // 加载档位模板，并传入默认搜索条件
+                loadTimeSegmentTemplates(defaultSearchParams);
                 setTimeSegmentApplyTemplateModalVisible(true);
               }}
             >
@@ -3159,6 +3508,12 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           }
         }}
         onFinish={handleSaveTimeSegmentAsTemplate}
+        initialValues={{
+          strategyId: timeSegmentCurrentRecord?.strategyId,
+          strategyName: timeSegmentCurrentRecord?.strategyName || strategyName,
+          stockCode: timeSegmentCurrentRecord?.stockCode,
+          configType: 'STOCK',
+        }}
       >
         {/* 档位等级放在最上方 */}
         <ProFormSelect
@@ -3168,10 +3523,10 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           options={timeSegmentTemplateLevels}
           rules={[{ required: true, message: '请选择档位等级' }]}
           fieldProps={{
-            onChange: (value) => {
+            onChange: (value: any) => {
               // 根据选中的档位等级自动生成档位名称
               const stockCode = timeSegmentCurrentRecord?.stockCode || '';
-              const templateName = `${stockCode}_时段配置_${value}档`;
+              const templateName = `${stockCode}_${value}档`;
               timeSegmentTemplateFormRef.current?.setFieldsValue({ templateName });
             },
           }}
@@ -3329,6 +3684,46 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           <strong>说明：</strong>选择一个时段配置档位后，将其配置应用到当前的时段配置中。
         </div>
       </Modal>
+
+      {/* 批量切换档位模态框 */}
+      <Modal
+        title="批量切换档位"
+        open={batchSwitchTemplateLevelModalVisible}
+        onCancel={() => {
+          setBatchSwitchTemplateLevelModalVisible(false);
+          setSelectedBatchTemplateLevel('');
+        }}
+        onOk={handleBatchSwitchTemplateLevel}
+        confirmLoading={false}
+        okText="确定"
+        cancelText="取消"
+      >
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 8 }}>
+            已选择 <span style={{ color: '#1890ff', fontWeight: 'bold' }}>{selectedRowKeys.length}</span> 个策略标的
+          </div>
+          <div style={{ fontSize: '12px', color: '#666', marginBottom: 16 }}>
+            切换档位将同时更新相关的策略用户股票关系配置
+          </div>
+          <label style={{ display: 'block', marginBottom: 8 }}>
+            档位等级
+          </label>
+          <Select
+            style={{ width: '100%' }}
+            placeholder="请选择档位等级"
+            value={selectedBatchTemplateLevel}
+            onChange={setSelectedBatchTemplateLevel}
+          >
+            {templateLevelOptions.map(option => (
+              <Option key={option.value} value={option.value}>
+                {option.label}
+              </Option>
+            ))}
+          </Select>
+        </div>
+      </Modal>
+      
+      {renderBatchSwitchExecutionResultDetail()}
     </>
   );
 });

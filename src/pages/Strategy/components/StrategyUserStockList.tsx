@@ -1,6 +1,5 @@
 import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState, useMemo } from 'react';
 import { Button, message, Popconfirm, Space, Tag, Tooltip, Switch, Select, DatePicker, Modal, Checkbox, Dropdown, Menu, InputNumber, Input, Card, Statistic, Row, Col, Form, Typography, Divider, Badge, Radio } from 'antd';
-import { Option } from 'antd/es/select';
 import {
   ActionType,
   ModalForm,
@@ -36,6 +35,7 @@ import {
   batchUpdateStrategyUserStockUnsoldStackLimit,
   batchUpdateStrategyUserStockLimitStartShares,
   batchUpdateStrategyUserStockTotalFundShares,
+  updateStrategyUserStockTimeSegmentConfig,
   batchUpdateStrategyUserStockTimeSegmentConfig,
   saveConfigTemplate,
   applyConfigTemplate,
@@ -1380,7 +1380,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       title: (
         <>
           <>时段分时配置</>
-          <Tooltip title="不同时段的分时平均线买入配置和盈利点">
+          <Tooltip title="不同时段的分时平均线买入配置和盈利点(时段配置中的盈利点优先级最高)">
             <QuestionCircleOutlined style={{ marginLeft: 4 }} />
           </Tooltip>
         </>
@@ -1953,9 +1953,9 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       
       const timeSegmentMaConfig = JSON.stringify(configData);
       
-      // 使用批量更新接口，单独编辑时清空档位ID
-      await batchUpdateStrategyUserStockTimeSegmentConfig({
-        ids: [timeSegmentCurrentRecord.id!],
+      // 使用单个更新接口
+      await updateStrategyUserStockTimeSegmentConfig({
+        id: timeSegmentCurrentRecord.id!,
         timeSegmentMaConfig,
       });
       
@@ -2036,6 +2036,9 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       account: record.account,
       accountName: record.accountName,
       timeSegmentMaConfig: (record as any).timeSegmentMaConfig || '',
+      strategyId: record.strategyId || strategyId,
+      strategyName: record.strategyName || strategyName,
+      configType: 'USER',
     };
     setTimeSegmentTemplateInitialValues(initialValues);
     setSaveTimeSegmentTemplateModalVisible(true);
@@ -2043,30 +2046,110 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
 
   // 保存档位配置
   const handleSaveTimeSegmentTemplate = async (values: any) => {
-    try {
-      console.log('保存档位配置 - 表单值:', values);
+    console.log('保存档位配置 - 表单值:', values);
+    
+    const templateData = {
+      ...values,
+      configType: 'USER',
+      // 使用表单中的strategyId和strategyName，如果没有则使用props中的值作为fallback
+      strategyId: values.strategyId || strategyId,
+      strategyName: values.strategyName || strategyName,
+    };
+
+    console.log('保存档位配置 - 最终数据:', templateData);
+
+    // 处理409错误的公共函数
+    const handle409Error = (errorData: any) => {
+      console.log('检测到重复档位，显示确认对话框');
       
-      const templateData = {
-        ...values,
-        configType: 'USER',
-        // 使用表单中的strategyId和strategyName，如果没有则使用props中的值作为fallback
-        strategyId: values.strategyId || strategyId,
-        strategyName: values.strategyName || strategyName,
-      };
-
-      console.log('保存档位配置 - 最终数据:', templateData);
-
-      await request('/api/timeSegmentTemplate/create', {
-        method: 'POST',
-        data: templateData,
+      Modal.confirm({
+        title: '档位配置已存在',
+        content: errorData.errorMessage || errorData.message || '该档位配置已存在，是否覆盖原档位？',
+        okText: '覆盖',
+        cancelText: '取消',
+        width: 500,
+        maskClosable: false,
+        onOk: async () => {
+          try {
+            console.log('用户确认覆盖，开始强制覆盖保存');
+            // 强制覆盖保存
+            const overwriteResponse = await createTimeSegmentTemplate(templateData, true);
+            console.log('强制覆盖保存 - 响应数据:', overwriteResponse);
+            
+            if (overwriteResponse.success) {
+              message.success('档位配置覆盖保存成功');
+              setSaveTimeSegmentTemplateModalVisible(false);
+              saveTimeSegmentTemplateFormRef.current?.resetFields();
+              setTimeSegmentTemplateInitialValues({});
+              return true;
+            } else {
+              message.error('档位配置覆盖保存失败: ' + (overwriteResponse.errorMessage || overwriteResponse.message));
+              return false;
+            }
+          } catch (overwriteError) {
+            console.error('档位配置覆盖保存失败:', overwriteError);
+            message.error('档位配置覆盖保存失败');
+            return false;
+          }
+        },
+        onCancel: () => {
+          console.log('用户取消覆盖');
+        }
       });
+    };
 
-      message.success('档位配置保存成功');
-      setSaveTimeSegmentTemplateModalVisible(false);
-      saveTimeSegmentTemplateFormRef.current?.resetFields();
-      setTimeSegmentTemplateInitialValues({});
-      return true;
-    } catch (error) {
+    try {
+      // 第一次尝试保存（不强制覆盖）
+      const response = await createTimeSegmentTemplate(templateData, false);
+      
+      console.log('保存档位配置 - 响应数据:', response);
+      
+      if (response.success) {
+        message.success('档位配置保存成功');
+        setSaveTimeSegmentTemplateModalVisible(false);
+        saveTimeSegmentTemplateFormRef.current?.resetFields();
+        setTimeSegmentTemplateInitialValues({});
+        return true;
+      } else {
+        console.log('保存档位配置 - 检查错误码:', response.errorCode, '类型:', typeof response.errorCode);
+        
+        // 使用更宽松的错误码比较
+        if (response.errorCode === '409' || String(response.errorCode) === '409') {
+          handle409Error(response);
+          return false;
+        } else {
+          message.error('档位配置保存失败: ' + (response.errorMessage || response.message));
+          return false;
+        }
+      }
+    } catch (error: any) {
+      console.error('档位配置保存失败 - catch块:', error);
+      
+      // 检查是否是BizError类型的409错误
+      if (error.name === 'BizError' && error.info) {
+        const errorInfo = error.info;
+        console.log('BizError信息:', errorInfo);
+        
+        if (errorInfo.errorCode === 409 || errorInfo.errorCode === '409' || String(errorInfo.errorCode) === '409') {
+          console.log('检测到BizError类型的重复档位错误');
+          handle409Error(errorInfo);
+          return false;
+        }
+      }
+      
+      // 检查是否是HTTP响应错误中的409错误
+      if (error?.response?.data) {
+        const errorData = error.response.data;
+        console.log('HTTP响应错误数据:', errorData);
+        
+        if (errorData.errorCode === 409 || errorData.errorCode === '409' || String(errorData.errorCode) === '409') {
+          console.log('检测到HTTP响应类型的重复档位错误');
+          handle409Error(errorData);
+          return false;
+        }
+      }
+      
+      // 其他错误
       message.error('档位配置保存失败');
       return false;
     }
@@ -2089,7 +2172,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     try {
       const response = await listTimeSegmentTemplatesByLevel({
         templateLevel: level,
-        configType: 'user_stock',
+        configType: 'USER',
         strategyId: strategyId,
       });
       
@@ -2108,7 +2191,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
   const loadTimeSegmentTemplateLevelMap = async () => {
     try {
       const response = await listTimeSegmentTemplates({
-        configType: 'user_stock',
+        configType: 'USER',
         strategyId: strategyId,
         current: 1,
         pageSize: 1000, // 获取所有档位
@@ -2148,12 +2231,6 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       });
       
       if (applyResponse.success) {
-        // 批量更新时段配置，同时保存档位ID
-        await batchUpdateStrategyUserStockTimeSegmentConfig({
-          ids: [timeSegmentCurrentRecord.id!],
-          timeSegmentMaConfig: templateData.timeSegmentMaConfig || '',
-        });
-        
         message.success('应用档位配置成功');
         
         // 重新加载时段配置到表单
@@ -2222,6 +2299,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         timeSegmentMaConfig: timeSegmentMaConfig,
         strategyId: timeSegmentCurrentRecord?.strategyId || strategyId,
         strategyName: timeSegmentCurrentRecord?.strategyName || strategyName,
+        configType: 'USER',
       };
 
       console.log('保存档位配置 - 初始值:', initialValues);
@@ -2250,7 +2328,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
   const loadTimeSegmentTemplates = async (searchParams?: any) => {
     try {
       const searchConditions = {
-        configType: 'USER_STOCK',
+        configType: 'USER',
         strategyId: strategyId,
         current: 1,
         pageSize: 1000,
@@ -2289,12 +2367,6 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       });
 
       if (applyResponse.success) {
-        // 批量更新时段配置，同时保存档位ID
-        await batchUpdateStrategyUserStockTimeSegmentConfig({
-          ids: [timeSegmentCurrentRecord.id!],
-          timeSegmentMaConfig: templateData.timeSegmentMaConfig || '',
-        });
-
         message.success('应用档位配置成功');
         
         // 重新加载时段配置到表单
@@ -2313,6 +2385,16 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         
         // 重新加载档位等级映射
         await loadTimeSegmentTemplateLevelMap();
+        
+        // 关闭应用档位对话框
+        setApplyTimeSegmentTemplateModalVisible(false);
+        setSelectedTimeSegmentTemplate(undefined);
+        timeSegmentTemplateSearchForm.resetFields();
+        setTimeSegmentTemplateSearchParams({
+          stockCode: '',
+          templateLevel: '',
+          account: '',
+        });
       } else {
         message.error('应用档位配置失败');
       }
@@ -2384,19 +2466,17 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             <Statistic 
               title="账户总资金" 
               value={summaryData.totalAccountAmount}
-              precision={2}
               valueStyle={{ color: '#52c41a' }}
-              formatter={(value) => value?.toLocaleString()}
+              formatter={(value) => Math.round(Number(value) || 0).toLocaleString()}
             />
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Statistic 
               title="单次资金总计" 
               value={summaryData.totalSingleAmount}
-              precision={2}
               suffix={`(${summaryData.singleAmountRatio.toFixed(2)}%)`}
               valueStyle={{ color: '#faad14' }}
-              formatter={(value) => value?.toLocaleString()}
+              formatter={(value) => Math.round(Number(value) || 0).toLocaleString()}
             />
           </Col>
         </Row>
@@ -2405,33 +2485,31 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             <Statistic 
               title="单天最大持有资金" 
               value={summaryData.totalDailyMaxHolding}
-              precision={2}
               suffix={`(${summaryData.dailyMaxHoldingRatio.toFixed(2)}%)`}
               valueStyle={{ color: '#f5222d' }}
-              formatter={(value) => value?.toLocaleString()}
+              formatter={(value) => Math.round(Number(value) || 0).toLocaleString()}
             />
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Statistic 
               title="最大持有资金" 
               value={summaryData.totalMaxHolding}
-              precision={2}
               suffix={`(${summaryData.maxHoldingRatio.toFixed(2)}%)`}
               valueStyle={{ color: '#fa541c' }}
-              formatter={(value) => value?.toLocaleString()}
+              formatter={(value) => Math.round(Number(value) || 0).toLocaleString()}
             />
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Statistic 
               title="资金最大使用股票单次资金" 
-              value={summaryData.maxStockCode ? `${summaryData.maxStockCode}(${summaryData.maxStockSingleAmount.toLocaleString()}/${summaryData.maxStockSingleRatio.toFixed(2)}%)` : '无'}
+              value={summaryData.maxStockCode ? `${summaryData.maxStockCode}(${Math.round(summaryData.maxStockSingleAmount).toLocaleString()}/${summaryData.maxStockSingleRatio.toFixed(2)}%)` : '无'}
               valueStyle={{ color: '#ff4d4f' }}
             />
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Statistic 
               title="资金最大使用股票总资金" 
-              value={summaryData.maxStockCode ? `${summaryData.maxStockCode}(${summaryData.maxStockAmount.toLocaleString()}/${summaryData.maxStockRatio.toFixed(2)}%)` : '无'}
+              value={summaryData.maxStockCode ? `${summaryData.maxStockCode}(${Math.round(summaryData.maxStockAmount).toLocaleString()}/${summaryData.maxStockRatio.toFixed(2)}%)` : '无'}
               valueStyle={{ color: '#ff4d4f' }}
             />
           </Col>
@@ -2759,7 +2837,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           defaultPageSize: 100,
           showSizeChanger: true,
           showQuickJumper: true,
-          pageSizeOptions: ['100', '200', '500', '1000'],
+          pageSizeOptions: ['1000', '2000'],
           showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/总共 ${total} 条`,
         }}
       />
@@ -4577,6 +4655,8 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           setTimeSegmentModalVisible(false);
           setTimeSegmentCurrentRecord(null);
           timeSegmentForm.resetFields();
+          // 刷新列表数据
+          actionRef.current?.reload();
         }}
         footer={null}
         width={1200}
@@ -4598,6 +4678,8 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                 setTimeSegmentModalVisible(false);
                 setTimeSegmentCurrentRecord(null);
                 timeSegmentForm.resetFields();
+                // 刷新列表数据
+                actionRef.current?.reload();
               }}
             >
               取消
@@ -4618,17 +4700,32 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             <Button 
               type="dashed"
               onClick={() => {
+                // 获取当前时段配置数据
+                const currentTimeSegments = timeSegmentForm.getFieldValue('timeSegments') || [];
+                
+                // 将百分比转换为小数
+                const convertedTimeSegments = currentTimeSegments.map((segment: any) => ({
+                  timeSegment: segment.timeSegment,
+                  maBelowPercent: segment.maBelowPercent / 100,
+                  maAbovePercent: segment.maAbovePercent / 100,
+                  profitPercent: segment.profitPercent / 100,
+                }));
+                
+                const timeSegmentMaConfig = JSON.stringify(convertedTimeSegments);
+                
                 const initialValues = {
                   templateName: `${timeSegmentCurrentRecord?.stockCode || ''}_${timeSegmentCurrentRecord?.accountName || ''}_档位`,
                   useScenario: '用户股票时段配置',
                   stockCode: timeSegmentCurrentRecord?.stockCode,
                   account: timeSegmentCurrentRecord?.account,
                   accountName: timeSegmentCurrentRecord?.accountName,
-                  strategyId: timeSegmentCurrentRecord?.strategyId,
-                  strategyName: timeSegmentCurrentRecord?.strategyName,
-                  configType: 'USER_STOCK',
+                  strategyId: timeSegmentCurrentRecord?.strategyId || strategyId,
+                  strategyName: timeSegmentCurrentRecord?.strategyName || strategyName,
+                  timeSegmentMaConfig: timeSegmentMaConfig,
+                  configType: 'USER',
                 };
-                timeSegmentTemplateForm.setFieldsValue(initialValues);
+                console.log('保存为档位 - 设置初始值:', initialValues);
+                setTimeSegmentTemplateInitialValues(initialValues);
                 setSaveTimeSegmentTemplateModalVisible(true);
               }}
             >
@@ -4637,7 +4734,19 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             <Button 
               type="dashed"
               onClick={() => {
-                loadTimeSegmentTemplates();
+                // 设置默认搜索条件为当前用户和股票
+                const defaultSearchParams = {
+                  stockCode: timeSegmentCurrentRecord?.stockCode || '',
+                  account: timeSegmentCurrentRecord?.account || '',
+                  templateLevel: '',
+                };
+                
+                // 设置搜索表单的默认值
+                timeSegmentTemplateSearchForm.setFieldsValue(defaultSearchParams);
+                setTimeSegmentTemplateSearchParams(defaultSearchParams);
+                
+                // 加载档位模板，并传入默认搜索条件
+                loadTimeSegmentTemplates(defaultSearchParams);
                 setApplyTimeSegmentTemplateModalVisible(true);
               }}
             >
@@ -4801,11 +4910,39 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         onOpenChange={(visible) => {
           setSaveTimeSegmentTemplateModalVisible(visible);
           if (!visible) {
-            timeSegmentTemplateForm.resetFields();
+            saveTimeSegmentTemplateFormRef.current?.resetFields();
+            setTimeSegmentTemplateInitialValues({});
           }
         }}
         onFinish={handleSaveTimeSegmentTemplate}
+        initialValues={timeSegmentTemplateInitialValues}
       >
+        {/* 隐藏字段 - 策略ID */}
+        <ProFormText
+          name="strategyId"
+          hidden
+        />
+        {/* 隐藏字段 - 股票代码 */}
+        <ProFormText
+          name="stockCode"
+          hidden
+        />
+        {/* 隐藏字段 - 账户 */}
+        <ProFormText
+          name="account"
+          hidden
+        />
+        {/* 隐藏字段 - 时段配置 */}
+        <ProFormTextArea
+          name="timeSegmentMaConfig"
+          hidden
+        />
+        {/* 隐藏字段 - 配置类型 */}
+        <ProFormText
+          name="configType"
+          hidden
+        />
+        
         {/* 档位等级放在最上方 */}
         <ProFormSelect
           name="templateLevel"
@@ -4887,7 +5024,17 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             <Input placeholder="请输入股票代码" allowClear style={{ width: 150 }} />
           </Form.Item>
           <Form.Item name="account" label="账户">
-            <Input placeholder="请输入账户" allowClear style={{ width: 150 }} />
+            <Select 
+              placeholder="请选择账户" 
+              allowClear 
+              style={{ width: 150 }}
+              showSearch
+              filterOption={(input, option) => {
+                if (!option || !option.label) return false;
+                return (option.label as string).toLowerCase().indexOf(input.toLowerCase()) >= 0;
+              }}
+              options={accountOptions}
+            />
           </Form.Item>
           <Form.Item name="templateLevel" label="档位等级">
             <Select placeholder="请选择档位等级" allowClear style={{ width: 150 }}>
@@ -4954,9 +5101,63 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                             使用场景: {template.useScenario}
                           </div>
                         )}
-                        <div style={{ fontSize: '11px', color: '#999', marginTop: 4 }}>
-                          创建时间: {template.createTime}
-                        </div>
+                        
+                        {/* 新增：档位配置预览 */}
+                        {template.timeSegmentMaConfig && (
+                          <div style={{ marginTop: 8, padding: 8, backgroundColor: '#f9f9f9', borderRadius: 4, border: '1px solid #e8e8e8' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#333', marginBottom: 4 }}>
+                              档位配置:
+                            </div>
+                            {(() => {
+                              try {
+                                const config = parseTimeSegmentMaConfig(template.timeSegmentMaConfig);
+                                if (!Array.isArray(config) || config.length === 0) {
+                                  return (
+                                    <div style={{ fontSize: '11px', color: '#999' }}>
+                                      无有效配置
+                                    </div>
+                                  );
+                                }
+                                
+                                return (
+                                  <div>
+                                    {config.map((item: any, index: number) => (
+                                      <div key={index} style={{ 
+                                        fontSize: '11px', 
+                                        color: '#666', 
+                                        marginBottom: 2,
+                                        padding: '2px 6px',
+                                        backgroundColor: '#fff',
+                                        borderRadius: 2,
+                                        border: '1px solid #d9d9d9'
+                                      }}>
+                                        <span style={{ fontWeight: 'bold', color: '#1890ff' }}>
+                                          {item.timeSegment}
+                                        </span>
+                                        <span style={{ marginLeft: 8 }}>
+                                          下方: {(item.maBelowPercent * 100).toFixed(2)}%
+                                        </span>
+                                        <span style={{ marginLeft: 8 }}>
+                                          上方: {(item.maAbovePercent * 100).toFixed(2)}%
+                                        </span>
+                                        <span style={{ marginLeft: 8 }}>
+                                          盈利: {((item.profitPercent || 0) * 100).toFixed(2)}%
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+                              } catch (error) {
+                                return (
+                                  <div style={{ fontSize: '11px', color: '#ff4d4f' }}>
+                                    配置格式错误
+                                  </div>
+                                );
+                              }
+                            })()}
+                          </div>
+                        )}
+                        
                       </div>
                       <Button
                         type="link"
@@ -4988,7 +5189,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           </div>
         )}
         <div style={{ color: '#666', fontSize: '12px' }}>
-          <strong>说明：</strong>选择一个时段配置档位后，将其配置应用到当前的时段配置中。
+          <strong>说明：</strong>选择一个时段配置档位后，将其配置应用到当前的时段配置中。注意：应用后，会覆盖原有用户股票的档位配置。
         </div>
       </Modal>
     </>

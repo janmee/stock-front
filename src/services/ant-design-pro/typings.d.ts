@@ -230,6 +230,7 @@ declare namespace API {
     running?: string;
     deleted?: string;
     extra?: string;
+    templateLevel?: string; // 档位等级
     createTime?: string;
     updateTime?: string;
   };
@@ -464,5 +465,43 @@ declare namespace API {
     configType?: string;
     createTime?: string;
     updateTime?: string;
+  };
+
+  // 档位配置应用结果统计
+  type TemplateLevelApplyResult = {
+    strategyStockSuccessCount: number;
+    strategyStockNoConfigCount: number;
+    strategyUserStockSuccessCount: number;
+    strategyUserStockNoConfigCount: number;
+    strategyStockTotalCount: number;
+    strategyUserStockTotalCount: number;
+    totalSuccessCount: number;
+    totalNoConfigCount: number;
+    totalProcessCount: number;
+    status: string;
+    statusMessage: string;
+    detailMessage: string;
+    summaryMessage: string;
+    isSuccess: boolean;
+    isPartialSuccess: boolean;
+    isFailure: boolean;
+    isNoData: boolean;
+    // 新增：具体的未配置记录列表
+    strategyStockNoConfigList: StrategyStockNoConfigInfo[];
+    strategyUserStockNoConfigList: StrategyUserStockNoConfigInfo[];
+  };
+
+  type StrategyStockNoConfigInfo = {
+    id: number;
+    stockCode: string;
+    stockName?: string;
+  };
+
+  type StrategyUserStockNoConfigInfo = {
+    id: number;
+    account: string;
+    accountName?: string;
+    stockCode: string;
+    stockName?: string;
   };
 }

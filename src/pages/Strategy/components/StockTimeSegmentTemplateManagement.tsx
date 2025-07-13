@@ -24,8 +24,8 @@ interface TimeSegmentTemplate {
 }
 
 interface StockTimeSegmentTemplateManagementProps {
-  strategyId: number;
-  strategyName: string;
+  strategyId?: number;
+  strategyName?: string;
 }
 
 const StockTimeSegmentTemplateManagement: React.FC<StockTimeSegmentTemplateManagementProps> = ({
@@ -50,6 +50,7 @@ const StockTimeSegmentTemplateManagement: React.FC<StockTimeSegmentTemplateManag
   const [searchParams, setSearchParams] = useState({
     stockCode: '',
     templateLevel: '',
+    strategyId: strategyId || undefined,
   });
 
   // 默认时段配置
@@ -99,11 +100,15 @@ const StockTimeSegmentTemplateManagement: React.FC<StockTimeSegmentTemplateManag
     try {
       const searchConditions = {
         configType: 'STOCK',
-        strategyId: strategyId,
         current: 1,
         pageSize: 1000,
         ...params,
       };
+
+      // 如果有strategyId参数，则添加到搜索条件中
+      if (params?.strategyId || strategyId) {
+        searchConditions.strategyId = params?.strategyId || strategyId;
+      }
 
       const response = await request('/api/timeSegmentTemplate/list', {
         method: 'GET',
@@ -137,13 +142,19 @@ const StockTimeSegmentTemplateManagement: React.FC<StockTimeSegmentTemplateManag
   // 加载策略股票配置
   const loadStrategyStocks = async () => {
     try {
+      const params: any = {
+        current: 1,
+        pageSize: 1000,
+      };
+      
+      // 如果有strategyId，则添加到参数中
+      if (strategyId) {
+        params.strategyId = strategyId;
+      }
+
       const response = await request('/api/strategy/stock/page', {
         method: 'GET',
-        params: {
-          strategyId: strategyId,
-          current: 1,
-          pageSize: 1000,
-        },
+        params: params,
       });
       if (response.success) {
         setStrategyStocks(response.data.records || response.data || []);
@@ -158,7 +169,7 @@ const StockTimeSegmentTemplateManagement: React.FC<StockTimeSegmentTemplateManag
     loadStrategies();
     loadStrategyStocks();
     loadTemplateLevels();
-  }, [strategyId]);
+  }, []);
 
   // 处理搜索
   const handleSearch = () => {
@@ -166,6 +177,7 @@ const StockTimeSegmentTemplateManagement: React.FC<StockTimeSegmentTemplateManag
     const searchConditions = {
       stockCode: values.stockCode || '',
       templateLevel: values.templateLevel || '',
+      strategyId: values.strategyId || strategyId,
     };
     setSearchParams(searchConditions);
     loadTemplates(searchConditions);
@@ -177,6 +189,7 @@ const StockTimeSegmentTemplateManagement: React.FC<StockTimeSegmentTemplateManag
     setSearchParams({
       stockCode: '',
       templateLevel: '',
+      strategyId: strategyId || undefined,
     });
     loadTemplates();
   };
@@ -187,8 +200,8 @@ const StockTimeSegmentTemplateManagement: React.FC<StockTimeSegmentTemplateManag
       const templateData = {
         ...values,
         configType: 'STOCK',
-        strategyId: strategyId,
-        strategyName: strategyName,
+        strategyId: values.strategyId || strategyId,
+        strategyName: values.strategyName || strategyName,
       };
 
       if (editingTemplate) {
@@ -420,12 +433,23 @@ const StockTimeSegmentTemplateManagement: React.FC<StockTimeSegmentTemplateManag
         style={{ marginBottom: 16, padding: 16, background: '#f5f5f5', borderRadius: 4 }}
       >
         <Row gutter={16} style={{ width: '100%' }}>
-          <Col span={8}>
+          <Col span={6}>
+            <Form.Item name="strategyId" label="策略">
+              <Select placeholder="请选择策略" allowClear>
+                {strategies.map(strategy => (
+                  <Option key={strategy.id} value={strategy.id}>
+                    {strategy.name}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Col>
+          <Col span={6}>
             <Form.Item name="stockCode" label="股票代码">
               <Input placeholder="请输入股票代码" allowClear />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="templateLevel" label="档位等级">
               <Select placeholder="请选择档位等级" allowClear>
                 {templateLevels.map(level => (
@@ -436,7 +460,7 @@ const StockTimeSegmentTemplateManagement: React.FC<StockTimeSegmentTemplateManag
               </Select>
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item>
               <Space>
                 <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
@@ -483,6 +507,34 @@ const StockTimeSegmentTemplateManagement: React.FC<StockTimeSegmentTemplateManag
       >
         <Form form={form} layout="vertical" onFinish={handleSave}>
           <Form.Item
+            name="strategyId"
+            label="策略"
+            rules={[{ required: true, message: '请选择策略' }]}
+          >
+            <Select placeholder="请选择策略">
+              {strategies.map(strategy => (
+                <Option key={strategy.id} value={strategy.id}>
+                  {strategy.name}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            name="templateLevel"
+            label={<FormattedMessage id="template.level" defaultMessage="档位等级" />}
+            rules={[{ required: true, message: '请选择档位等级' }]}
+          >
+            <Select placeholder="请选择档位等级">
+              {templateLevels.map(level => (
+                <Option key={level.value} value={level.value}>
+                  {level.label}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
             name="templateName"
             label={<FormattedMessage id="template.name" defaultMessage="档位名称" />}
             rules={[{ required: true, message: '请输入档位名称' }]}
@@ -493,7 +545,7 @@ const StockTimeSegmentTemplateManagement: React.FC<StockTimeSegmentTemplateManag
           <Form.Item
             name="useScenario"
             label={<FormattedMessage id="template.scenario" defaultMessage="使用场景" />}
-            rules={[{ required: true, message: '请输入使用场景' }]}
+            rules={[{ required: false, message: '请输入使用场景' }]}
           >
             <Input placeholder="请输入使用场景" />
           </Form.Item>
@@ -517,19 +569,6 @@ const StockTimeSegmentTemplateManagement: React.FC<StockTimeSegmentTemplateManag
             />
           </Form.Item>
 
-          <Form.Item
-            name="templateLevel"
-            label={<FormattedMessage id="template.level" defaultMessage="档位等级" />}
-            rules={[{ required: true, message: '请选择档位等级' }]}
-          >
-            <Select placeholder="请选择档位等级">
-              {templateLevels.map(level => (
-                <Option key={level.value} value={level.value}>
-                  {level.label}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
 
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Space>

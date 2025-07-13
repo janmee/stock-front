@@ -77,6 +77,41 @@ const StrategyPage: React.FC = () => {
     setActiveTab(key);
     // 清除编辑参数
     setEditStockCode(undefined);
+    
+    // 根据切换到的tab，重新请求对应的列表数据
+    setTimeout(() => {
+      switch (key) {
+        case '1': // 策略任务
+          if (strategyJobListRef.current?.reload) {
+            strategyJobListRef.current.reload();
+          }
+          break;
+        case '2': // 策略股票关系
+          if (strategyStockListRef.current?.reload) {
+            strategyStockListRef.current.reload();
+          }
+          break;
+        case '3': // 策略用户股票关系
+          if (strategyUserStockListRef.current?.reload) {
+            strategyUserStockListRef.current.reload();
+          }
+          break;
+        case '4': // 配置模版管理
+          // 配置模版管理组件内部使用ProTable，会自动刷新
+          break;
+        case '5': // 账户资金配比
+          // 账户资金配比组件内部使用ProTable，会自动刷新
+          break;
+        case '6': // 用户档位配置
+          // 用户档位配置组件内部使用Table，会自动刷新
+          break;
+        case '7': // 股票档位配置
+          // 股票档位配置组件内部使用Table，会自动刷新
+          break;
+        default:
+          break;
+      }
+    }, 100); // 延迟100ms确保组件已渲染完成
   };
   
   // 当用户选择一个策略任务
@@ -242,31 +277,36 @@ const StrategyPage: React.FC = () => {
         </TabPane>
 
         <TabPane 
+          tab="账户资金配比"
+          key="5"
+        >
+          <AccountFundAllocation />
+        </TabPane>
+
+        <TabPane 
           tab={<FormattedMessage id="pages.strategy.tabs.userTimeSegmentTemplate" defaultMessage="用户档位配置" />}
           key="6"
         >
-          <UserTimeSegmentTemplateManagement 
-            strategyId={selectedStrategyId}
-            strategyName={selectedStrategyName}
-          />
+          {activeTab === '6' && (
+            <UserTimeSegmentTemplateManagement
+              strategyId={selectedStrategyId}
+              strategyName={selectedStrategyName}
+            />
+          )}
         </TabPane>
 
         <TabPane 
           tab={<FormattedMessage id="pages.strategy.tabs.stockTimeSegmentTemplate" defaultMessage="股票档位配置" />}
           key="7"
         >
-          <StockTimeSegmentTemplateManagement 
-            strategyId={selectedStrategyId}
-            strategyName={selectedStrategyName}
-          />
+          {activeTab === '7' && (
+            <StockTimeSegmentTemplateManagement
+              strategyId={selectedStrategyId}
+              strategyName={selectedStrategyName}
+            />
+          )}
         </TabPane>
 
-        <TabPane 
-          tab="账户资金配比"
-          key="5"
-        >
-          <AccountFundAllocation />
-        </TabPane>
 
         <TabPane 
           tab="配置模版管理"
