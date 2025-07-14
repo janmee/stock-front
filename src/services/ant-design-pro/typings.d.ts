@@ -299,7 +299,7 @@ declare namespace API {
     totalFundShares?: number; // 总资金份数
     limitStartShares?: number; // 限制开始份数
     profitRatio?: number; // 盈利比例
-    enableOpeningBuy?: boolean; // 是否启用开盘买入
+    enableOpeningBuy?: number; // 是否启用开盘买入：-1或null使用策略默认，0不开盘买入，1开盘买入
     configTemplateId?: number; // 策略配置模版ID
   };
 

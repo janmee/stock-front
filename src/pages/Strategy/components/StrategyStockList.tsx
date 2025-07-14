@@ -16,8 +16,8 @@ import {
   ProFormTimePicker,
   ProFormDependency,
 } from '@ant-design/pro-components';
-import { PlusOutlined, DownOutlined, UpOutlined, SettingOutlined, ThunderboltOutlined, ExclamationCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, MinusCircleOutlined, EditOutlined, DeleteOutlined, CopyOutlined, SyncOutlined, FilterOutlined, EyeOutlined, EyeInvisibleOutlined, ClockCircleOutlined, InfoCircleOutlined, QuestionCircleOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
-import { getConfigTemplateList, saveConfigTemplate, deleteConfigTemplate, applyConfigTemplate, listStrategyStock, createStrategyStock, updateStrategyStock, deleteStrategyStock, updateStrategyStockStatus, updateStrategyStockOpeningBuy, updateStrategyStockProfitSellBeforeClose, batchUpdateStrategyStockOpeningBuy, batchUpdateStrategyStockProfitSellBeforeClose, listStrategyJob, listStrategyUserStock, batchUpdateStrategyUserStockTimeSegmentConfig, batchUpdateStrategyStockStatus, listAccountInfo, getAccountConfigStatus, getConfigTemplateById, listTimeSegmentTemplates, createTimeSegmentTemplate, getTimeSegmentTemplateById, deleteTimeSegmentTemplate, getTimeSegmentTemplateLevels, listTimeSegmentTemplatesByLevel, applyTimeSegmentTemplateToStrategyStock, batchUpdateStrategyStockTimeSegmentConfig, batchSwitchStrategyStockTemplateLevel } from '@/services/ant-design-pro/api';
+import { PlusOutlined, DownOutlined, UpOutlined, SettingOutlined, ThunderboltOutlined, ExclamationCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, MinusCircleOutlined, EditOutlined, DeleteOutlined, CopyOutlined, SyncOutlined, FilterOutlined, EyeOutlined, EyeInvisibleOutlined, ClockCircleOutlined, InfoCircleOutlined, QuestionCircleOutlined, SearchOutlined, ReloadOutlined, DollarOutlined } from '@ant-design/icons';
+import { getConfigTemplateList, saveConfigTemplate, deleteConfigTemplate, applyConfigTemplate, listStrategyStock, createStrategyStock, updateStrategyStock, deleteStrategyStock, updateStrategyStockStatus, updateStrategyStockOpeningBuy, updateStrategyStockProfitSellBeforeClose, batchUpdateStrategyStockOpeningBuy, batchUpdateStrategyStockProfitSellBeforeClose, listStrategyJob, listStrategyUserStock, batchUpdateStrategyUserStockTimeSegmentConfig, batchUpdateStrategyStockStatus, listAccountInfo, getAccountConfigStatus, getConfigTemplateById, listTimeSegmentTemplates, createTimeSegmentTemplate, getTimeSegmentTemplateById, deleteTimeSegmentTemplate, getTimeSegmentTemplateLevels, listTimeSegmentTemplatesByLevel, applyTimeSegmentTemplateToStrategyStock, batchUpdateStrategyStockTimeSegmentConfig, batchSwitchStrategyStockTemplateLevel, batchImmediateBuyStrategyStock } from '@/services/ant-design-pro/api';
 import { useModel } from '@umijs/max';
 import { history } from '@umijs/max';
 import { FormattedMessage, useIntl } from '@umijs/max';
@@ -2100,6 +2100,88 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     }
   };
 
+  // 批量立即买入
+  const handleBatchImmediateBuy = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要立即买入的股票');
+      return;
+    }
+
+    if (!strategyId) {
+      message.error('请先选择策略');
+      return;
+    }
+
+    Modal.confirm({
+      title: '确认批量立即买入',
+      content: (
+        <div>
+          <p>确定要对选中的 <strong>{selectedRowKeys.length}</strong> 只股票执行立即买入操作吗？</p>
+          <p style={{ color: '#ff4d4f', fontSize: '12px' }}>
+            ⚠️ 注意：此操作将立即执行买入，不受时间限制，请确认当前为合适的交易时间。
+          </p>
+        </div>
+      ),
+      okText: '确认买入',
+      cancelText: '取消',
+      okType: 'danger',
+      width: 500,
+      onOk: async () => {
+        const hide = message.loading('正在执行批量立即买入...');
+        try {
+          const result = await batchImmediateBuyStrategyStock({
+            ids: selectedRowKeys as number[],
+            strategyId: strategyId,
+            forceExecute: true,
+            buyReason: '批量立即买入',
+          });
+          hide();
+          
+          if (result.success && result.data) {
+            const { totalCount, successCount, failureCount, successStockCodes, failureDetails } = result.data;
+            
+            // 构建详细的结果消息
+            const successMessage = successCount > 0 ? `成功买入 ${successCount} 只股票: ${successStockCodes.join(', ')}` : '';
+            const failureMessage = failureCount > 0 ? `失败 ${failureCount} 只股票` : '';
+            
+            if (successCount === totalCount) {
+              message.success(`批量立即买入完成！${successMessage}`);
+            } else if (successCount > 0) {
+              message.warning(`批量立即买入部分成功！${successMessage}${failureMessage ? `；${failureMessage}` : ''}`);
+            } else {
+              message.error(`批量立即买入全部失败！${failureMessage}`);
+            }
+            
+            // 如果有失败详情，显示详细信息
+            if (failureCount > 0 && failureDetails && failureDetails.length > 0) {
+              const failureInfo = failureDetails.map(detail => 
+                `${detail.stockCode}${detail.account !== 'N/A' ? `(${detail.account})` : ''}: ${detail.errorMessage}`
+              ).join('\n');
+              
+              Modal.info({
+                title: '批量买入失败详情',
+                content: (
+                  <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                    <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>{failureInfo}</pre>
+                  </div>
+                ),
+                width: 600,
+              });
+            }
+            
+            setSelectedRowKeys([]);
+            actionRef.current?.reload();
+          } else {
+            message.error('批量立即买入失败');
+          }
+        } catch (error) {
+          hide();
+          message.error('批量立即买入失败');
+        }
+      },
+    });
+  };
+
   return (
     <>
       {renderFilterTag()}
@@ -2259,6 +2341,15 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           >
             批量收盘前卖出
           </Dropdown.Button>,
+          <Button
+            key="batch-immediate-buy"
+            type="primary"
+            danger
+            disabled={selectedRowKeys.length === 0}
+            onClick={handleBatchImmediateBuy}
+          >
+            <DollarOutlined /> 批量立即买入
+          </Button>,
         ]}
         request={(params, sort, filter) => {
           // 添加策略ID作为过滤条件（如果有）

@@ -17,7 +17,7 @@ import {
   ProFormGroup,
 } from '@ant-design/pro-components';
 import { FormattedMessage, useIntl, request } from '@umijs/max';
-import { PlusOutlined, InfoCircleOutlined, FilterOutlined, CloseCircleOutlined, QuestionCircleOutlined, SaveOutlined, ThunderboltOutlined, DownOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, InfoCircleOutlined, FilterOutlined, CloseCircleOutlined, QuestionCircleOutlined, SaveOutlined, ThunderboltOutlined, DownOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { 
   listStrategyUserStock, 
   createStrategyUserStock, 
@@ -441,8 +441,9 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         fundPercent: currentRow?.fundPercent ? currentRow.fundPercent * 100 : undefined,
         profitRatio: currentRow?.profitRatio ? currentRow.profitRatio * 100 : undefined,
         // 将数据库中的enableOpeningBuy值转换为表单字符串值
-        enableOpeningBuy: currentRow?.enableOpeningBuy === true ? 'true' : 
-                         currentRow?.enableOpeningBuy === false ? 'false' : 'null',
+        enableOpeningBuy: currentRow?.enableOpeningBuy === 1 ? '1' : 
+                         currentRow?.enableOpeningBuy === 0 ? '0' : 
+                         currentRow?.enableOpeningBuy === -1 ? '-1' : '-1',
         // 解析时段配置
         timeSegments: currentRow ? (() => {
           const config = parseTimeSegmentMaConfig((currentRow as any).timeSegmentMaConfig);
@@ -484,12 +485,14 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     }
     
     // 处理开盘买入字段
-    if (fields.enableOpeningBuy === 'true') {
-      fields.enableOpeningBuy = true;
-    } else if (fields.enableOpeningBuy === 'false') {
-      fields.enableOpeningBuy = false;
+    if (fields.enableOpeningBuy === '1') {
+      fields.enableOpeningBuy = 1;
+    } else if (fields.enableOpeningBuy === '0') {
+      fields.enableOpeningBuy = 0;
+    } else if (fields.enableOpeningBuy === '-1') {
+      fields.enableOpeningBuy = -1;
     } else {
-      fields.enableOpeningBuy = undefined;
+      fields.enableOpeningBuy = -1; // 默认使用策略默认
     }
     
     // 根据设置的字段设置相应的null值
@@ -609,12 +612,14 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       }
       
       // 处理开盘买入字段
-      if (fields.enableOpeningBuy === 'true') {
-        fields.enableOpeningBuy = true;
-      } else if (fields.enableOpeningBuy === 'false') {
-        fields.enableOpeningBuy = false;
+      if (fields.enableOpeningBuy === '1') {
+        fields.enableOpeningBuy = 1;
+      } else if (fields.enableOpeningBuy === '0') {
+        fields.enableOpeningBuy = 0;
+      } else if (fields.enableOpeningBuy === '-1') {
+        fields.enableOpeningBuy = -1;
       } else {
-        fields.enableOpeningBuy = undefined;
+        fields.enableOpeningBuy = -1; // 默认使用策略默认
       }
       
       // 根据设置的字段设置相应的null值
@@ -673,12 +678,14 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     }
     
     // 处理开盘买入字段
-    if (fields.enableOpeningBuy === 'true') {
-      fields.enableOpeningBuy = true;
-    } else if (fields.enableOpeningBuy === 'false') {
-      fields.enableOpeningBuy = false;
+    if (fields.enableOpeningBuy === '1') {
+      fields.enableOpeningBuy = 1;
+    } else if (fields.enableOpeningBuy === '0') {
+      fields.enableOpeningBuy = 0;
+    } else if (fields.enableOpeningBuy === '-1') {
+      fields.enableOpeningBuy = -1;
     } else {
-      fields.enableOpeningBuy = undefined;
+      fields.enableOpeningBuy = -1; // 默认使用策略默认
     }
     
     // 根据设置的字段设置相应的null值
@@ -795,7 +802,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
   };
 
   // 更新策略用户股票关系开盘买入状态
-  const handleUpdateOpeningBuy = async (id: number, enableOpeningBuy: boolean | null) => {
+  const handleUpdateOpeningBuy = async (id: number, enableOpeningBuy: number | null) => {
     console.log('handleUpdateOpeningBuy 调用:', { id, enableOpeningBuy });
     const hide = message.loading('更新中...');
     
@@ -815,7 +822,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
   };
 
   // 批量更新策略用户股票关系开盘买入状态
-  const handleBatchUpdateOpeningBuy = async (enableOpeningBuy: boolean | null) => {
+  const handleBatchUpdateOpeningBuy = async (enableOpeningBuy: number | null) => {
     if (selectedRowKeys.length === 0) {
       message.warning('请先选择要更新的记录');
       return;
@@ -1711,29 +1718,29 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       dataIndex: 'enableOpeningBuy',
       hideInSearch: true,
       render: (_, record) => {
-        const getNextValue = (current: boolean | null | undefined): boolean | null => {
+        const getNextValue = (current: number | null | undefined): number | null => {
           console.log('getNextValue - 当前值:', current, '类型:', typeof current);
-          if (current === true) {
-            console.log('true -> false');
-            return false;
+          if (current === 1) {
+            console.log('1 -> 0');
+            return 0;
           }
-          if (current === false) {
-            console.log('false -> null');
-            return null;
+          if (current === 0) {
+            console.log('0 -> -1');
+            return -1;
           }
-          console.log('null/undefined -> true');
-          return true; // null -> true
+          console.log('null/undefined/-1 -> 1');
+          return 1; // null/-1 -> 1
         };
         
-        const getDisplayText = (value: boolean | null | undefined): string => {
-          if (value === true) return '开启';
-          if (value === false) return '关闭';
+        const getDisplayText = (value: number | null | undefined): string => {
+          if (value === 1) return '开启';
+          if (value === 0) return '关闭';
           return '策略默认';
         };
         
-        const getColor = (value: boolean | null | undefined): string => {
-          if (value === true) return '#52c41a';
-          if (value === false) return '#ff4d4f';
+        const getColor = (value: number | null | undefined): string => {
+          if (value === 1) return '#52c41a';
+          if (value === 0) return '#ff4d4f';
           return '#1890ff';
         };
         
@@ -2720,17 +2727,17 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                   {
                     key: '1',
                     label: '批量开启开盘买入',
-                    onClick: () => handleBatchUpdateOpeningBuy(true),
+                    onClick: () => handleBatchUpdateOpeningBuy(1),
                   },
                   {
                     key: '2',
                     label: '批量关闭开盘买入',
-                    onClick: () => handleBatchUpdateOpeningBuy(false),
+                    onClick: () => handleBatchUpdateOpeningBuy(0),
                   },
                   {
                     key: '3',
                     label: '批量设为策略默认',
-                    onClick: () => handleBatchUpdateOpeningBuy(null),
+                    onClick: () => handleBatchUpdateOpeningBuy(-1),
                   },
                 ]}
               />
@@ -3230,11 +3237,11 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               label="是否开盘买入"
               tooltip="是否在开盘时执行买入策略，优先级高于策略标的设置，默认使用策略标的设置"
               valueEnum={{
-                'true': '开启',
-                'false': '关闭',
-                'null': '使用策略默认',
+                '1': '开启',
+                '0': '关闭',
+                '-1': '使用策略默认',
               }}
-              initialValue="null"
+              initialValue="-1"
             />
           </div>
           
@@ -3652,11 +3659,11 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               label="是否开盘买入"
               tooltip="是否在开盘时执行买入策略，优先级高于策略标的设置，默认使用策略标的设置"
               valueEnum={{
-                'true': '开启',
-                'false': '关闭',
-                'null': '使用策略默认',
+                '1': '开启',
+                '0': '关闭',
+                '-1': '使用策略默认',
               }}
-              initialValue="null"
+              initialValue="-1"
             />
           </div>
           
@@ -4547,10 +4554,11 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               label="是否开盘买入"
               tooltip="是否在开盘时执行买入策略，优先级高于策略标的设置，默认使用策略标的设置"
               valueEnum={{
-                'true': '开启',
-                'false': '关闭',
-                'null': '使用策略默认',
+                '1': '开启',
+                '0': '关闭',
+                '-1': '使用策略默认',
               }}
+              initialValue="-1"
             />
           </div>
           
@@ -4711,8 +4719,11 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               <p><strong>说明：</strong></p>
               <p>• 时段开始时间：该时段配置的生效时间，格式为HH:mm</p>
               <p>• 下方百分比：股价低于分时平均线的百分比阈值</p>
-              <p>• 上方百分比：股价高于分时平均线的百分比阈值</p>
-              <p>• 盈利点：该时段的盈利目标百分比</p>
+              <p>• 上方百分比：股价高于分时平均线该百分比时买入，可为负数<br/>
+                • 盈利点：股价高于分时平均线该百分比时买入，可为负数<br/>
+                • 系统会自动检查时间段重复并按时间顺序排序<br/>
+                • 默认时间段：09:30(0.5%,0.1%,0.1%), 12:00(1.0%,-0.5%,-0.5%), 14:00(1.5%,-1.0%,-1.0%)
+              </p>
             </div>
           </div>
         </div>

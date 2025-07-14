@@ -1550,7 +1550,7 @@ export async function updateStrategyUserStockStatus(
 export async function updateStrategyUserStockOpeningBuy(
   params: {
     id: number;
-    enableOpeningBuy: boolean | null;
+    enableOpeningBuy: number | null;
   },
   options?: { [key: string]: any },
 ) {
@@ -1566,7 +1566,7 @@ export async function updateStrategyUserStockOpeningBuy(
 export async function batchUpdateStrategyUserStockOpeningBuy(
   params: {
     ids: number[];
-    enableOpeningBuy: boolean | null;
+    enableOpeningBuy: number | null;
   },
   options?: { [key: string]: any },
 ) {
@@ -1892,8 +1892,39 @@ export async function applyTimeSegmentTemplateToUserStock(params: {
   templateId: number;
   userStockIds: number[];
 }) {
-  return request<API.Response<boolean>>('/api/timeSegmentTemplate/applyToUserStock', {
+  return request<API.Response<boolean>>('/api/strategy/user-stock/apply-time-segment-template', {
     method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: params,
+  });
+}
+
+/**
+ * 批量立即买入策略股票
+ */
+export async function batchImmediateBuyStrategyStock(params: {
+  ids: number[];
+  strategyId: number;
+  forceExecute?: boolean;
+  buyReason?: string;
+}) {
+  return request<API.Response<{
+    totalCount: number;
+    successCount: number;
+    failureCount: number;
+    successStockCodes: string[];
+    failureDetails: Array<{
+      stockCode: string;
+      account: string;
+      errorMessage: string;
+    }>;
+  }>>('/api/strategy/stock/batch-immediate-buy', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
     data: params,
   });
 }
