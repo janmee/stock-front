@@ -484,6 +484,7 @@ export async function createStrategyStock(body: API.StrategyStockItem, options?:
     timeSegmentMaConfig: body.timeSegmentMaConfig,
     marketCapScale: body.marketCapScale,
     enableProfitSellBeforeClose: body.enableProfitSellBeforeClose,
+    enableYesterdayLowestBuy: body.enableYesterdayLowestBuy,
     status: body.status
   };
   
@@ -521,6 +522,7 @@ export async function updateStrategyStock(body: API.StrategyStockItem, options?:
     timeSegmentMaConfig: body.timeSegmentMaConfig,
     marketCapScale: body.marketCapScale,
     enableProfitSellBeforeClose: body.enableProfitSellBeforeClose,
+    enableYesterdayLowestBuy: body.enableYesterdayLowestBuy,
     status: body.status
   };
   
@@ -1499,6 +1501,23 @@ export async function updateStrategyStockProfitSellBeforeClose(
   });
 }
 
+/** 更新策略股票关系昨天最低价买入状态 POST /api/strategy/stock/yesterday-lowest-buy/{id} */
+export async function updateStrategyStockYesterdayLowestBuy(
+  params: {
+    id: number;
+    enableYesterdayLowestBuy: boolean;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.ApiResponse>(`/api/strategy/stock/yesterday-lowest-buy/${params.id}`, {
+    method: 'POST',
+    data: {
+      enableYesterdayLowestBuy: params.enableYesterdayLowestBuy,
+    },
+    ...(options || {}),
+  });
+}
+
 /** 批量更新策略股票关系收盘前盈利卖出状态 POST /api/strategy/stock/batch-profit-sell-before-close */
 export async function batchUpdateStrategyStockProfitSellBeforeClose(
   params: {
@@ -1509,10 +1528,22 @@ export async function batchUpdateStrategyStockProfitSellBeforeClose(
 ) {
   return request<API.ApiResponse>('/api/strategy/stock/batch-profit-sell-before-close', {
     method: 'POST',
-    data: {
-      ids: params.ids,
-      enableProfitSellBeforeClose: params.enableProfitSellBeforeClose,
-    },
+    data: params,
+    ...(options || {}),
+  });
+}
+
+/** 批量更新策略股票关系昨天最低价买入状态 POST /api/strategy/stock/batch-yesterday-lowest-buy */
+export async function batchUpdateStrategyStockYesterdayLowestBuy(
+  params: {
+    ids: number[];
+    enableYesterdayLowestBuy: boolean;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.ApiResponse>('/api/strategy/stock/batch-yesterday-lowest-buy', {
+    method: 'POST',
+    data: params,
     ...(options || {}),
   });
 }

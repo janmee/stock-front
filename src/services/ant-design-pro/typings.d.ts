@@ -267,6 +267,7 @@ declare namespace API {
     timeSegmentMaConfig?: string; // 时段分时平均线配置
     marketCapScale?: string; // 市值规模：小盘股、中盘股、大盘股、ETF
     enableProfitSellBeforeClose?: string; // 收盘前盈利卖出策略：PROFIT_SELL_BEFORE_CLOSE、ALL_SELL_BEFORE_CLOSE、NO_SELL
+    enableYesterdayLowestBuy?: boolean; // 是否昨天最低价买入
   };
 
   type StrategyStockList = {

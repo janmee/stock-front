@@ -17,7 +17,7 @@ import {
   ProFormDependency,
 } from '@ant-design/pro-components';
 import { PlusOutlined, DownOutlined, UpOutlined, SettingOutlined, ThunderboltOutlined, ExclamationCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, MinusCircleOutlined, EditOutlined, DeleteOutlined, CopyOutlined, SyncOutlined, FilterOutlined, EyeOutlined, EyeInvisibleOutlined, ClockCircleOutlined, InfoCircleOutlined, QuestionCircleOutlined, SearchOutlined, ReloadOutlined, DollarOutlined } from '@ant-design/icons';
-import { getConfigTemplateList, saveConfigTemplate, deleteConfigTemplate, applyConfigTemplate, listStrategyStock, createStrategyStock, updateStrategyStock, deleteStrategyStock, updateStrategyStockStatus, updateStrategyStockOpeningBuy, updateStrategyStockProfitSellBeforeClose, batchUpdateStrategyStockOpeningBuy, batchUpdateStrategyStockProfitSellBeforeClose, listStrategyJob, listStrategyUserStock, batchUpdateStrategyUserStockTimeSegmentConfig, batchUpdateStrategyStockStatus, listAccountInfo, getAccountConfigStatus, getConfigTemplateById, listTimeSegmentTemplates, createTimeSegmentTemplate, getTimeSegmentTemplateById, deleteTimeSegmentTemplate, getTimeSegmentTemplateLevels, listTimeSegmentTemplatesByLevel, applyTimeSegmentTemplateToStrategyStock, batchUpdateStrategyStockTimeSegmentConfig, batchSwitchStrategyStockTemplateLevel, batchImmediateBuyStrategyStock } from '@/services/ant-design-pro/api';
+import { getConfigTemplateList, saveConfigTemplate, deleteConfigTemplate, applyConfigTemplate, listStrategyStock, createStrategyStock, updateStrategyStock, deleteStrategyStock, updateStrategyStockStatus, updateStrategyStockOpeningBuy, updateStrategyStockProfitSellBeforeClose, batchUpdateStrategyStockOpeningBuy, batchUpdateStrategyStockProfitSellBeforeClose, listStrategyJob, listStrategyUserStock, batchUpdateStrategyUserStockTimeSegmentConfig, batchUpdateStrategyStockStatus, listAccountInfo, getAccountConfigStatus, getConfigTemplateById, listTimeSegmentTemplates, createTimeSegmentTemplate, getTimeSegmentTemplateById, deleteTimeSegmentTemplate, getTimeSegmentTemplateLevels, listTimeSegmentTemplatesByLevel, applyTimeSegmentTemplateToStrategyStock, batchUpdateStrategyStockTimeSegmentConfig, batchSwitchStrategyStockTemplateLevel, batchImmediateBuyStrategyStock, updateStrategyStockYesterdayLowestBuy, batchUpdateStrategyStockYesterdayLowestBuy } from '@/services/ant-design-pro/api';
 import { useModel } from '@umijs/max';
 import { history } from '@umijs/max';
 import { FormattedMessage, useIntl } from '@umijs/max';
@@ -467,6 +467,23 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     
     try {
       await updateStrategyStockProfitSellBeforeClose({ id, enableProfitSellBeforeClose });
+      hide();
+      message.success('更新成功');
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error('更新失败');
+      return false;
+    }
+  };
+
+  // 更新策略股票关系昨天最低价买入状态
+  const handleUpdateYesterdayLowestBuy = async (id: number, enableYesterdayLowestBuy: boolean) => {
+    const hide = message.loading('更新中...');
+    
+    try {
+      await updateStrategyStockYesterdayLowestBuy({ id, enableYesterdayLowestBuy });
       hide();
       message.success('更新成功');
       actionRef.current?.reload();
@@ -930,6 +947,29 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       },
     },
     {
+      title: (
+        <>
+          <>昨天最低价买入</>
+          <Tooltip title="是否在股票价格接近昨天最低价时触发买入信号">
+            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </>
+      ),
+      dataIndex: 'enableYesterdayLowestBuy',
+      valueType: 'switch',
+      hideInSearch: true,
+      render: (_, record) => (
+        <Switch
+          checkedChildren="是"
+          unCheckedChildren="否"
+          checked={record.enableYesterdayLowestBuy === true}
+          onChange={(checked) => {
+            handleUpdateYesterdayLowestBuy(record.id!, checked);
+          }}
+        />
+      ),
+    },
+    {
       title: <FormattedMessage id="pages.strategy.stock.relation.status" defaultMessage="Status" />,
       dataIndex: 'status',
       valueEnum: {
@@ -953,55 +993,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         />
       ),
     },
-    // {
-    //   title: (
-    //     <>
-    //       <FormattedMessage id="pages.strategy.stock.relation.buyRatioConfig" defaultMessage="Buy Ratio Config" />
-    //       <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.buyRatioConfigTip" defaultMessage="Configuration for buy ratio of each level" />}>
-    //         <QuestionCircleOutlined style={{ marginLeft: 4 }} />
-    //       </Tooltip>
-    //     </>
-    //   ),
-    //   dataIndex: 'buyRatioConfig',
-    //   valueType: 'text',
-    //   hideInSearch: true,
-    //   render: (_, record) => {
-    //     if (!record.buyRatioConfig) {
-    //       return '-';
-    //     }
-        
-    //     try {
-    //       const config = JSON.parse(record.buyRatioConfig);
-    //       const firstRatio = config.firstShareRatio !== undefined ? `${config.firstShareRatio}%` : '-';
-    //       const extraCount = Array.isArray(config.extraShares) ? config.extraShares.length : 0;
-          
-    //       return (
-    //         <Tooltip 
-    //           title={
-    //             <div>
-    //               <div>前N档: {firstRatio}</div>
-    //               <div>后续档位: {extraCount}个</div>
-    //               {Array.isArray(config.extraShares) && config.extraShares.length > 0 && (
-    //                 <div style={{ marginTop: 8 }}>
-    //                   <div>详细配置:</div>
-    //                   {config.extraShares.map((item: any, index: number) => (
-    //                     <div key={index}>
-    //                       档位{index+1}: 跌幅{item.drop}%, 买入{item.ratio}%{item.secondStage ? ', 开启二阶段' : ''}
-    //                     </div>
-    //                   ))}
-    //                 </div>
-    //               )}
-    //             </div>
-    //           }
-    //         >
-    //           <span>前N档: {firstRatio}, 后续: {extraCount}个档位</span>
-    //         </Tooltip>
-    //       );
-    //     } catch (error) {
-    //       return '-';
-    //     }
-    //   },
-    // },
     {
       title: <FormattedMessage id="pages.common.actions" defaultMessage="Actions" />,
       dataIndex: 'option',
@@ -2100,6 +2091,33 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     }
   };
 
+  // 批量更新策略股票关系昨天最低价买入状态
+  const handleBatchUpdateYesterdayLowestBuy = async (enableYesterdayLowestBuy: boolean) => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要更新的记录');
+      return;
+    }
+
+    const hide = message.loading('批量更新中...');
+    
+    try {
+      const result = await batchUpdateStrategyStockYesterdayLowestBuy({ 
+        ids: selectedRowKeys as number[], 
+        enableYesterdayLowestBuy 
+      });
+      hide();
+      const displayText = enableYesterdayLowestBuy ? '启用昨天最低价买入' : '禁用昨天最低价买入';
+      message.success(`已成功更新 ${selectedRowKeys.length} 条记录为"${displayText}"`);
+      setSelectedRowKeys([]);
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error('批量更新失败');
+      return false;
+    }
+  };
+
   // 批量立即买入
   const handleBatchImmediateBuy = async () => {
     if (selectedRowKeys.length === 0) {
@@ -2350,6 +2368,28 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             disabled={selectedRowKeys.length === 0}
           >
             批量收盘前卖出
+          </Dropdown.Button>,
+          <Dropdown.Button
+            key="batch-yesterday-lowest-buy"
+            overlay={
+              <Menu
+                items={[
+                  {
+                    key: '1',
+                    label: '批量启用昨天最低价买入',
+                    onClick: () => handleBatchUpdateYesterdayLowestBuy(true),
+                  },
+                  {
+                    key: '2',
+                    label: '批量禁用昨天最低价买入',
+                    onClick: () => handleBatchUpdateYesterdayLowestBuy(false),
+                  },
+                ]}
+              />
+            }
+            disabled={selectedRowKeys.length === 0}
+          >
+            批量昨天最低价买入
           </Dropdown.Button>,
           <Button
             key="batch-immediate-buy"
@@ -2735,6 +2775,15 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             }}
             initialValue="PROFIT_SELL_BEFORE_CLOSE"
             rules={[{ required: true }]}
+          />
+        </div>
+        
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
+          <ProFormSwitch
+            name="enableYesterdayLowestBuy"
+            label="昨天最低价买入"
+            tooltip="是否在股票价格接近昨天最低价时触发买入信号"
+            initialValue={false}
           />
         </div>
         
@@ -3133,6 +3182,15 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             }}
             initialValue="PROFIT_SELL_BEFORE_CLOSE"
             rules={[{ required: true }]}
+          />
+        </div>
+        
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
+          <ProFormSwitch
+            name="enableYesterdayLowestBuy"
+            label="昨天最低价买入"
+            tooltip="是否在股票价格接近昨天最低价时触发买入信号"
+            initialValue={false}
           />
         </div>
         
