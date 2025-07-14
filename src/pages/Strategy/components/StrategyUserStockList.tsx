@@ -54,6 +54,13 @@ import {
   applyTimeSegmentTemplateToUserStock,
 } from '@/services/ant-design-pro/api';
 
+// 收盘前盈利卖出枚举值映射
+const PROFIT_SELL_BEFORE_CLOSE_ENUM = {
+  PROFIT_SELL_BEFORE_CLOSE: '收盘前总盈利卖出',
+  ALL_SELL_BEFORE_CLOSE: '收盘前全部卖出',
+  NO_SELL: '不卖出',
+};
+
 interface StrategyUserStockListProps {
   strategyId?: number;
   strategyName?: string;
@@ -2482,6 +2489,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           <Col xs={24} sm={12} md={6}>
             <Statistic 
               title="账户总资金" 
+              prefix={'$'}
               value={summaryData.totalAccountAmount}
               valueStyle={{ color: '#52c41a' }}
               formatter={(value) => Math.round(Number(value) || 0).toLocaleString()}
@@ -2490,6 +2498,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           <Col xs={24} sm={12} md={6}>
             <Statistic 
               title="单次资金总计" 
+              prefix={'$'}
               value={summaryData.totalSingleAmount}
               suffix={`(${summaryData.singleAmountRatio.toFixed(2)}%)`}
               valueStyle={{ color: '#faad14' }}
@@ -2501,6 +2510,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           <Col xs={24} sm={12} md={6}>
             <Statistic 
               title="单天最大持有资金" 
+              prefix={'$'}
               value={summaryData.totalDailyMaxHolding}
               suffix={`(${summaryData.dailyMaxHoldingRatio.toFixed(2)}%)`}
               valueStyle={{ color: '#f5222d' }}
@@ -2511,6 +2521,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             <Statistic 
               title="最大持有资金" 
               value={summaryData.totalMaxHolding}
+              prefix={'$'}
               suffix={`(${summaryData.maxHoldingRatio.toFixed(2)}%)`}
               valueStyle={{ color: '#fa541c' }}
               formatter={(value) => Math.round(Number(value) || 0).toLocaleString()}
@@ -2519,14 +2530,14 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           <Col xs={24} sm={12} md={6}>
             <Statistic 
               title="资金最大使用股票单次资金" 
-              value={summaryData.maxStockCode ? `${summaryData.maxStockCode}(${Math.round(summaryData.maxStockSingleAmount).toLocaleString()}/${summaryData.maxStockSingleRatio.toFixed(2)}%)` : '无'}
+              value={summaryData.maxStockCode ? `${summaryData.maxStockCode}($${Math.round(summaryData.maxStockSingleAmount).toLocaleString()}/${summaryData.maxStockSingleRatio.toFixed(2)}%)` : '无'}
               valueStyle={{ color: '#ff4d4f' }}
             />
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Statistic 
               title="资金最大使用股票总资金" 
-              value={summaryData.maxStockCode ? `${summaryData.maxStockCode}(${Math.round(summaryData.maxStockAmount).toLocaleString()}/${summaryData.maxStockRatio.toFixed(2)}%)` : '无'}
+              value={summaryData.maxStockCode ? `${summaryData.maxStockCode}($${Math.round(summaryData.maxStockAmount).toLocaleString()}/${summaryData.maxStockRatio.toFixed(2)}%)` : '无'}
               valueStyle={{ color: '#ff4d4f' }}
             />
           </Col>
@@ -2748,7 +2759,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             }
             disabled={selectedRowKeys.length === 0}
           >
-            批量状态
+            批量启用禁用
           </Dropdown.Button>,
           <Dropdown.Button
             key="batch-config"

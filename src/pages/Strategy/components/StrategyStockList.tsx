@@ -17,7 +17,7 @@ import {
   ProFormDependency,
 } from '@ant-design/pro-components';
 import { PlusOutlined, DownOutlined, UpOutlined, SettingOutlined, ThunderboltOutlined, ExclamationCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, MinusCircleOutlined, EditOutlined, DeleteOutlined, CopyOutlined, SyncOutlined, FilterOutlined, EyeOutlined, EyeInvisibleOutlined, ClockCircleOutlined, InfoCircleOutlined, QuestionCircleOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
-import { getConfigTemplateList, saveConfigTemplate, deleteConfigTemplate, applyConfigTemplate, listStrategyStock, createStrategyStock, updateStrategyStock, deleteStrategyStock, updateStrategyStockStatus, updateStrategyStockOpeningBuy, updateStrategyStockProfitSellBeforeClose, batchUpdateStrategyStockOpeningBuy, listStrategyJob, listStrategyUserStock, batchUpdateStrategyUserStockTimeSegmentConfig, batchUpdateStrategyStockStatus, listAccountInfo, getAccountConfigStatus, getConfigTemplateById, listTimeSegmentTemplates, createTimeSegmentTemplate, getTimeSegmentTemplateById, deleteTimeSegmentTemplate, getTimeSegmentTemplateLevels, listTimeSegmentTemplatesByLevel, applyTimeSegmentTemplateToStrategyStock, batchUpdateStrategyStockTimeSegmentConfig, batchSwitchStrategyStockTemplateLevel } from '@/services/ant-design-pro/api';
+import { getConfigTemplateList, saveConfigTemplate, deleteConfigTemplate, applyConfigTemplate, listStrategyStock, createStrategyStock, updateStrategyStock, deleteStrategyStock, updateStrategyStockStatus, updateStrategyStockOpeningBuy, updateStrategyStockProfitSellBeforeClose, batchUpdateStrategyStockOpeningBuy, batchUpdateStrategyStockProfitSellBeforeClose, listStrategyJob, listStrategyUserStock, batchUpdateStrategyUserStockTimeSegmentConfig, batchUpdateStrategyStockStatus, listAccountInfo, getAccountConfigStatus, getConfigTemplateById, listTimeSegmentTemplates, createTimeSegmentTemplate, getTimeSegmentTemplateById, deleteTimeSegmentTemplate, getTimeSegmentTemplateLevels, listTimeSegmentTemplatesByLevel, applyTimeSegmentTemplateToStrategyStock, batchUpdateStrategyStockTimeSegmentConfig, batchSwitchStrategyStockTemplateLevel } from '@/services/ant-design-pro/api';
 import { useModel } from '@umijs/max';
 import { history } from '@umijs/max';
 import { FormattedMessage, useIntl } from '@umijs/max';
@@ -26,6 +26,20 @@ import zhCN from 'antd/locale/zh_CN';
 import enUS from 'antd/locale/en_US';
 
 const { Option } = Select;
+
+// 收盘前盈利卖出枚举值映射
+const PROFIT_SELL_BEFORE_CLOSE_ENUM = {
+  PROFIT_SELL_BEFORE_CLOSE: '收盘前总盈利卖出',
+  ALL_SELL_BEFORE_CLOSE: '收盘前全部卖出',
+  NO_SELL: '不卖出',
+};
+
+// 收盘前盈利卖出枚举值反向映射
+const PROFIT_SELL_BEFORE_CLOSE_REVERSE_ENUM = {
+  '收盘前总盈利卖出': 'PROFIT_SELL_BEFORE_CLOSE',
+  '收盘前全部卖出': 'ALL_SELL_BEFORE_CLOSE',
+  '不卖出': 'NO_SELL',
+};
 
 interface StrategyStockListProps {
   strategyId?: number;
@@ -448,7 +462,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
   };
 
   // 更新策略股票关系收盘前盈利卖出状态
-  const handleUpdateProfitSellBeforeClose = async (id: number, enableProfitSellBeforeClose: boolean) => {
+  const handleUpdateProfitSellBeforeClose = async (id: number, enableProfitSellBeforeClose: string) => {
     const hide = message.loading('更新中...');
     
     try {
@@ -865,25 +879,55 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     {
       title: (
         <>
-          <>是否收盘前盈利卖出</>
-          <Tooltip title="是否在收盘前执行盈利卖出策略，默认关闭">
+          <>收盘前盈利卖出</>
+          <Tooltip title="收盘前盈利卖出策略：收盘前总盈利卖出、收盘前全部卖出、不卖出">
             <QuestionCircleOutlined style={{ marginLeft: 4 }} />
           </Tooltip>
         </>
       ),
       dataIndex: 'enableProfitSellBeforeClose',
-      valueType: 'switch',
       hideInSearch: true,
-      render: (_, record) => (
-        <Switch
-          checkedChildren="是"
-          unCheckedChildren="否"
-          checked={record.enableProfitSellBeforeClose === true} // 默认为false，只有明确设置为true时才显示是
-          onChange={(checked) => {
-            handleUpdateProfitSellBeforeClose(record.id!, checked);
-          }}
-        />
-      ),
+      render: (_, record) => {
+        const getNextValue = (current: string | undefined): string => {
+          if (current === 'PROFIT_SELL_BEFORE_CLOSE') {
+            return 'ALL_SELL_BEFORE_CLOSE';
+          }
+          if (current === 'ALL_SELL_BEFORE_CLOSE') {
+            return 'NO_SELL';
+          }
+          return 'PROFIT_SELL_BEFORE_CLOSE'; // 默认或"NO_SELL"时切换到默认值
+        };
+        
+        const getDisplayText = (value: string | undefined): string => {
+          return PROFIT_SELL_BEFORE_CLOSE_ENUM[value as keyof typeof PROFIT_SELL_BEFORE_CLOSE_ENUM] || '收盘前总盈利卖出';
+        };
+        
+        const getColor = (value: string | undefined): string => {
+          if (value === 'PROFIT_SELL_BEFORE_CLOSE') return '#52c41a';
+          if (value === 'ALL_SELL_BEFORE_CLOSE') return '#faad14';
+          if (value === 'NO_SELL') return '#ff4d4f';
+          return '#52c41a'; // 默认颜色
+        };
+        
+        return (
+          <Tag
+            color={getColor(record.enableProfitSellBeforeClose)}
+            style={{ cursor: 'pointer' }}
+            onClick={async () => {
+              const currentValue = record.enableProfitSellBeforeClose;
+              const nextValue = getNextValue(currentValue);
+              
+              try {
+                await handleUpdateProfitSellBeforeClose(record.id!, nextValue);
+              } catch (error) {
+                console.error('更新收盘前盈利卖出状态失败:', error);
+              }
+            }}
+          >
+            {getDisplayText(record.enableProfitSellBeforeClose)}
+          </Tag>
+        );
+      },
     },
     {
       title: <FormattedMessage id="pages.strategy.stock.relation.status" defaultMessage="Status" />,
@@ -909,82 +953,55 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         />
       ),
     },
-    {
-      title: (
-        <span>
-          <>策略配置模版ID</>
-          <Tooltip title="该配置来源于哪个配置模版">
-            <InfoCircleOutlined style={{ marginLeft: 4 }} />
-          </Tooltip>
-        </span>
-      ),
-      dataIndex: 'configTemplateId',
-      hideInSearch: true,
-      render: (text, record) => {
-        if (record.configTemplateId === null || record.configTemplateId === undefined) {
-          return '-';
-        }
-        return record.configTemplateId;
-      },
-    },
-    {
-      title: <FormattedMessage id="pages.strategy.createTime" defaultMessage="Create Time" />,
-      dataIndex: 'createTime',
-      valueType: 'dateTime',
-      hideInSearch: true,
-      sorter: true,
-      width: 160,
-      defaultSortOrder: 'descend',
-    },
-    {
-      title: (
-        <>
-          <FormattedMessage id="pages.strategy.stock.relation.buyRatioConfig" defaultMessage="Buy Ratio Config" />
-          <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.buyRatioConfigTip" defaultMessage="Configuration for buy ratio of each level" />}>
-            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
-          </Tooltip>
-        </>
-      ),
-      dataIndex: 'buyRatioConfig',
-      valueType: 'text',
-      hideInSearch: true,
-      render: (_, record) => {
-        if (!record.buyRatioConfig) {
-          return '-';
-        }
+    // {
+    //   title: (
+    //     <>
+    //       <FormattedMessage id="pages.strategy.stock.relation.buyRatioConfig" defaultMessage="Buy Ratio Config" />
+    //       <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.buyRatioConfigTip" defaultMessage="Configuration for buy ratio of each level" />}>
+    //         <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+    //       </Tooltip>
+    //     </>
+    //   ),
+    //   dataIndex: 'buyRatioConfig',
+    //   valueType: 'text',
+    //   hideInSearch: true,
+    //   render: (_, record) => {
+    //     if (!record.buyRatioConfig) {
+    //       return '-';
+    //     }
         
-        try {
-          const config = JSON.parse(record.buyRatioConfig);
-          const firstRatio = config.firstShareRatio !== undefined ? `${config.firstShareRatio}%` : '-';
-          const extraCount = Array.isArray(config.extraShares) ? config.extraShares.length : 0;
+    //     try {
+    //       const config = JSON.parse(record.buyRatioConfig);
+    //       const firstRatio = config.firstShareRatio !== undefined ? `${config.firstShareRatio}%` : '-';
+    //       const extraCount = Array.isArray(config.extraShares) ? config.extraShares.length : 0;
           
-          return (
-            <Tooltip 
-              title={
-                <div>
-                  <div>前N档: {firstRatio}</div>
-                  <div>后续档位: {extraCount}个</div>
-                  {Array.isArray(config.extraShares) && config.extraShares.length > 0 && (
-                    <div style={{ marginTop: 8 }}>
-                      <div>详细配置:</div>
-                      {config.extraShares.map((item: any, index: number) => (
-                        <div key={index}>
-                          档位{index+1}: 跌幅{item.drop}%, 买入{item.ratio}%{item.secondStage ? ', 开启二阶段' : ''}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              }
-            >
-              <span>前N档: {firstRatio}, 后续: {extraCount}个档位</span>
-            </Tooltip>
-          );
-        } catch (error) {
-          return '-';
-        }
-      },
-    },
+    //       return (
+    //         <Tooltip 
+    //           title={
+    //             <div>
+    //               <div>前N档: {firstRatio}</div>
+    //               <div>后续档位: {extraCount}个</div>
+    //               {Array.isArray(config.extraShares) && config.extraShares.length > 0 && (
+    //                 <div style={{ marginTop: 8 }}>
+    //                   <div>详细配置:</div>
+    //                   {config.extraShares.map((item: any, index: number) => (
+    //                     <div key={index}>
+    //                       档位{index+1}: 跌幅{item.drop}%, 买入{item.ratio}%{item.secondStage ? ', 开启二阶段' : ''}
+    //                     </div>
+    //                   ))}
+    //                 </div>
+    //               )}
+    //             </div>
+    //           }
+    //         >
+    //           <span>前N档: {firstRatio}, 后续: {extraCount}个档位</span>
+    //         </Tooltip>
+    //       );
+    //     } catch (error) {
+    //       return '-';
+    //     }
+    //   },
+    // },
     {
       title: <FormattedMessage id="pages.common.actions" defaultMessage="Actions" />,
       dataIndex: 'option',
@@ -2056,6 +2073,33 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     );
   };
 
+  // 批量更新策略股票关系收盘前盈利卖出状态
+  const handleBatchUpdateProfitSellBeforeClose = async (enableProfitSellBeforeClose: string) => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要更新的记录');
+      return;
+    }
+
+    const hide = message.loading('批量更新中...');
+    
+    try {
+      const result = await batchUpdateStrategyStockProfitSellBeforeClose({ 
+        ids: selectedRowKeys as number[], 
+        enableProfitSellBeforeClose 
+      });
+      hide();
+      const displayText = PROFIT_SELL_BEFORE_CLOSE_ENUM[enableProfitSellBeforeClose as keyof typeof PROFIT_SELL_BEFORE_CLOSE_ENUM] || enableProfitSellBeforeClose;
+      message.success(`已成功更新 ${selectedRowKeys.length} 条记录为"${displayText}"`);
+      setSelectedRowKeys([]);
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error('批量更新失败');
+      return false;
+    }
+  };
+
   return (
     <>
       {renderFilterTag()}
@@ -2186,7 +2230,34 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             }
             disabled={selectedRowKeys.length === 0}
           >
-            批量状态
+            批量启用禁用
+          </Dropdown.Button>,
+          <Dropdown.Button
+            key="batch-profit-sell"
+            overlay={
+              <Menu
+                items={[
+                  {
+                    key: '1',
+                    label: '批量设为收盘前总盈利卖出',
+                    onClick: () => handleBatchUpdateProfitSellBeforeClose('PROFIT_SELL_BEFORE_CLOSE'),
+                  },
+                  {
+                    key: '2',
+                    label: '批量设为收盘前全部卖出',
+                    onClick: () => handleBatchUpdateProfitSellBeforeClose('ALL_SELL_BEFORE_CLOSE'),
+                  },
+                  {
+                    key: '3',
+                    label: '批量设为不卖出',
+                    onClick: () => handleBatchUpdateProfitSellBeforeClose('NO_SELL'),
+                  },
+                ]}
+              />
+            }
+            disabled={selectedRowKeys.length === 0}
+          >
+            批量收盘前卖出
           </Dropdown.Button>,
         ]}
         request={(params, sort, filter) => {
@@ -2547,15 +2618,22 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
               'ETF': 'ETF',
             }}
             placeholder="请选择市值规模"
+            rules={[{ required: true }]}
           />
         </div>
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
-          <ProFormSwitch
+          <ProFormSelect
             name="enableProfitSellBeforeClose"
-            label="是否收盘前盈利卖出"
-            tooltip="是否在收盘前执行盈利卖出策略，默认关闭"
-            initialValue={false}
+            label="收盘前盈利卖出"
+            tooltip="收盘前盈利卖出策略：收盘前总盈利卖出、收盘前全部卖出、不卖出"
+            valueEnum={{
+              'PROFIT_SELL_BEFORE_CLOSE': '收盘前总盈利卖出',
+              'ALL_SELL_BEFORE_CLOSE': '收盘前全部卖出',
+              'NO_SELL': '不卖出',
+            }}
+            initialValue="PROFIT_SELL_BEFORE_CLOSE"
+            rules={[{ required: true }]}
           />
         </div>
         
@@ -2938,15 +3016,22 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
               'ETF': 'ETF',
             }}
             placeholder="请选择市值规模"
+            rules={[{ required: true }]}
           />
         </div>
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
-          <ProFormSwitch
+          <ProFormSelect
             name="enableProfitSellBeforeClose"
-            label="是否收盘前盈利卖出"
-            tooltip="是否在收盘前执行盈利卖出策略，默认关闭"
-            initialValue={false}
+            label="收盘前盈利卖出"
+            tooltip="收盘前盈利卖出策略：收盘前总盈利卖出、收盘前全部卖出、不卖出"
+            valueEnum={{
+              'PROFIT_SELL_BEFORE_CLOSE': '收盘前总盈利卖出',
+              'ALL_SELL_BEFORE_CLOSE': '收盘前全部卖出',
+              'NO_SELL': '不卖出',
+            }}
+            initialValue="PROFIT_SELL_BEFORE_CLOSE"
+            rules={[{ required: true }]}
           />
         </div>
         

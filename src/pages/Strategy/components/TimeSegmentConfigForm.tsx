@@ -1,5 +1,5 @@
 import React from 'react';
-import { Form, Input, InputNumber, Button } from 'antd';
+import { Form, Input, InputNumber, Button, Row, Col } from 'antd';
 import { PlusOutlined, MinusCircleOutlined, ThunderboltOutlined } from '@ant-design/icons';
 
 interface TimeSegmentConfigFormProps {
@@ -66,92 +66,93 @@ const TimeSegmentConfigForm: React.FC<TimeSegmentConfigFormProps> = ({
             
             {timeSegmentFields.map((field) => (
               <div key={field.key} style={{ 
-                display: 'flex', 
-                alignItems: 'flex-end', 
-                gap: '16px', 
                 marginBottom: 16, 
                 padding: '12px', 
                 border: '1px solid #e8e8e8', 
                 borderRadius: '6px',
                 backgroundColor: '#fafafa'
               }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ marginBottom: 4, fontSize: '12px', color: '#666' }}>时段开始时间</div>
-                  <Form.Item 
-                    {...field} 
-                    name={[field.name, 'timeSegment']} 
-                    rules={[
-                      { required: true, message: '时段必填' },
-                      { 
-                        pattern: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
-                        message: '时间格式错误，请使用HH:mm格式（如09:30）'
-                      }
-                    ]}
-                    style={{ margin: 0 }}
-                  >
-                    <Input placeholder="09:30" />
-                  </Form.Item>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ marginBottom: 4, fontSize: '12px', color: '#666' }}>下方百分比</div>
-                  <Form.Item 
-                    {...field} 
-                    name={[field.name, 'maBelowPercent']} 
-                    rules={[{ required: true, message: '下方百分比必填' }]}
-                    style={{ margin: 0 }}
-                  >
-                    <InputNumber 
-                      min={-100} 
-                      max={100} 
-                      precision={2} 
-                      addonAfter="%" 
-                      placeholder="0.50" 
-                      style={{ width: '100%' }}
-                    />
-                  </Form.Item>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ marginBottom: 4, fontSize: '12px', color: '#666' }}>上方百分比</div>
-                  <Form.Item 
-                    {...field} 
-                    name={[field.name, 'maAbovePercent']} 
-                    rules={[{ required: true, message: '上方百分比必填' }]}
-                    style={{ margin: 0 }}
-                  >
-                    <InputNumber 
-                      min={-100} 
-                      max={100} 
-                      precision={2} 
-                      addonAfter="%" 
-                      placeholder="0.10" 
-                      style={{ width: '100%' }}
-                    />
-                  </Form.Item>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ marginBottom: 4, fontSize: '12px', color: '#666' }}>盈利点</div>
-                  <Form.Item 
-                    {...field} 
-                    name={[field.name, 'profitPercent']} 
-                    rules={[{ required: true, message: '盈利点必填' }]}
-                    style={{ margin: 0 }}
-                  >
-                    <InputNumber 
-                      min={-100} 
-                      max={100} 
-                      precision={2} 
-                      addonAfter="%" 
-                      placeholder="0.10" 
-                      style={{ width: '100%' }}
-                    />
-                  </Form.Item>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', height: '32px' }}>
-                  <MinusCircleOutlined 
-                    onClick={() => removeTimeSegment(field.name)}
-                    style={{ color: '#ff4d4f', fontSize: '16px', cursor: 'pointer' }}
-                  />
-                </div>
+                <Row gutter={16} align="bottom">
+                  <Col span={6}>
+                    <div style={{ marginBottom: 4, fontSize: '12px', color: '#666' }}>时段开始时间</div>
+                    <Form.Item 
+                      {...field} 
+                      name={[field.name, 'timeSegment']} 
+                      rules={[
+                        { required: true, message: '时段必填' },
+                        { 
+                          pattern: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
+                          message: '时间格式错误，请使用HH:mm格式（如09:30）'
+                        }
+                      ]}
+                      style={{ margin: 0 }}
+                    >
+                      <Input placeholder="09:30" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={5}>
+                    <div style={{ marginBottom: 4, fontSize: '12px', color: '#666' }}>下方百分比</div>
+                    <Form.Item 
+                      {...field} 
+                      name={[field.name, 'maBelowPercent']} 
+                      rules={[{ required: true, message: '下方百分比必填' }]}
+                      style={{ margin: 0 }}
+                    >
+                      <InputNumber 
+                        min={-100} 
+                        max={100} 
+                        precision={2} 
+                        addonAfter="%" 
+                        placeholder="0.50" 
+                        style={{ width: '100%' }}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={5}>
+                    <div style={{ marginBottom: 4, fontSize: '12px', color: '#666' }}>上方百分比</div>
+                    <Form.Item 
+                      {...field} 
+                      name={[field.name, 'maAbovePercent']} 
+                      rules={[{ required: true, message: '上方百分比必填' }]}
+                      style={{ margin: 0 }}
+                    >
+                      <InputNumber 
+                        min={-100} 
+                        max={100} 
+                        precision={2} 
+                        addonAfter="%" 
+                        placeholder="0.10" 
+                        style={{ width: '100%' }}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={5}>
+                    <div style={{ marginBottom: 4, fontSize: '12px', color: '#666' }}>盈利点</div>
+                    <Form.Item 
+                      {...field} 
+                      name={[field.name, 'profitPercent']} 
+                      rules={[{ required: true, message: '盈利点必填' }]}
+                      style={{ margin: 0 }}
+                    >
+                      <InputNumber 
+                        min={-100} 
+                        max={100} 
+                        precision={2} 
+                        addonAfter="%" 
+                        placeholder="0.10" 
+                        style={{ width: '100%' }}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={3}>
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '32px' }}>
+                      <MinusCircleOutlined 
+                        onClick={() => removeTimeSegment(field.name)}
+                        style={{ color: '#ff4d4f', fontSize: '16px', cursor: 'pointer' }}
+                      />
+                    </div>
+                  </Col>
+                </Row>
               </div>
             ))}
             

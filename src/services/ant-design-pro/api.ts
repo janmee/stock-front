@@ -1486,13 +1486,31 @@ export async function updateStrategyStockOpeningBuy(
 export async function updateStrategyStockProfitSellBeforeClose(
   params: {
     id: number;
-    enableProfitSellBeforeClose: boolean;
+    enableProfitSellBeforeClose: string;
   },
   options?: { [key: string]: any },
 ) {
   return request<API.ApiResponse>(`/api/strategy/stock/profit-sell-before-close/${params.id}`, {
     method: 'POST',
     data: {
+      enableProfitSellBeforeClose: params.enableProfitSellBeforeClose,
+    },
+    ...(options || {}),
+  });
+}
+
+/** 批量更新策略股票关系收盘前盈利卖出状态 POST /api/strategy/stock/batch-profit-sell-before-close */
+export async function batchUpdateStrategyStockProfitSellBeforeClose(
+  params: {
+    ids: number[];
+    enableProfitSellBeforeClose: string;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<API.ApiResponse>('/api/strategy/stock/batch-profit-sell-before-close', {
+    method: 'POST',
+    data: {
+      ids: params.ids,
       enableProfitSellBeforeClose: params.enableProfitSellBeforeClose,
     },
     ...(options || {}),
