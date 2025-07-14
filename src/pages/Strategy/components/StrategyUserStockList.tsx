@@ -1014,6 +1014,71 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     }
   };
 
+  // 批量设置买入单数（综合设置）
+  const handleBatchSetBuyOrder = async (values: any) => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要更新的记录');
+      return;
+    }
+
+    const hide = message.loading('批量设置买入单数中...');
+    
+    try {
+      const ids = selectedRowKeys.map(key => Number(key));
+      const updatePromises = [];
+
+      // 如果设置了未卖出堆栈值
+      if (values.unsoldStackLimit !== undefined && values.unsoldStackLimit !== null) {
+        updatePromises.push(
+          batchUpdateStrategyUserStockUnsoldStackLimit({
+            ids,
+            unsoldStackLimit: values.unsoldStackLimit,
+          })
+        );
+      }
+
+      // 如果设置了限制开始份数
+      if (values.limitStartShares !== undefined && values.limitStartShares !== null) {
+        updatePromises.push(
+          batchUpdateStrategyUserStockLimitStartShares({
+            ids,
+            limitStartShares: values.limitStartShares,
+          })
+        );
+      }
+
+      // 如果设置了最大持有买入单数
+      if (values.totalFundShares !== undefined && values.totalFundShares !== null) {
+        updatePromises.push(
+          batchUpdateStrategyUserStockTotalFundShares({
+            ids,
+            totalFundShares: values.totalFundShares,
+          })
+        );
+      }
+
+      if (updatePromises.length === 0) {
+        hide();
+        message.warning('请至少设置一个参数');
+        return false;
+      }
+
+      await Promise.all(updatePromises);
+      hide();
+      message.success(`已成功批量设置 ${selectedRowKeys.length} 条记录的买入单数配置`);
+      setSelectedRowKeys([]);
+      actionRef.current?.reload();
+      setBatchBuyOrderModalVisible(false);
+      batchBuyOrderForm.resetFields();
+      return true;
+    } catch (error) {
+      hide();
+      console.error('批量设置买入单数失败:', error);
+      message.error('批量设置买入单数失败');
+      return false;
+    }
+  };
+
   // 加载模版列表
   const loadTemplates = async () => {
     try {
@@ -2470,6 +2535,10 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     loadTimeSegmentTemplates(resetParams);
   };
 
+  // 批量设置买入单数相关状态
+  const [batchBuyOrderModalVisible, setBatchBuyOrderModalVisible] = useState<boolean>(false);
+  const [batchBuyOrderForm] = Form.useForm();
+
   return (
     <>
       {renderFilterTag()}
@@ -2874,6 +2943,17 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                         return;
                       }
                       setBatchTotalFundModalVisible(true);
+                    },
+                  },
+                  {
+                    key: '8',
+                    label: '批量设置买入单数',
+                    onClick: () => {
+                      if (selectedRowKeys.length === 0) {
+                        message.warning('请先选择要更新的记录');
+                        return;
+                      }
+                      setBatchBuyOrderModalVisible(true);
                     },
                   },
                 ]}
@@ -3824,8 +3904,11 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               <p><strong>说明：</strong></p>
               <p>• 时段开始时间：该时段配置的生效时间，格式为HH:mm</p>
               <p>• 下方百分比：股价低于分时平均线的百分比阈值</p>
-              <p>• 上方百分比：股价高于分时平均线的百分比阈值</p>
-              <p>• 盈利点：该时段的盈利目标百分比</p>
+              <p>• 上方百分比：股价高于分时平均线该百分比时买入，可为负数<br/>
+                • 盈利点：股价高于分时平均线该百分比时买入，可为负数<br/>
+                • 系统会自动检查时间段重复并按时间顺序排序<br/>
+                • 默认时间段：09:30(0.5%,0.1%,0.1%), 12:00(1.0%,-0.5%,-0.5%), 14:00(1.5%,-1.0%,-1.0%)
+              </p>
             </div>
           </div>
         </div>
@@ -5274,6 +5357,84 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           <strong>说明：</strong>选择一个时段配置档位后，将其配置应用到当前的时段配置中。注意：应用后，会覆盖原有用户股票的档位配置。
         </div>
       </Modal>
+      
+      {/* 批量设置买入单数Modal */}
+      <ModalForm
+        title="批量设置买入单数"
+        width="600px"
+        form={batchBuyOrderForm}
+        modalProps={{
+          destroyOnClose: true,
+        }}
+        open={batchBuyOrderModalVisible}
+        onOpenChange={(visible) => {
+          setBatchBuyOrderModalVisible(visible);
+          if (!visible) {
+            batchBuyOrderForm.resetFields();
+          }
+        }}
+        onFinish={handleBatchSetBuyOrder}
+        initialValues={{
+          unsoldStackLimit: 5,
+          limitStartShares: 9,
+          totalFundShares: 18,
+        }}
+      >
+        <div style={{ marginBottom: 16, padding: 12, backgroundColor: '#f6f6f6', borderRadius: 4 }}>
+          <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: 8 }}>
+            将批量设置 {selectedRowKeys.length} 个选中记录的买入单数配置
+          </div>
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            注意：只有填写的字段才会被更新，空白字段将保持原值不变
+          </div>
+        </div>
+
+        <ProFormDigit
+          name="unsoldStackLimit"
+          label="未卖出堆栈值"
+          placeholder="请输入未卖出堆栈值"
+          min={1}
+          precision={0}
+          fieldProps={{
+            style: { width: '100%' }
+          }}
+          extra="限制当天同一股票在同一策略下最多允许的未卖出买入订单数（必须为正数）"
+        />
+
+        <ProFormDigit
+          name="limitStartShares"
+          label="限制开始份数"
+          placeholder="请输入限制开始份数"
+          min={1}
+          precision={0}
+          fieldProps={{
+            style: { width: '100%' }
+          }}
+          extra="从第几份开始限制买入，默认为9（必须为正数）"
+        />
+
+        <ProFormDigit
+          name="totalFundShares"
+          label="最大持有买入单数"
+          placeholder="请输入最大持有买入单数"
+          min={1}
+          precision={0}
+          fieldProps={{
+            style: { width: '100%' }
+          }}
+          extra="资金分成多少份用于买入，默认18份（必须为正数）"
+        />
+
+        <div style={{ marginTop: 16, padding: 12, backgroundColor: '#fff7e6', borderRadius: 4, border: '1px solid #ffd591' }}>
+          <div style={{ fontSize: '12px', color: '#d48806' }}>
+            <strong>配置说明：</strong><br/>
+            • 未卖出堆栈值：控制同一股票未卖出的买入订单数量上限<br/>
+            • 限制开始份数：从第几份开始应用买入限制策略<br/>
+            • 最大持有买入单数：将资金分割成多少份进行分批买入<br/>
+            • 这些参数共同控制买入单数的分配和风险控制
+          </div>
+        </div>
+      </ModalForm>
     </>
   );
 });

@@ -2107,8 +2107,18 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       return;
     }
 
-    if (!strategyId) {
-      message.error('请先选择策略');
+    // 从选中的记录中获取策略ID
+    let effectiveStrategyId = strategyId;
+    if (!effectiveStrategyId && currentTableData.length > 0) {
+      // 如果props中没有strategyId，从选中的记录中获取
+      const firstSelectedRecord = currentTableData.find(item => selectedRowKeys.includes(item.id!));
+      if (firstSelectedRecord && firstSelectedRecord.strategyId) {
+        effectiveStrategyId = firstSelectedRecord.strategyId;
+      }
+    }
+
+    if (!effectiveStrategyId) {
+      message.error('无法获取策略ID，请确认已选择有效的股票记录');
       return;
     }
 
@@ -2131,7 +2141,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         try {
           const result = await batchImmediateBuyStrategyStock({
             ids: selectedRowKeys as number[],
-            strategyId: strategyId,
+            strategyId: effectiveStrategyId,
             forceExecute: true,
             buyReason: '批量立即买入',
           });
