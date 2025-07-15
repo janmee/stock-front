@@ -320,6 +320,13 @@ export default {
   'pages.account.form.accIdPlaceholder': 'Please enter fund account ID',
   'pages.account.form.accIdTooltip': 'Fund account ID is optional',
   
+  // moomoo related fields
+  'pages.account.isMoomoo': 'Is moomoo',
+  'pages.account.moomoo': 'moomoo',
+  'pages.account.futu': 'Futu',
+  'pages.account.form.moomooCheckedChildren': 'moomoo',
+  'pages.account.form.futuCheckedChildren': 'Futu',
+  
   // Sensitive information display control
   'pages.account.showSensitiveInfo': 'Show Sensitive Info',
   'pages.account.hideSensitiveInfo': 'Hide Sensitive Info',

@@ -161,6 +161,7 @@ declare namespace API {
     dailyMaxHoldingRatio?: number;  // 每天最大持有资金占比
     maxHoldingRatio?: number;  // 最大持有资金占比
     singleFundAmount?: number;  // 单次资金
+    isMoomoo?: boolean;  // 是否moomoo平台
   };
 
   interface PositionObj {

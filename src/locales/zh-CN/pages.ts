@@ -403,6 +403,13 @@ export default {
   'pages.account.form.accIdTooltip': '资金账户ID为可选字段',
   'pages.account.form.accIdRequired': '请输入资金账户ID',
   
+  // moomoo相关字段
+  'pages.account.isMoomoo': '是否moomoo',
+  'pages.account.moomoo': 'moomoo',
+  'pages.account.futu': '富途',
+  'pages.account.form.moomooCheckedChildren': 'moomoo',
+  'pages.account.form.futuCheckedChildren': '富途',
+  
   // 敏感信息显示控制
   'pages.account.showSensitiveInfo': '显示敏感信息',
   'pages.account.hideSensitiveInfo': '隐藏敏感信息',

@@ -620,6 +620,12 @@ const TableList: React.FC = () => {
             tooltip={intl.formatMessage({ id: 'pages.account.form.accIdTooltip' })}
             rules={[{ required: false }]}
           />
+          <ProFormSwitch
+            name="isMoomoo"
+            label={intl.formatMessage({ id: 'pages.account.isMoomoo', defaultMessage: '是否moomoo' })}
+            checkedChildren={intl.formatMessage({ id: 'pages.account.form.moomooCheckedChildren', defaultMessage: 'moomoo' })}
+            unCheckedChildren={intl.formatMessage({ id: 'pages.account.form.futuCheckedChildren', defaultMessage: '富途' })}
+          />
         </ProForm.Group>
       </ModalForm>
 
@@ -634,7 +640,8 @@ const TableList: React.FC = () => {
           host: '127.0.0.1',
           master: true,
           overPercent: 100,  // 默认最大使用资金占比为100%
-          initAmount: 0  // 默认初始资金为0
+          initAmount: 0,  // 默认初始资金为0
+          isMoomoo: false // 默认不是moomoo账户
         }}
         submitter={{
           searchConfig: {
@@ -737,6 +744,13 @@ const TableList: React.FC = () => {
             placeholder={intl.formatMessage({ id: 'pages.account.form.accIdPlaceholder' })}
             tooltip={intl.formatMessage({ id: 'pages.account.form.accIdTooltip' })}
             rules={[{ required: false }]}
+          />
+          <ProFormSwitch
+            name="isMoomoo"
+            label={intl.formatMessage({ id: 'pages.account.isMoomoo' })}
+            checkedChildren={intl.formatMessage({ id: 'pages.account.form.moomooCheckedChildren' })}
+            unCheckedChildren={intl.formatMessage({ id: 'pages.account.form.futuCheckedChildren' })}
+            initialValue={false}
           />
         </ProForm.Group>
       </ModalForm>
