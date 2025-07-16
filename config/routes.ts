@@ -191,6 +191,14 @@ export default [
     hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
   },
   {
+    name: 'list.jinshi-data',
+    icon: 'AlertOutlined',
+    path: '/jinshi-data',
+    component: './JinshiData',
+    access: 'canAdmin',
+    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
+  },
+  {
     name: 'earnings',
     path: '/Earnings',
     icon: 'LineChartOutlined',
