@@ -21,6 +21,9 @@ export interface FutuNewsDataItem {
   quoteInfo: string;
   createTime: string;
   updateTime: string;
+  hasStrategyConfig?: boolean; // 是否已配置策略标的
+  strategyEnabled?: boolean; // 策略是否已启动
+  currentChangePercent: string;
 }
 
 export interface FutuNewsDataQuery {
@@ -35,6 +38,8 @@ export interface FutuNewsDataQuery {
   hasStockInfo?: boolean;
   market?: string; // 市场筛选：US(美股)、HK(港股)、SH(A股)
   maxTime?: string;
+  sortKey?: string; // 排序字段：time、stockMarketCap、changeRatio、pmahChangeRatio
+  sortOrder?: 'ascend' | 'descend'; // 排序方向
 }
 
 export interface FutuNewsDataResponse {

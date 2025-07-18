@@ -19,6 +19,7 @@ import {
   DatePicker,
   Switch,
   Tabs,
+  Tooltip,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -31,6 +32,8 @@ import {
   DownOutlined,
   UpOutlined,
   ThunderboltOutlined,
+  PlusOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import { useIntl, FormattedMessage } from '@umijs/max';
 import { getJinshiDataList, refreshJinshiData, type JinshiDataItem } from '@/services/jinshiData';
@@ -38,6 +41,8 @@ import { getFutuNewsDataList, refreshFutuNewsData, type FutuNewsDataItem } from 
 import moment from 'moment';
 import dayjs from 'dayjs';
 import styles from './index.less';
+import StrategyConfigModal from '@/components/StrategyConfigModal';
+import { request } from '@umijs/max';
 
 const { Text, Paragraph, Title } = Typography;
 const { Option } = Select;
@@ -83,7 +88,13 @@ const JinshiData: React.FC = () => {
     stockCode: '',
     hasStockInfo: true, // 默认包含股票信息
     market: 'US', // 默认美股市场
+    sortKey: 'time', // 默认按快讯时间排序
+    sortOrder: 'descend' as 'ascend' | 'descend', // 默认降序
   });
+  
+  // 策略配置相关状态
+  const [strategyConfigVisible, setStrategyConfigVisible] = useState(false);
+  const [currentFutuNewsItem, setCurrentFutuNewsItem] = useState<FutuNewsDataItem | null>(null);
   
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadingRef = useRef<HTMLDivElement>(null);
@@ -302,10 +313,94 @@ const JinshiData: React.FC = () => {
     setFutuHasMore(!checked);
   };
 
+  // 富途快讯排序处理
+  const handleFutuSort = (field: string, order: 'ascend' | 'descend') => {
+    setFutuFilters(prev => ({ ...prev, sortKey: field, sortOrder: order }));
+    setFutuDataList([]);
+    setFutuCurrent(1);
+    setFutuHasMore(true);
+  };
+
   // 处理新闻链接点击
   const handleNewsClick = (link: string) => {
     if (link) {
       window.open(link, '_blank');
+    }
+  };
+
+  // 处理生成策略配置
+  const handleGenerateStrategy = (item: FutuNewsDataItem) => {
+    setCurrentFutuNewsItem(item);
+    setStrategyConfigVisible(true);
+  };
+
+  // 处理策略启动/停止控制
+  const handleStrategyControl = async (stockCode: string, enabled: boolean) => {
+    try {
+      const response = await request(`/api/stock-minute-alert/strategy-control/${stockCode}/${enabled}`, {
+        method: 'POST',
+      });
+
+      if (response.success) {
+        message.success(response.data || `策略${enabled ? '启用' : '禁用'}成功`);
+        // 刷新数据
+        if (activeTab === 'futu') {
+          fetchFutuData(futuCurrent, true);
+        }
+      } else {
+        message.error(response.errorMessage || `策略${enabled ? '启用' : '禁用'}失败`);
+      }
+    } catch (error) {
+      message.error(`策略${enabled ? '启用' : '禁用'}失败`);
+    }
+  };
+
+  // 处理跳转到策略配置
+  const handleJumpToStrategyConfig = async (stockCode: string) => {
+    try {
+      // 根据股票代码查找策略配置
+      const response = await request('/api/strategy/stock/page', {
+        method: 'GET',
+        params: {
+          current: 1,
+          pageSize: 10,
+          stockCode: stockCode,
+          status: '1', // 只查找启用的策略
+        },
+      });
+
+      if (response.success && response.data && response.data.length > 0) {
+        const strategyStock = response.data[0]; // 取第一个匹配的策略配置
+        const strategyId = strategyStock.strategyId;
+        
+        // 构建跳转URL，包含必要的参数
+        const params = new URLSearchParams({
+          tab: '2', // 策略标的tab
+          strategyId: strategyId.toString(),
+          editStockCode: stockCode,
+        });
+        
+        // 在新窗口中打开策略管理页面
+        const url = `/strategy?${params.toString()}`;
+        window.open(url, '_blank');
+        
+        message.success(`正在打开策略配置页面，股票：${stockCode}`);
+      } else {
+        message.error(`未找到股票 ${stockCode} 的策略配置`);
+      }
+    } catch (error) {
+      console.error('获取策略配置失败:', error);
+      message.error('获取策略配置失败');
+    }
+  };
+
+  // 策略配置成功后的回调
+  const handleStrategyConfigSuccess = () => {
+    message.success('策略配置创建成功！');
+    setStrategyConfigVisible(false);
+    // 刷新数据以更新策略配置状态
+    if (activeTab === 'futu') {
+      fetchFutuData(futuCurrent, true);
     }
   };
 
@@ -430,6 +525,29 @@ const JinshiData: React.FC = () => {
     }
   };
 
+  // 检查是否可以生成策略配置
+  const canGenerateStrategy = (item: FutuNewsDataItem) => {
+    return item.market === 'US' && item.stockCode && item.stockCode.trim() !== '';
+  };
+
+  // 解析市值信息
+  const parseMarketCap = (marketCapStr: string): number | undefined => {
+    if (!marketCapStr) return undefined;
+    try {
+      // 尝试解析市值字符串，例如 "123.45B" -> 1234.5
+      const numericPart = parseFloat(marketCapStr.replace(/[^0-9.]/g, ''));
+      if (marketCapStr.includes('B')) {
+        return numericPart * 10; // 转换为亿美元
+      } else if (marketCapStr.includes('M')) {
+        return numericPart / 100; // 转换为亿美元
+      }
+      return numericPart;
+    } catch (error) {
+      console.error('解析市值失败:', marketCapStr, error);
+      return undefined;
+    }
+  };
+
   // 渲染金时数据列表
   const renderJinshiDataList = () => {
     if (jinshiDataList.length === 0 && !jinshiLoading) {
@@ -549,14 +667,18 @@ const JinshiData: React.FC = () => {
       return <Empty description={<FormattedMessage id="pages.futuNewsData.empty" defaultMessage="暂无数据" />} />;
     }
 
+    // 应用排序
+    const sortedData = futuDataList; // 排序逻辑移至后端
+
     return (
       <List
-        dataSource={futuDataList}
+        dataSource={sortedData}
         renderItem={(item: FutuNewsDataItem) => {
           const itemId = `${item.id}_${item.time}`;
           const isExpanded = futuExpandedItems.has(itemId);
           const cleanContent = item.content ? item.content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ') : '';
           const shouldShowToggle = cleanContent.length > 200;
+          const canGenerate = canGenerateStrategy(item);
           
           return (
             <List.Item 
@@ -584,6 +706,7 @@ const JinshiData: React.FC = () => {
                         <FormattedMessage id="pages.futuNewsData.hasLink" defaultMessage="链接" />
                       </Tag>
                     )}
+                    
                   </Space>
                 </div>
 
@@ -620,77 +743,124 @@ const JinshiData: React.FC = () => {
 
                 {/* 股票信息 */}
                 {item.stockCode && (
-                  <div style={{ marginTop: 8 }}>
+                  <div style={{ marginTop: 8 }} onClick={(e) => {
+                    e.stopPropagation(); // 阻止事件冒泡
+                    // 根据股票代码构建富途URL
+                    let stockUrl = '';
+                    if (item.stockCode && item.market) {
+                      // 富途股票URL格式：https://www.futunn.com/stock/股票代码+市场
+                      stockUrl = `https://www.futunn.com/stock/${item.stockCode}-${item.market}`;
+                    }
+                    if (stockUrl) {
+                      window.open(stockUrl, '_blank');
+                    }
+                  }}>
                     <Space wrap>
-                      <Tag color="blue" onClick={(e) => {
-                          e.stopPropagation(); // 阻止事件冒泡
-                          // 根据股票代码构建富途URL
-                          let stockUrl = '';
-                          if (item.stockCode && item.market) {
-                            // 富途股票URL格式：https://www.futunn.com/stock/股票代码+市场
-                            stockUrl = `https://www.futunn.com/stock/${item.stockCode}-${item.market}`;
-                          }
-                          if (stockUrl) {
-                            window.open(stockUrl, '_blank');
-                          }
-                        }}>{item.stockName || item.stockCode}</Tag>
+                      <Tag color="blue">{item.stockName || item.stockCode}</Tag>
                       {/* 股票代码链接 */}
                       <Tag 
                         color="green" 
                         icon={<ThunderboltOutlined />}
                         style={{ cursor: 'pointer' }}
-                        onClick={(e) => {
-                          e.stopPropagation(); // 阻止事件冒泡
-                          // 根据股票代码构建富途URL
-                          let stockUrl = '';
-                          if (item.stockCode && item.market) {
-                            // 富途股票URL格式：https://www.futunn.com/stock/股票代码+市场
-                            stockUrl = `https://www.futunn.com/stock/${item.stockCode}-${item.market}`;
-                          }
-                          if (stockUrl) {
-                            window.open(stockUrl, '_blank');
-                          }
-                        }}
                       >
                         {item.stockCode}
                       </Tag>
-                      {item.price && <Tag color="default"
-                      >价格: {item.price}</Tag>}
+                      {item.price && <Tag color="default">快讯时价格: {item.price}</Tag>}
                       {item.changeRatio && (
-                        <Tag color={item.changeRatio.startsWith('-') ? 'green' : 'red'}onClick={(e) => {
-                          e.stopPropagation(); // 阻止事件冒泡
-                          // 根据股票代码构建富途URL
-                          let stockUrl = '';
-                          if (item.stockCode && item.market) {
-                            // 富途股票URL格式：https://www.futunn.com/stock/股票代码+市场
-                            stockUrl = `https://www.futunn.com/stock/${item.stockCode}-${item.market}`;
-                          }
-                          if (stockUrl) {
-                            window.open(stockUrl, '_blank');
-                          }
-                        }}>
-                          涨跌幅: {item.changeRatio}
+                        <Tag color={item.changeRatio.startsWith('-') ? 'green' : 'red'}>
+                          快讯时涨跌幅: {item.changeRatio}
                         </Tag>
                       )}
-                      {item.pmahPrice && <Tag color="default">盘前: {item.pmahPrice}</Tag>}
                       {item.pmahChangeRatio && (
-                        <Tag color={item.pmahChangeRatio.startsWith('-') ? 'green' : 'red'}
-                        onClick={(e) => {
-                          e.stopPropagation(); // 阻止事件冒泡
-                          // 根据股票代码构建富途URL
-                          let stockUrl = '';
-                          if (item.stockCode && item.market) {
-                            // 富途股票URL格式：https://www.futunn.com/stock/股票代码+市场
-                            stockUrl = `https://www.futunn.com/stock/${item.stockCode}-${item.market}`;
-                          }
-                          if (stockUrl) {
-                            window.open(stockUrl, '_blank');
-                          }
-                        }}>
-                          盘前涨跌幅: {item.pmahChangeRatio}
+                        <Tag color={item.pmahChangeRatio.startsWith('-') ? 'green' : 'red'}>
+                          快讯时盘前盘后涨跌幅: {item.pmahChangeRatio}
                         </Tag>
                       )}
-                      
+                      {item.currentChangePercent && (
+                        <Tag color={String(item.currentChangePercent).startsWith('-') ? 'green' : 'red'}>
+                          当前涨跌幅: {Number(item.currentChangePercent).toFixed(2)}%
+                        </Tag>
+                      )}
+                      {item.stockMarketCap && (
+                        <Tag color="purple">
+                          市值: {item.stockMarketCap}亿美元
+                        </Tag>
+                      )}
+                      {/* 策略配置按钮 */}
+                      {canGenerate && (
+                        <>
+                          {!item.hasStrategyConfig ? (
+                            <Tooltip title="生成策略配置">
+                              <Button
+                                type="primary"
+                                size="small"
+                                icon={<PlusOutlined />}
+                                onClick={(e) => {
+                                  e.stopPropagation(); // 阻止事件冒泡
+                                  handleGenerateStrategy(item);
+                                }}
+                                style={{ marginLeft: 8 }}
+                              >
+                                策略配置
+                              </Button>
+                            </Tooltip>
+                          ) : (
+                            <Space style={{ marginLeft: 8 }}>
+                              {item.strategyEnabled ? (
+                                <Tooltip title="停止策略">
+                                  <Button
+                                    type="primary"
+                                    danger
+                                    size="small"
+                                    icon={<ThunderboltOutlined />}
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // 阻止事件冒泡
+                                      handleStrategyControl(item.stockCode, false);
+                                    }}
+                                  >
+                                    停止策略
+                                  </Button>
+                                </Tooltip>
+                              ) : (
+                                <Tooltip title="启动策略">
+                                  <Button
+                                    type="primary"
+                                    size="small"
+                                    icon={<ThunderboltOutlined />}
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // 阻止事件冒泡
+                                      handleStrategyControl(item.stockCode, true);
+                                    }}
+                                  >
+                                    启动
+                                  </Button>
+                                </Tooltip>
+                              )}
+                              <Tooltip title="跳转策略配置">
+                                <Button
+                                  size="small"
+                                  icon={<SettingOutlined />}
+                                  onClick={(e) => {
+                                    e.stopPropagation(); // 阻止事件冒泡
+                                    handleJumpToStrategyConfig(item.stockCode);
+                                  }}
+                                >
+                                  配置
+                                </Button>
+                              </Tooltip>
+                              <Tooltip title="已配置策略">
+                                <Button
+                                  size="small"
+                                  disabled
+                                  icon={<PlusOutlined />}
+                                >
+                                  已配置
+                                </Button>
+                              </Tooltip>
+                            </Space>
+                          )}
+                        </>
+                      )}
                     </Space>
                   </div>
                 )}
@@ -751,17 +921,6 @@ const JinshiData: React.FC = () => {
           <Option value={0}>{intl.formatMessage({ id: 'pages.jinshiData.important.normal', defaultMessage: '一般' })}</Option>
           <Option value={1}>{intl.formatMessage({ id: 'pages.jinshiData.important.high', defaultMessage: '重要' })}</Option>
         </Select>
-      </Col>
-      <Col xs={24} sm={12} md={6}>
-        <Space>
-          <UnorderedListOutlined />
-          <Switch
-            checked={jinshiShowAll}
-            onChange={handleJinshiShowAllChange}
-            checkedChildren={intl.formatMessage({ id: 'pages.jinshiData.showAll', defaultMessage: '显示全部' })}
-            unCheckedChildren={intl.formatMessage({ id: 'pages.jinshiData.pagination', defaultMessage: '分页显示' })}
-          />
-        </Space>
       </Col>
     </Row>
   );
@@ -842,16 +1001,43 @@ const JinshiData: React.FC = () => {
           <Option value={false}>{intl.formatMessage({ id: 'pages.futuNewsData.noStockInfo', defaultMessage: '不包含股票' })}</Option>
         </Select>
       </Col>
-      <Col xs={24} sm={12} md={6}>
-        <Space>
-          <UnorderedListOutlined />
-          <Switch
-            checked={futuShowAll}
-            onChange={handleFutuShowAllChange}
-            checkedChildren={intl.formatMessage({ id: 'pages.futuNewsData.showAll', defaultMessage: '显示全部' })}
-            unCheckedChildren={intl.formatMessage({ id: 'pages.futuNewsData.pagination', defaultMessage: '分页显示' })}
-          />
-        </Space>
+      <Col xs={12} sm={6} md={3}>
+        <Select
+          placeholder="排序字段"
+          allowClear
+          style={{ width: '100%' }}
+          value={futuFilters.sortKey || undefined}
+          onChange={(value) => {
+            if (value) {
+              handleFutuSort(value, futuFilters.sortOrder);
+            } else {
+              setFutuFilters(prev => ({ ...prev, sortKey: 'time' }));
+            }
+          }}
+        >
+          <Option value="time">快讯时间</Option>
+          <Option value="stockMarketCap">市值</Option>
+          <Option value="changeRatio">快讯时涨跌幅</Option>
+          <Option value="pmahChangeRatio">快讯时盘前涨跌幅</Option>
+        </Select>
+      </Col>
+      <Col xs={12} sm={6} md={3}>
+        <Select
+          placeholder="排序方向"
+          style={{ width: '100%' }}
+          value={futuFilters.sortOrder}
+          onChange={(value) => {
+            if (futuFilters.sortKey) {
+              handleFutuSort(futuFilters.sortKey, value);
+            } else {
+              setFutuFilters(prev => ({ ...prev, sortOrder: value }));
+            }
+          }}
+          disabled={!futuFilters.sortKey}
+        >
+          <Option value="descend">降序</Option>
+          <Option value="ascend">升序</Option>
+        </Select>
       </Col>
     </Row>
   );
@@ -1051,6 +1237,16 @@ const JinshiData: React.FC = () => {
           </TabPane>
         </Tabs>
       </Card>
+
+      {/* 策略配置弹窗 */}
+      <StrategyConfigModal
+        open={strategyConfigVisible}
+        onOpenChange={setStrategyConfigVisible}
+        stockCode={currentFutuNewsItem?.stockCode || ''}
+        stockName={currentFutuNewsItem?.stockName}
+        marketCap={parseMarketCap(currentFutuNewsItem?.stockMarketCap || '')}
+        onSuccess={handleStrategyConfigSuccess}
+      />
     </div>
   );
 };

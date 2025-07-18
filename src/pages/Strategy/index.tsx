@@ -64,11 +64,38 @@ const StrategyPage: React.FC = () => {
     }
     
     if (strategyId) {
-      setSelectedStrategyId(parseInt(strategyId));
+      const strategyIdNum = parseInt(strategyId);
+      setSelectedStrategyId(strategyIdNum);
+      
+      // 获取策略名称
+      const fetchStrategyName = async () => {
+        try {
+          const strategyRes = await import('@/services/ant-design-pro/api').then(api => 
+            api.listStrategyJob({
+              current: 1,
+              pageSize: 100,
+            })
+          );
+          
+          if (strategyRes && strategyRes.data) {
+            const strategy = strategyRes.data.find((item: any) => item.id === strategyIdNum);
+            if (strategy) {
+              setSelectedStrategyName(strategy.name || `策略${strategyIdNum}`);
+            }
+          }
+        } catch (error) {
+          console.error('获取策略名称失败:', error);
+          setSelectedStrategyName(`策略${strategyIdNum}`);
+        }
+      };
+      
+      fetchStrategyName();
     }
     
     if (stockCode) {
       setEditStockCode(stockCode);
+      // 如果有股票代码参数，自动设置为需要打开时段配置对话框
+      setOpenTimeSegmentConfig(true);
     }
   }, [location.search]);
   
