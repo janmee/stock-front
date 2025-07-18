@@ -5,6 +5,7 @@ import { default as pages } from './zh-CN/pages';
 import { default as pwa } from './zh-CN/pwa';
 import { default as settingDrawer } from './zh-CN/settingDrawer';
 import { default as settings } from './zh-CN/settings';
+import { default as dashboard } from './zh-CN/dashboard';
 
 export default {
   'navBar.lang': '语言',
@@ -23,6 +24,7 @@ export default {
   ...pwa,
   ...component,
   ...pages,
+  ...dashboard,
 
   // Error messages
   'component.message.fetchAccountListFailed': '获取账户列表失败',

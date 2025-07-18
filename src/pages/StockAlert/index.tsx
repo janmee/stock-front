@@ -559,10 +559,10 @@ const StockAlert: React.FC = () => {
   // 表格列定义
   const columns = [
     {
-      title: <FormattedMessage id="pages.stockAlert.stockCode" defaultMessage="股票代码" />,
+      title: <FormattedMessage id="pages.stockAlert.stockCode" defaultMessage="股票" />,
       dataIndex: 'stockCode',
       key: 'stockCode',
-      width: 100,
+      width: 80,
       render: (text: string) => (
         <Tag 
           color="blue" 
@@ -577,7 +577,7 @@ const StockAlert: React.FC = () => {
       title: <FormattedMessage id="pages.stockAlert.marketCap" defaultMessage="市值" />,
       dataIndex: 'marketCap',
       key: 'marketCap',
-      width: 120,
+      width: 80,
       render: (marketCap: number) => marketCap ? `${marketCap.toLocaleString()}亿` : '-',
       sorter: (a: StockMinuteAlert, b: StockMinuteAlert) => a.marketCap! - b.marketCap!,
     },
@@ -585,7 +585,7 @@ const StockAlert: React.FC = () => {
       title: <FormattedMessage id="pages.stockAlert.triggerChange" defaultMessage="触发时涨跌幅" />,
       dataIndex: 'triggerChangePercent',
       key: 'triggerChangePercent',
-      width: 120,
+      width: 100,
       render: (percent: number) => {
         const color = percent >= 0 ? '#ff4d4f' : '#52c41a';
         return <span style={{ color }}>{percent?.toFixed(2)}%</span>;
@@ -674,7 +674,7 @@ const StockAlert: React.FC = () => {
       title: <FormattedMessage id="pages.stockAlert.triggerCondition" defaultMessage="触发条件" />,
       dataIndex: 'triggerCondition',
       key: 'triggerCondition',
-      width: 250,
+      width: 200,
       render: (text: string) => {
         if (!text) return '-';
         

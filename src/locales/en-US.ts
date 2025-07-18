@@ -5,6 +5,7 @@ import { default as globalHeader } from './en-US/globalHeader';
 import { default as settingDrawer } from './en-US/settingDrawer';
 import { default as settings } from './en-US/settings';
 import { default as pwa } from './en-US/pwa';
+import { default as dashboard } from './en-US/dashboard';
 
 export default {
   'navBar.lang': 'Languages',
@@ -23,6 +24,7 @@ export default {
   ...pwa,
   ...component,
   ...pages,
+  ...dashboard,
   
   // Error messages
   'component.message.fetchAccountListFailed': 'Failed to fetch account list',
