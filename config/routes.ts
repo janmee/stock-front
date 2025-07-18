@@ -199,6 +199,14 @@ export default [
     hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
   },
   {
+    name: 'list.stock-alert',
+    icon: 'ExclamationCircleOutlined',
+    path: '/stock-alert',
+    component: './StockAlert',
+    access: 'canAdmin',
+    hideInMenu: ({ initialState }: any) => initialState?.currentUser?.access === 'guest',
+  },
+  {
     name: 'earnings',
     path: '/Earnings',
     icon: 'LineChartOutlined',

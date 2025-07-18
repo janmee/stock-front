@@ -321,7 +321,7 @@ declare namespace API {
     totalFundShares?: number;
     limitStartShares?: number;
     profitRatio?: number;
-    enableOpeningBuy?: boolean;
+    enableOpeningBuy?: number; // 修改为number类型，支持-1, 0, 1
     status?: string;
   };
 

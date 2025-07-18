@@ -61,7 +61,7 @@ const AccountFundAllocation: React.FC = () => {
       defaultSortOrder: 'descend',
       render: (_, record) => {
         const amount = record.totalAmount || 0;
-        return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
       },
     },
     
@@ -83,7 +83,7 @@ const AccountFundAllocation: React.FC = () => {
         const color = ratio > 20 ? '#ff4d4f' : ratio > 10 ? '#faad14' : '#52c41a';
         return (
           <div>
-            <div>${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div>${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
             <div style={{ color, fontSize: '12px' }}>({ratio.toFixed(2)}%)</div>
           </div>
         );
@@ -106,7 +106,7 @@ const AccountFundAllocation: React.FC = () => {
         const color = ratio > 80 ? '#ff4d4f' : ratio > 60 ? '#faad14' : '#52c41a';
         return (
           <div>
-            <div>${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div>${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
             <div style={{ color, fontSize: '12px' }}>({ratio.toFixed(2)}%)</div>
           </div>
         );
@@ -129,7 +129,7 @@ const AccountFundAllocation: React.FC = () => {
         const color = ratio > 90 ? '#ff4d4f' : ratio > 70 ? '#faad14' : '#52c41a';
         return (
           <div>
-            <div>${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div>${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
             <div style={{ color, fontSize: '12px' }}>({ratio.toFixed(2)}%)</div>
           </div>
         );

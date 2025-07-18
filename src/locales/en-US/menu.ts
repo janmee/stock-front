@@ -37,6 +37,7 @@ export default {
   'menu.list.strategy': 'Strategy Management',
   'menu.list.logs-management': 'Logs Management',
   'menu.list.jinshi-data': 'Flash News',
+  'menu.list.stock-alert': 'Stock Alert',
   'menu.strategyRegression': 'Strategy Regression',
   'menu.list.stock-chart': 'Stock Time Chart',
   'menu.list.backtest': 'Strategy Backtest',

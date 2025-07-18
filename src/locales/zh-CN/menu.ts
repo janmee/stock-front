@@ -35,6 +35,7 @@ export default {
   'menu.list.run-logs': '运行日志',
   'menu.list.logs-management': '日志管理',
   'menu.list.jinshi-data': '金时数据',
+  'menu.list.stock-alert': '股票异动',
   'menu.list.basic-list': '标准列表',
   'menu.list.card-list': '卡片列表',
   'menu.list.search-list': '搜索列表',

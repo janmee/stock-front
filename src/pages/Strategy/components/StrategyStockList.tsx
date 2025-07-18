@@ -2413,9 +2413,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
               // 处理返回的数据，确保字段有默认值
               const processedData = response.data.map(item => ({
                 ...item,
-                unsoldStackLimit: item.unsoldStackLimit ?? 4,
-                totalFundShares: item.totalFundShares ?? 18,
-                limitStartShares: item.limitStartShares ?? 9,
+                unsoldStackLimit: item.unsoldStackLimit ?? 2,
+                totalFundShares: item.totalFundShares ?? 10,
+                limitStartShares: item.limitStartShares ?? 5,
                 // 百分比字段保持原样，显示时在render函数中处理
               }));
               
@@ -2623,9 +2623,31 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             step: 1,
             precision: 0,
           }}
-          initialValue={4}
+          initialValue={2}
           rules={[{ required: true }]}
         />
+        </div>
+
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
+          <ProFormDigit
+            name="limitStartShares"
+            label={
+              <span>
+                <FormattedMessage id="pages.strategy.stock.relation.limitStartShares" defaultMessage="Limit Start Shares" />
+                <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.limitStartSharesTip" defaultMessage="From which share to start limiting buying, default 9" />}>
+                  <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+                </Tooltip>
+              </span>
+            }
+            min={1}
+            max={100}
+            fieldProps={{
+              step: 1,
+              precision: 0,
+            }}
+            initialValue={5}
+            rules={[{ required: true }]}
+          />
         </div>
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
@@ -2645,34 +2667,13 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
               step: 1,
               precision: 0,
             }}
-            initialValue={20}
+            initialValue={10}
             rules={[{ required: true }]}
           />
         </div>
         
-        <div style={{ width: 'calc(33.33% - 8px)' }}>
-          <ProFormDigit
-            name="limitStartShares"
-            label={
-              <span>
-                <FormattedMessage id="pages.strategy.stock.relation.limitStartShares" defaultMessage="Limit Start Shares" />
-                <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.limitStartSharesTip" defaultMessage="From which share to start limiting buying, default 9" />}>
-                  <QuestionCircleOutlined style={{ marginLeft: 4 }} />
-                </Tooltip>
-              </span>
-            }
-            min={1}
-            max={100}
-            fieldProps={{
-              step: 1,
-              precision: 0,
-            }}
-            initialValue={9}
-            rules={[{ required: true }]}
-          />
-        </div>
 
-        <div style={{ width: 'calc(33.33% - 8px)' }}>
+        {/* <div style={{ width: 'calc(33.33% - 8px)' }}>
         <ProFormDigit
           name="intraUpPullbackPercent"
           label="日内持续上涨并高位回调百分比(%)"
@@ -2736,7 +2737,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           }}
           initialValue={30}
         />
-        </div>
+        </div> */}
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
           <ProFormSwitch
@@ -3039,27 +3040,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         />
         </div>
         
-        <div style={{ width: 'calc(33.33% - 8px)' }}>
-          <ProFormDigit
-            name="totalFundShares"
-            label={
-              <span>
-                <FormattedMessage id="pages.strategy.stock.relation.totalFundShares" defaultMessage="Total Fund Shares" />
-                <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.totalFundSharesTip" defaultMessage="The total number of shares the fund is divided into for buying, default 18" />}>
-                  <QuestionCircleOutlined style={{ marginLeft: 4 }} />
-                </Tooltip>
-              </span>
-            }
-            min={1}
-            max={100}
-            fieldProps={{
-              step: 1,
-              precision: 0,
-            }}
-            initialValue={20}
-            rules={[{ required: true }]}
-          />
-        </div>
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
           <ProFormDigit
@@ -3083,6 +3063,28 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           />
         </div>
 
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
+          <ProFormDigit
+            name="totalFundShares"
+            label={
+              <span>
+                <FormattedMessage id="pages.strategy.stock.relation.totalFundShares" defaultMessage="Total Fund Shares" />
+                <Tooltip title={<FormattedMessage id="pages.strategy.stock.relation.totalFundSharesTip" defaultMessage="The total number of shares the fund is divided into for buying, default 18" />}>
+                  <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+                </Tooltip>
+              </span>
+            }
+            min={1}
+            max={100}
+            fieldProps={{
+              step: 1,
+              precision: 0,
+            }}
+            initialValue={20}
+            rules={[{ required: true }]}
+          />
+        </div>
+{/* 
         <div style={{ width: 'calc(33.33% - 8px)' }}>
         <ProFormDigit
           name="intraUpPullbackPercent"
@@ -3143,7 +3145,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           }}
           initialValue={30}
         />
-        </div>
+        </div> */}
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
           <ProFormSwitch

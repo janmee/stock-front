@@ -1570,7 +1570,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       dataIndex: 'maxAmount',
       valueType: 'money',
       hideInSearch: true,
-      render: (_, record) => record.maxAmount ? `$${record.maxAmount.toLocaleString()}` : '-',
+      render: (_, record) => record.maxAmount ? `$${record.maxAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '-',
     },
     {
       title: (
@@ -1676,7 +1676,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           percentageText = ` (${percentage.toFixed(2)}%)`;
         }
         
-        return `$${singleAmount.toLocaleString()}${percentageText}`;
+        return `$${singleAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}${percentageText}`;
       },
     },
     {
@@ -1708,7 +1708,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           percentageText = ` (${percentage.toFixed(2)}%)`;
         }
         
-        return `$${dailyMaxHolding.toLocaleString()}${percentageText}`;
+        return `$${dailyMaxHolding.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}${percentageText}`;
       },
     },
     {
@@ -1740,7 +1740,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           percentageText = ` (${percentage.toFixed(2)}%)`;
         }
         
-        return `$${maxHolding.toLocaleString()}${percentageText}`;
+        return `$${maxHolding.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}${percentageText}`;
       },
     },
     {
@@ -3621,7 +3621,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               tooltip="限制当天同一股票在同一策略下最多允许的未卖出买入订单数"
               min={1}
               max={20}
-              initialValue={4}
+              initialValue={2}
               fieldProps={{
                 precision: 0,
               }}
@@ -3636,7 +3636,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               tooltip="从第几份开始限制买入，默认为9"
               min={1}
               max={100}
-              initialValue={9}
+              initialValue={5}
               fieldProps={{
                 precision: 0,
               }}
@@ -3651,7 +3651,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               tooltip="最大持有买入单数"
               min={1}
               max={100}
-              initialValue={18}
+              initialValue={10}
               fieldProps={{
                 precision: 0,
               }}
@@ -4392,13 +4392,13 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                   }}>
                     <div><strong>{account.account}</strong> ({account.name})</div>
                     <div style={{ fontSize: '12px', color: '#666' }}>
-                      总资金: ${account.totalAmount?.toFixed(2) || 0}
+                      总资金: ${account.totalAmount ? account.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : 0}
                     </div>
                     <div style={{ fontSize: '12px', color: '#666' }}>
-                      可用资金: ${account.availableAmount?.toFixed(2) || 0}
+                      可用资金: ${account.availableAmount ? account.availableAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : 0}
                     </div>
                     <div style={{ fontSize: '12px', color: '#666' }}>
-                      证券市值: ${account.marketVal?.toFixed(2) || 0}
+                      证券市值: ${account.marketVal ? account.marketVal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : 0}
                     </div>
                   </div>
                 ))}
