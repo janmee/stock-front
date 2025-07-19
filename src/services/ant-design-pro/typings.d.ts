@@ -269,6 +269,9 @@ declare namespace API {
     marketCapScale?: string; // 市值规模：小盘股、中盘股、大盘股、ETF
     enableProfitSellBeforeClose?: string; // 收盘前盈利卖出策略：PROFIT_SELL_BEFORE_CLOSE、ALL_SELL_BEFORE_CLOSE、NO_SELL
     enableYesterdayLowestBuy?: boolean; // 是否昨天最低价买入
+    buyPriceGraduallyDecreasing?: boolean; // 买入价逐次降低
+    buyPriceDecreasePercent?: number; // 买入价降低幅度
+    immediateBuyAtDecreasedPrice?: boolean; // 降低价立即购买
   };
 
   type StrategyStockList = {

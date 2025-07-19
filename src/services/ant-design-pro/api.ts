@@ -485,6 +485,9 @@ export async function createStrategyStock(body: API.StrategyStockItem, options?:
     marketCapScale: body.marketCapScale,
     enableProfitSellBeforeClose: body.enableProfitSellBeforeClose,
     enableYesterdayLowestBuy: body.enableYesterdayLowestBuy,
+    buyPriceGraduallyDecreasing: body.buyPriceGraduallyDecreasing,
+    buyPriceDecreasePercent: body.buyPriceDecreasePercent,
+    immediateBuyAtDecreasedPrice: body.immediateBuyAtDecreasedPrice,
     status: body.status
   };
   
@@ -523,6 +526,9 @@ export async function updateStrategyStock(body: API.StrategyStockItem, options?:
     marketCapScale: body.marketCapScale,
     enableProfitSellBeforeClose: body.enableProfitSellBeforeClose,
     enableYesterdayLowestBuy: body.enableYesterdayLowestBuy,
+    buyPriceGraduallyDecreasing: body.buyPriceGraduallyDecreasing,
+    buyPriceDecreasePercent: body.buyPriceDecreasePercent,
+    immediateBuyAtDecreasedPrice: body.immediateBuyAtDecreasedPrice,
     status: body.status
   };
   

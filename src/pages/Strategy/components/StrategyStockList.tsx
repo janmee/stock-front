@@ -16,7 +16,7 @@ import {
   ProFormTimePicker,
   ProFormDependency,
 } from '@ant-design/pro-components';
-import { PlusOutlined, DownOutlined, UpOutlined, SettingOutlined, ThunderboltOutlined, ExclamationCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, MinusCircleOutlined, EditOutlined, DeleteOutlined, CopyOutlined, SyncOutlined, FilterOutlined, EyeOutlined, EyeInvisibleOutlined, ClockCircleOutlined, InfoCircleOutlined, QuestionCircleOutlined, SearchOutlined, ReloadOutlined, DollarOutlined } from '@ant-design/icons';
+import { PlusOutlined, DownOutlined, UpOutlined, SettingOutlined, ThunderboltOutlined, ExclamationCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, MinusCircleOutlined, EditOutlined, DeleteOutlined, CopyOutlined, SyncOutlined, FilterOutlined, EyeOutlined, EyeInvisibleOutlined, ClockCircleOutlined, InfoCircleOutlined, QuestionCircleOutlined, SearchOutlined, ReloadOutlined, DollarOutlined, SwapOutlined } from '@ant-design/icons';
 import { getConfigTemplateList, saveConfigTemplate, deleteConfigTemplate, applyConfigTemplate, listStrategyStock, createStrategyStock, updateStrategyStock, deleteStrategyStock, updateStrategyStockStatus, updateStrategyStockOpeningBuy, updateStrategyStockProfitSellBeforeClose, batchUpdateStrategyStockOpeningBuy, batchUpdateStrategyStockProfitSellBeforeClose, listStrategyJob, listStrategyUserStock, batchUpdateStrategyUserStockTimeSegmentConfig, batchUpdateStrategyStockStatus, listAccountInfo, getAccountConfigStatus, getConfigTemplateById, listTimeSegmentTemplates, createTimeSegmentTemplate, getTimeSegmentTemplateById, deleteTimeSegmentTemplate, getTimeSegmentTemplateLevels, listTimeSegmentTemplatesByLevel, applyTimeSegmentTemplateToStrategyStock, batchUpdateStrategyStockTimeSegmentConfig, batchSwitchStrategyStockTemplateLevel, batchImmediateBuyStrategyStock, updateStrategyStockYesterdayLowestBuy, batchUpdateStrategyStockYesterdayLowestBuy } from '@/services/ant-design-pro/api';
 import { useModel } from '@umijs/max';
 import { history } from '@umijs/max';
@@ -73,6 +73,11 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
   const [selectedBatchTemplateLevel, setSelectedBatchTemplateLevel] = useState<string>('');
   const [batchSwitchResultDetailModalVisible, setBatchSwitchResultDetailModalVisible] = useState<boolean>(false);
   const [batchSwitchExecutionResult, setBatchSwitchExecutionResult] = useState<API.TemplateLevelApplyResult | null>(null);
+  
+  // 批量设置新字段相关状态
+  const [batchBuyPriceDecreaseModalVisible, setBatchBuyPriceDecreaseModalVisible] = useState<boolean>(false);
+  const [batchBuyPriceDecreaseValue, setBatchBuyPriceDecreaseValue] = useState<number>(0.5);
+  
   const actionRef = useRef<ActionType>();
   const createFormRef = useRef<any>();
   const updateFormRef = useRef<any>();
@@ -272,6 +277,20 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     if (fields.intraDnBelowAvgPercent) {
       fields.intraDnBelowAvgPercent = fields.intraDnBelowAvgPercent / 100;
     }
+    if (fields.buyPriceDecreasePercent) {
+      fields.buyPriceDecreasePercent = fields.buyPriceDecreasePercent / 100;
+    }
+    
+    // 确保布尔字段有明确的值
+    fields.buyPriceGraduallyDecreasing = fields.buyPriceGraduallyDecreasing !== undefined ? fields.buyPriceGraduallyDecreasing : false;
+    fields.immediateBuyAtDecreasedPrice = fields.immediateBuyAtDecreasedPrice !== undefined ? fields.immediateBuyAtDecreasedPrice : false;
+    
+    // 调试：输出三个新字段的值
+    console.log('新建表单提交 - 三个新字段的值:', {
+      buyPriceGraduallyDecreasing: fields.buyPriceGraduallyDecreasing,
+      buyPriceDecreasePercent: fields.buyPriceDecreasePercent,
+      immediateBuyAtDecreasedPrice: fields.immediateBuyAtDecreasedPrice
+    });
     
     // 确保有默认值
     fields.unsoldStackLimit = fields.unsoldStackLimit || 4;
@@ -313,6 +332,13 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     const buyRatioConfig = parseBuyRatioConfig(fields.buyRatioConfig);
     fields.buyRatioConfig = JSON.stringify(buyRatioConfig);
     
+    console.log('新建提交最终数据 - 三个新字段:', {
+      buyPriceGraduallyDecreasing: fields.buyPriceGraduallyDecreasing,
+      buyPriceDecreasePercent: fields.buyPriceDecreasePercent,
+      immediateBuyAtDecreasedPrice: fields.immediateBuyAtDecreasedPrice
+    });
+    console.log('新建提交完整数据:', JSON.stringify(fields, null, 2));
+    
     try {
       await createStrategyStock(fields);
       hide();
@@ -353,6 +379,20 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     if (fields.intraDnBelowAvgPercent) {
       fields.intraDnBelowAvgPercent = fields.intraDnBelowAvgPercent / 100;
     }
+    if (fields.buyPriceDecreasePercent) {
+      fields.buyPriceDecreasePercent = fields.buyPriceDecreasePercent / 100;
+    }
+    
+    // 确保布尔字段有明确的值
+    fields.buyPriceGraduallyDecreasing = fields.buyPriceGraduallyDecreasing !== undefined ? fields.buyPriceGraduallyDecreasing : (currentRow.buyPriceGraduallyDecreasing !== undefined ? currentRow.buyPriceGraduallyDecreasing : false);
+    fields.immediateBuyAtDecreasedPrice = fields.immediateBuyAtDecreasedPrice !== undefined ? fields.immediateBuyAtDecreasedPrice : (currentRow.immediateBuyAtDecreasedPrice !== undefined ? currentRow.immediateBuyAtDecreasedPrice : false);
+    
+    // 调试：输出三个新字段的值
+    console.log('编辑表单提交 - 三个新字段的值:', {
+      buyPriceGraduallyDecreasing: fields.buyPriceGraduallyDecreasing,
+      buyPriceDecreasePercent: fields.buyPriceDecreasePercent,
+      immediateBuyAtDecreasedPrice: fields.immediateBuyAtDecreasedPrice
+    });
     
     // 确保有默认值
     fields.unsoldStackLimit = fields.unsoldStackLimit || currentRow.unsoldStackLimit || 4;
@@ -393,6 +433,13 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     // 处理买入比例配置
     const buyRatioConfig = parseBuyRatioConfig(fields.buyRatioConfig);
     fields.buyRatioConfig = JSON.stringify(buyRatioConfig);
+    
+    console.log('编辑提交最终数据 - 三个新字段:', {
+      buyPriceGraduallyDecreasing: fields.buyPriceGraduallyDecreasing,
+      buyPriceDecreasePercent: fields.buyPriceDecreasePercent,
+      immediateBuyAtDecreasedPrice: fields.immediateBuyAtDecreasedPrice
+    });
+    console.log('编辑提交完整数据:', JSON.stringify({...currentRow, ...fields}, null, 2));
     
     try {
       await updateStrategyStock({
@@ -495,6 +542,59 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     }
   };
 
+  // 更新策略股票关系买入价逐次降低状态
+  const handleUpdateBuyPriceGraduallyDecreasing = async (id: number, buyPriceGraduallyDecreasing: boolean) => {
+    const hide = message.loading('更新中...');
+    
+    try {
+      await updateStrategyStock({ id, buyPriceGraduallyDecreasing });
+      hide();
+      message.success('更新成功');
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error('更新失败');
+      return false;
+    }
+  };
+
+  // 更新策略股票关系买入价降低幅度
+  const handleUpdateBuyPriceDecreasePercent = async (id: number, buyPriceDecreasePercent: number) => {
+    const hide = message.loading('更新中...');
+    
+    try {
+      // 将百分比转换为小数
+      const value = buyPriceDecreasePercent / 100;
+      await updateStrategyStock({ id, buyPriceDecreasePercent: value });
+      hide();
+      message.success('更新成功');
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error('更新失败');
+      return false;
+    }
+  };
+
+  // 更新策略股票关系降低价立即购买状态
+  const handleUpdateImmediateBuyAtDecreasedPrice = async (id: number, immediateBuyAtDecreasedPrice: boolean) => {
+    const hide = message.loading('更新中...');
+    
+    try {
+      await updateStrategyStock({ id, immediateBuyAtDecreasedPrice });
+      hide();
+      message.success('更新成功');
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error('更新失败');
+      return false;
+    }
+  };
+
   // 批量更新策略股票关系开盘买入状态
   const handleBatchUpdateOpeningBuy = async (enableOpeningBuy: boolean) => {
     if (selectedRowKeys.length === 0) {
@@ -511,7 +611,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       });
       hide();
       message.success(`已成功更新 ${selectedRowKeys.length} 条记录`);
-      setSelectedRowKeys([]);
+      // setSelectedRowKeys([]); // 保持选中状态，不清空选择
       actionRef.current?.reload();
       return true;
     } catch (error) {
@@ -597,7 +697,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       hide();
       message.success('模版保存成功');
       setSaveTemplateModalVisible(false);
-      setSelectedRowKeys([]);
+      // setSelectedRowKeys([]);
       return true;
     } catch (error) {
       hide();
@@ -629,7 +729,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       hide();
       message.success(`模版已应用到 ${selectedRowKeys.length} 个配置`);
       setApplyTemplateModalVisible(false);
-      setSelectedRowKeys([]);
+      // setSelectedRowKeys([]);
       setSelectedTemplate(undefined);
       actionRef.current?.reload();
     } catch (error) {
@@ -680,6 +780,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       title: 'ID',
       dataIndex: 'id',
       hideInSearch: true,
+      hideInTable: true, // 隐藏ID列
       width: 60,
       sorter: true,
     },
@@ -699,7 +800,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       formItemProps: {
         name: 'strategyId',
       },
-      hideInTable: !!strategyId, // 如果已经选择了策略，隐藏该列
+      hideInTable: true, // 隐藏Strategy列
       width: 100,
     },
     {
@@ -970,6 +1071,69 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       ),
     },
     {
+      title: (
+        <>
+          <>买入价逐次降低</>
+          <Tooltip title="是否启用买入价格逐次降低策略">
+            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </>
+      ),
+      dataIndex: 'buyPriceGraduallyDecreasing',
+      valueType: 'switch',
+      hideInSearch: true,
+      hideInTable: true, // 隐藏买入价逐次降低列
+      render: (_, record) => (
+        <Switch
+          checkedChildren="是"
+          unCheckedChildren="否"
+          checked={record.buyPriceGraduallyDecreasing === true}
+          onChange={(checked) => {
+            handleUpdateBuyPriceGraduallyDecreasing(record.id!, checked);
+          }}
+        />
+      ),
+    },
+    {
+      title: (
+        <>
+          <>买入价降低幅度</>
+          <Tooltip title="每次降低买入价格的百分比幅度">
+            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </>
+      ),
+      dataIndex: 'buyPriceDecreasePercent',
+      valueType: 'digit',
+      hideInSearch: true,
+      hideInTable: true, // 隐藏买入价降低幅度列
+      render: (_, record) => record.buyPriceDecreasePercent ? `${(record.buyPriceDecreasePercent * 100).toFixed(2)}%` : '-',
+    },
+    {
+      title: (
+        <>
+          <>降低价立即购买</>
+          <Tooltip title="当价格达到降低后的目标价格时是否立即购买">
+            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </>
+      ),
+      dataIndex: 'immediateBuyAtDecreasedPrice',
+      valueType: 'switch',
+      hideInSearch: true,
+      hideInTable: true, // 隐藏降低价立即购买列
+      render: (_, record) => (
+        <Switch
+          checkedChildren="是"
+          unCheckedChildren="否"
+          checked={record.immediateBuyAtDecreasedPrice === true}
+          onChange={(checked) => {
+            handleUpdateImmediateBuyAtDecreasedPrice(record.id!, checked);
+          }}
+        />
+      ),
+    },
+    {
       title: <FormattedMessage id="pages.strategy.stock.relation.status" defaultMessage="Status" />,
       dataIndex: 'status',
       valueEnum: {
@@ -1020,6 +1184,17 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             }
             if (editItem.intraDnBelowAvgPercent !== undefined) {
               editItem.intraDnBelowAvgPercent = editItem.intraDnBelowAvgPercent * 100;
+            }
+            if (editItem.buyPriceDecreasePercent !== undefined) {
+              editItem.buyPriceDecreasePercent = editItem.buyPriceDecreasePercent * 100;
+            }
+            
+            // 确保布尔字段有默认值
+            if (editItem.buyPriceGraduallyDecreasing === undefined) {
+              editItem.buyPriceGraduallyDecreasing = false;
+            }
+            if (editItem.immediateBuyAtDecreasedPrice === undefined) {
+              editItem.immediateBuyAtDecreasedPrice = false;
             }
             
             // 确保默认值
@@ -1197,7 +1372,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
   
   // 新增：多账号应用相关状态
   const [timeSegmentSelectedAccounts, setTimeSegmentSelectedAccounts] = useState<string[]>([]);
-  const [timeSegmentAllAccounts, setTimeSegmentAllAccounts] = useState<{account: string, name: string}[]>([]);
+  const [timeSegmentAllAccounts, setTimeSegmentAllAccounts] = useState<{account: string, name: string, enabled: boolean}[]>([]);
   const [timeSegmentSelectAll, setTimeSegmentSelectAll] = useState<boolean>(false);
 
   // 新增：时段配置档位相关状态
@@ -1506,28 +1681,21 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     // 获取该股票相关的所有账户信息
     const fetchAccountsForStock = async () => {
       try {
-        // 查询使用该策略股票的所有账户
-        const userStockRes = await listStrategyUserStock({
+        // 获取所有账户（包括禁用的）
+        const accountRes = await listAccountInfo({
           current: 1,
           pageSize: 1000,
-          strategyId: record.strategyId,
-          stockCode: record.stockCode,
-        });
+          // 不传enable参数，获取所有状态的账户
+        }, {});
         
-        if (userStockRes && userStockRes.data) {
-          const accounts = userStockRes.data
-            .filter((item: API.StrategyUserStockItem) => item.account) // 过滤掉account为空的记录
-            .map((item: API.StrategyUserStockItem) => ({
-              account: item.account!,
-              name: item.accountName || item.account!,
-            }));
+        if (accountRes && accountRes.data) {
+          const accounts = accountRes.data.map((item: any) => ({
+            account: item.account,
+            name: item.name || item.account,
+            enabled: item.enable, // 记录账户是否启用
+          }));
           
-          // 去重
-          const uniqueAccounts = accounts.filter((account, index, self) => 
-            index === self.findIndex(a => a.account === account.account)
-          );
-          
-          setTimeSegmentAllAccounts(uniqueAccounts);
+          setTimeSegmentAllAccounts(accounts);
           setTimeSegmentSelectedAccounts([]);
           setTimeSegmentSelectAll(false);
         }
@@ -1784,7 +1952,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       });
       hide();
       message.success(`已成功更新 ${selectedRowKeys.length} 条记录的状态`);
-      setSelectedRowKeys([]);
+      // setSelectedRowKeys([]); // 保持选中状态，不清空选择
       actionRef.current?.reload();
       return true;
     } catch (error) {
@@ -1908,7 +2076,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       }
       
       setBatchSwitchTemplateLevelModalVisible(false);
-      setSelectedRowKeys([]);
       setSelectedBatchTemplateLevel('');
       actionRef.current?.reload();
       return true;
@@ -2081,7 +2248,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       hide();
       const displayText = PROFIT_SELL_BEFORE_CLOSE_ENUM[enableProfitSellBeforeClose as keyof typeof PROFIT_SELL_BEFORE_CLOSE_ENUM] || enableProfitSellBeforeClose;
       message.success(`已成功更新 ${selectedRowKeys.length} 条记录为"${displayText}"`);
-      setSelectedRowKeys([]);
+      // setSelectedRowKeys([]); // 保持选中状态，不清空选择
       actionRef.current?.reload();
       return true;
     } catch (error) {
@@ -2098,7 +2265,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       return;
     }
 
-    const hide = message.loading('批量更新中...');
+    const hide = message.loading('批量更新昨天最低价买入状态中...');
     
     try {
       const result = await batchUpdateStrategyStockYesterdayLowestBuy({ 
@@ -2106,14 +2273,97 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         enableYesterdayLowestBuy 
       });
       hide();
-      const displayText = enableYesterdayLowestBuy ? '启用昨天最低价买入' : '禁用昨天最低价买入';
-      message.success(`已成功更新 ${selectedRowKeys.length} 条记录为"${displayText}"`);
-      setSelectedRowKeys([]);
+      message.success(`已成功更新 ${selectedRowKeys.length} 条记录的昨天最低价买入状态`);
+      // setSelectedRowKeys([]); // 保持选中状态，不清空选择
       actionRef.current?.reload();
       return true;
     } catch (error) {
       hide();
-      message.error('批量更新失败');
+      message.error('批量更新昨天最低价买入状态失败');
+      return false;
+    }
+  };
+
+  // 批量更新买入价逐次降低状态
+  const handleBatchUpdateBuyPriceGraduallyDecreasing = async (buyPriceGraduallyDecreasing: boolean) => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要更新的记录');
+      return;
+    }
+
+    const hide = message.loading('批量更新买入价逐次降低状态中...');
+    
+    try {
+      // 使用通用的批量更新接口
+      const updatePromises = selectedRowKeys.map(id => 
+        updateStrategyStock({ id: id as number, buyPriceGraduallyDecreasing })
+      );
+      await Promise.all(updatePromises);
+      
+      hide();
+      message.success(`已成功更新 ${selectedRowKeys.length} 条记录的买入价逐次降低状态`);
+      // setSelectedRowKeys([]); // 保持选中状态，不清空选择
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error('批量更新买入价逐次降低状态失败');
+      return false;
+    }
+  };
+
+  // 批量更新买入价降低幅度
+  const handleBatchUpdateBuyPriceDecreasePercent = async (buyPriceDecreasePercent: number) => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要更新的记录');
+      return;
+    }
+
+    const hide = message.loading('批量更新买入价降低幅度中...');
+    
+    try {
+      // 将百分比转换为小数
+      const value = buyPriceDecreasePercent / 100;
+      const updatePromises = selectedRowKeys.map(id => 
+        updateStrategyStock({ id: id as number, buyPriceDecreasePercent: value })
+      );
+      await Promise.all(updatePromises);
+      
+      hide();
+      message.success(`已成功更新 ${selectedRowKeys.length} 条记录的买入价降低幅度`);
+      // setSelectedRowKeys([]); // 保持选中状态，不清空选择
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error('批量更新买入价降低幅度失败');
+      return false;
+    }
+  };
+
+  // 批量更新降低价立即购买状态
+  const handleBatchUpdateImmediateBuyAtDecreasedPrice = async (immediateBuyAtDecreasedPrice: boolean) => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要更新的记录');
+      return;
+    }
+
+    const hide = message.loading('批量更新降低价立即购买状态中...');
+    
+    try {
+      const updatePromises = selectedRowKeys.map(id => 
+        updateStrategyStock({ id: id as number, immediateBuyAtDecreasedPrice })
+      );
+      await Promise.all(updatePromises);
+      
+      hide();
+      message.success(`已成功更新 ${selectedRowKeys.length} 条记录的降低价立即购买状态`);
+      // setSelectedRowKeys([]); // 保持选中状态，不清空选择
+      actionRef.current?.reload();
+      return true;
+    } catch (error) {
+      hide();
+      message.error('批量更新降低价立即购买状态失败');
       return false;
     }
   };
@@ -2197,7 +2447,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
               });
             }
             
-            setSelectedRowKeys([]);
+            // setSelectedRowKeys([]); // 保持选中状态，不清空选择
             actionRef.current?.reload();
           } else {
             message.error('批量立即买入失败');
@@ -2236,170 +2486,221 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           expandRowByClick: false,
         }}
         toolBarRender={() => [
-          <Button
-            key="new"
-            type="primary"
-            onClick={() => {
-              setCreateModalVisible(true);
-              
-              // 如果没有预设策略ID，延迟设置第一个策略为默认值
-              if (!strategyId) {
-                setTimeout(async () => {
-                  if (createFormRef.current) {
-                    try {
-                      // 获取策略任务列表
-                      const res = await listStrategyJob({
-                        current: 1,
-                        pageSize: 100,
-                        status: '1', // 只获取启用状态的策略
-                      });
-                      
-                      if (res && res.data && res.data.length > 0) {
-                        const firstStrategy = res.data[0];
-                        createFormRef.current.setFieldsValue({
-                          strategyId: firstStrategy.id,
-                          strategyName: firstStrategy.name,
-                        });
+          <div key="toolbar-wrapper" style={{ width: '100%' }}>
+            {/* 第一行：主要操作按钮 */}
+            <div style={{ marginBottom: 8, display: 'flex', gap: 8, overflow: 'hidden' }}>
+              <Button
+                key="new"
+                type="primary"
+                onClick={() => {
+                  setCreateModalVisible(true);
+                  
+                  // 如果没有预设策略ID，延迟设置第一个策略为默认值
+                  if (!strategyId) {
+                    setTimeout(async () => {
+                      if (createFormRef.current) {
+                        try {
+                          // 获取策略任务列表
+                          const res = await listStrategyJob({
+                            current: 1,
+                            pageSize: 100,
+                            status: '1', // 只获取启用状态的策略
+                          });
+                          
+                          if (res && res.data && res.data.length > 0) {
+                            const firstStrategy = res.data[0];
+                            createFormRef.current.setFieldsValue({
+                              strategyId: firstStrategy.id,
+                              strategyName: firstStrategy.name,
+                            });
+                          }
+                        } catch (error) {
+                          console.error('获取策略列表失败:', error);
+                        }
                       }
-                    } catch (error) {
-                      console.error('获取策略列表失败:', error);
-                    }
+                    }, 100);
                   }
-                }, 100);
-              }
-            }}
-          >
-            <PlusOutlined /> <FormattedMessage id="pages.common.new" defaultMessage="New" />
-          </Button>,
-          <Button
-            key="apply"
-            type="primary"
-            onClick={() => {
-              if (selectedRowKeys.length === 0) {
-                message.warning('请先选择要应用配置的目标');
-                return;
-              }
-              loadTemplates();
-              setApplyTemplateModalVisible(true);
-            }}
-          >
-            <ThunderboltOutlined /> 应用模版
-          </Button>,
-          <Button
-            key="batch-switch-level"
-            type="primary"
-            onClick={() => {
-              if (selectedRowKeys.length === 0) {
-                message.warning('请先选择要切换档位的记录');
-                return;
-              }
-              setBatchSwitchTemplateLevelModalVisible(true);
-            }}
-          >
-            <SettingOutlined /> 批量切换档位
-          </Button>,
-          <Dropdown.Button
-            key="batch-opening-buy"
-            overlay={
-              <Menu
-                items={[
-                  {
-                    key: '1',
-                    label: '批量开启开盘买入',
-                    onClick: () => handleBatchUpdateOpeningBuy(true),
-                  },
-                  {
-                    key: '2',
-                    label: '批量关闭开盘买入',
-                    onClick: () => handleBatchUpdateOpeningBuy(false),
-                  },
-                ]}
-              />
-            }
-            disabled={selectedRowKeys.length === 0}
-          >
-            批量开盘买入
-          </Dropdown.Button>,
-          <Dropdown.Button
-            key="batch-status"
-            overlay={
-              <Menu
-                items={[
-                  {
-                    key: '1',
-                    label: '批量启用',
-                    onClick: () => handleBatchUpdateStatus('1'),
-                  },
-                  {
-                    key: '2',
-                    label: '批量禁用',
-                    onClick: () => handleBatchUpdateStatus('0'),
-                  },
-                ]}
-              />
-            }
-            disabled={selectedRowKeys.length === 0}
-          >
-            批量启用禁用
-          </Dropdown.Button>,
-          <Dropdown.Button
-            key="batch-profit-sell"
-            overlay={
-              <Menu
-                items={[
-                  {
-                    key: '1',
-                    label: '批量设为收盘前总盈利卖出',
-                    onClick: () => handleBatchUpdateProfitSellBeforeClose('PROFIT_SELL_BEFORE_CLOSE'),
-                  },
-                  {
-                    key: '2',
-                    label: '批量设为收盘前全部卖出',
-                    onClick: () => handleBatchUpdateProfitSellBeforeClose('ALL_SELL_BEFORE_CLOSE'),
-                  },
-                  {
-                    key: '3',
-                    label: '批量设为不卖出',
-                    onClick: () => handleBatchUpdateProfitSellBeforeClose('NO_SELL'),
-                  },
-                ]}
-              />
-            }
-            disabled={selectedRowKeys.length === 0}
-          >
-            批量收盘前卖出
-          </Dropdown.Button>,
-          <Dropdown.Button
-            key="batch-yesterday-lowest-buy"
-            overlay={
-              <Menu
-                items={[
-                  {
-                    key: '1',
-                    label: '批量启用昨天最低价买入',
-                    onClick: () => handleBatchUpdateYesterdayLowestBuy(true),
-                  },
-                  {
-                    key: '2',
-                    label: '批量禁用昨天最低价买入',
-                    onClick: () => handleBatchUpdateYesterdayLowestBuy(false),
-                  },
-                ]}
-              />
-            }
-            disabled={selectedRowKeys.length === 0}
-          >
-            批量昨天最低价买入
-          </Dropdown.Button>,
-          <Button
-            key="batch-immediate-buy"
-            type="primary"
-            danger
-            disabled={selectedRowKeys.length === 0}
-            onClick={handleBatchImmediateBuy}
-          >
-            <DollarOutlined /> 批量立即买入
-          </Button>,
+                }}
+              >
+                <PlusOutlined /> 新建
+              </Button>
+              <Button
+                key="apply"
+                type="primary"
+                onClick={() => {
+                  if (selectedRowKeys.length === 0) {
+                    message.warning('请先选择要应用配置的目标');
+                    return;
+                  }
+                  loadTemplates();
+                  setApplyTemplateModalVisible(true);
+                }}
+              >
+                <ThunderboltOutlined /> 应用模版
+              </Button>
+              <Button
+                key="batch-switch-level"
+                onClick={() => {
+                  if (selectedRowKeys.length === 0) {
+                    message.warning('请先选择要切换档位的目标');
+                    return;
+                  }
+                  setBatchSwitchTemplateLevelModalVisible(true);
+                }}
+                disabled={selectedRowKeys.length === 0}
+              >
+                <SwapOutlined /> 批量切换档位
+              </Button>
+              <Button
+                key="batch-immediate-buy"
+                type="primary"
+                danger
+                disabled={selectedRowKeys.length === 0}
+                onClick={handleBatchImmediateBuy}
+              >
+                <DollarOutlined /> 批量立即买入
+              </Button>
+            </div>
+            
+            {/* 第二行：所有批量设置按钮 */}
+            <div style={{ display: 'flex', gap: 8, overflow: 'hidden' }}>
+              <Dropdown.Button
+                key="batch-status"
+                size="small"
+                overlay={
+                  <Menu
+                    items={[
+                      {
+                        key: '1',
+                        label: '批量启用',
+                        onClick: () => handleBatchUpdateStatus('1'),
+                      },
+                      {
+                        key: '0',
+                        label: '批量禁用',
+                        onClick: () => handleBatchUpdateStatus('0'),
+                      },
+                    ]}
+                  />
+                }
+                disabled={selectedRowKeys.length === 0}
+              >
+                批量状态
+              </Dropdown.Button>
+              <Dropdown.Button
+                key="batch-opening-buy"
+                size="small"
+                overlay={
+                  <Menu
+                    items={[
+                      {
+                        key: '1',
+                        label: '批量启用开盘买入',
+                        onClick: () => handleBatchUpdateOpeningBuy(true),
+                      },
+                      {
+                        key: '0',
+                        label: '批量禁用开盘买入',
+                        onClick: () => handleBatchUpdateOpeningBuy(false),
+                      },
+                    ]}
+                  />
+                }
+                disabled={selectedRowKeys.length === 0}
+              >
+                批量开盘买入
+              </Dropdown.Button>
+              <Dropdown.Button
+                key="batch-profit-sell"
+                size="small"
+                overlay={
+                  <Menu
+                    items={[
+                      {
+                        key: '1',
+                        label: '批量设为收盘前总盈利卖出',
+                        onClick: () => handleBatchUpdateProfitSellBeforeClose('PROFIT_SELL_BEFORE_CLOSE'),
+                      },
+                      {
+                        key: '2',
+                        label: '批量设为收盘前全部卖出',
+                        onClick: () => handleBatchUpdateProfitSellBeforeClose('ALL_SELL_BEFORE_CLOSE'),
+                      },
+                      {
+                        key: '3',
+                        label: '批量设为不卖出',
+                        onClick: () => handleBatchUpdateProfitSellBeforeClose('NO_SELL'),
+                      },
+                    ]}
+                  />
+                }
+                disabled={selectedRowKeys.length === 0}
+              >
+                批量收盘前卖出
+              </Dropdown.Button>
+              <Dropdown.Button
+                key="batch-yesterday-lowest-buy"
+                size="small"
+                overlay={
+                  <Menu
+                    items={[
+                      {
+                        key: '1',
+                        label: '批量启用昨天最低价买入',
+                        onClick: () => handleBatchUpdateYesterdayLowestBuy(true),
+                      },
+                      {
+                        key: '2',
+                        label: '批量禁用昨天最低价买入',
+                        onClick: () => handleBatchUpdateYesterdayLowestBuy(false),
+                      },
+                    ]}
+                  />
+                }
+                disabled={selectedRowKeys.length === 0}
+              >
+                批量昨天最低价买入
+              </Dropdown.Button>
+              <Dropdown.Button
+                key="batch-buy-price-settings"
+                size="small"
+                overlay={
+                  <Menu
+                    items={[
+                      {
+                        key: '1',
+                        label: '批量启用买入价逐次降低',
+                        onClick: () => handleBatchUpdateBuyPriceGraduallyDecreasing(true),
+                      },
+                      {
+                        key: '2',
+                        label: '批量禁用买入价逐次降低',
+                        onClick: () => handleBatchUpdateBuyPriceGraduallyDecreasing(false),
+                      },
+                      {
+                        key: '3',
+                        label: '批量设置买入价降低幅度',
+                        onClick: () => setBatchBuyPriceDecreaseModalVisible(true),
+                      },
+                      {
+                        key: '4',
+                        label: '批量启用降低价立即购买',
+                        onClick: () => handleBatchUpdateImmediateBuyAtDecreasedPrice(true),
+                      },
+                      {
+                        key: '5',
+                        label: '批量禁用降低价立即购买',
+                        onClick: () => handleBatchUpdateImmediateBuyAtDecreasedPrice(false),
+                      },
+                    ]}
+                  />
+                }
+                disabled={selectedRowKeys.length === 0}
+              >
+                批量买入价降低设置
+              </Dropdown.Button>
+            </div>
+          </div>
         ]}
         request={(params, sort, filter) => {
           // 添加策略ID作为过滤条件（如果有）
@@ -2438,6 +2739,10 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           });
         }}
         columns={columns}
+        scroll={{
+          y: 'calc(100vh - 400px)', // 固定表头，设置表格高度
+          x: 'max-content', // 支持横向滚动
+        }}
         pagination={{
           defaultPageSize: 100,
           showSizeChanger: true,
@@ -2789,6 +3094,40 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         </div>
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
+          <ProFormSwitch
+            name="buyPriceGraduallyDecreasing"
+            label="买入价逐次降低"
+            tooltip="是否启用买入价格逐次降低策略"
+            initialValue={false}
+          />
+        </div>
+        
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
+          <ProFormDigit
+            name="buyPriceDecreasePercent"
+            label="买入价降低幅度(%)"
+            tooltip="每次降低买入价格的百分比幅度（如0.5表示0.5%）"
+            min={0}
+            max={100}
+            fieldProps={{
+              step: 0.01,
+              precision: 2,
+              addonAfter: '%',
+            }}
+            initialValue={0.5}
+          />
+        </div>
+        
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
+          <ProFormSwitch
+            name="immediateBuyAtDecreasedPrice"
+            label="降低价立即购买"
+            tooltip="当价格达到降低后的目标价格时是否立即购买"
+            initialValue={false}
+          />
+        </div>
+        
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
           <ProFormSelect
             name="status"
             label={<FormattedMessage id="pages.strategy.stock.relation.status" defaultMessage="Status" />}
@@ -2919,15 +3258,38 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         onOpenChange={(visible) => {
           setUpdateModalVisible(visible);
           if (visible && currentRow) {
-            // 确保正确解析buyRatioConfig
+            // 处理表单初始值
             const buyRatioConfigInput = parseBuyRatioConfig(currentRow.buyRatioConfig);
+            
+            // 处理百分比字段的显示转换（小数转百分比）
+            const formData = {
+              ...currentRow,
+              buyRatioConfigInput,
+              // 暂时不进行百分比转换，直接使用数据库中的原始值
+              // 如果字段有addonAfter='%'，ProFormDigit会期望百分比数值
+              // 确保布尔字段有明确的值
+              buyPriceGraduallyDecreasing: currentRow.buyPriceGraduallyDecreasing !== undefined ? currentRow.buyPriceGraduallyDecreasing : false,
+              immediateBuyAtDecreasedPrice: currentRow.immediateBuyAtDecreasedPrice !== undefined ? currentRow.immediateBuyAtDecreasedPrice : false,
+            };
+            
+            console.log('设置编辑表单初始值 - 三个新字段:', {
+              buyPriceGraduallyDecreasing: formData.buyPriceGraduallyDecreasing,
+              buyPriceDecreasePercent: formData.buyPriceDecreasePercent,
+              immediateBuyAtDecreasedPrice: formData.immediateBuyAtDecreasedPrice
+            });
+            
+            console.log('编辑对话框 - 数据库原始百分比值:', {
+              profitRatio: currentRow.profitRatio,
+              maBelowPercent: currentRow.maBelowPercent,
+              maAbovePercent: currentRow.maAbovePercent,
+              levelPercent: currentRow.levelPercent,
+              buyPriceDecreasePercent: currentRow.buyPriceDecreasePercent
+            });
+            console.log('编辑对话框 - 设置给表单的值:', formData);
             
             // 设置表单值
             // @ts-ignore
-            updateForm.setFieldsValue({
-              ...currentRow,
-              buyRatioConfigInput
-            });
+            updateForm.setFieldsValue(formData);
           }
         }}
         onFinish={handleUpdate}
@@ -3128,6 +3490,8 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             precision: 2,
             addonAfter: '%',
           }}
+          initialValue={1}
+          rules={[{ required: true }]}
         />
         </div>
         
@@ -3192,6 +3556,40 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             name="enableYesterdayLowestBuy"
             label="昨天最低价买入"
             tooltip="是否在股票价格接近昨天最低价时触发买入信号"
+            initialValue={false}
+          />
+        </div>
+        
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
+          <ProFormSwitch
+            name="buyPriceGraduallyDecreasing"
+            label="买入价逐次降低"
+            tooltip="是否启用买入价格逐次降低策略"
+            initialValue={false}
+          />
+        </div>
+        
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
+          <ProFormDigit
+            name="buyPriceDecreasePercent"
+            label="买入价降低幅度(%)"
+            tooltip="每次降低买入价格的百分比幅度（如0.5表示0.5%）"
+            min={0}
+            max={100}
+            fieldProps={{
+              step: 0.01,
+              precision: 2,
+              addonAfter: '%',
+            }}
+            initialValue={0.5}
+          />
+        </div>
+        
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
+          <ProFormSwitch
+            name="immediateBuyAtDecreasedPrice"
+            label="降低价立即购买"
+            tooltip="当价格达到降低后的目标价格时是否立即购买"
             initialValue={false}
           />
         </div>
@@ -3636,43 +4034,46 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
               border: '1px solid #d9d9d9'
             }}>
               <div style={{ marginBottom: 12 }}>
+                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: 8 }}>
+                  选择应用配置的账户
+                </label>
+                <Select
+                  mode="multiple"
+                  style={{ width: '100%' }}
+                  placeholder="请选择要应用配置的账户"
+                  value={timeSegmentSelectedAccounts}
+                  onChange={setTimeSegmentSelectedAccounts}
+                  optionFilterProp="children"
+                  filterOption={(input, option) => {
+                    const children = option?.children?.toString();
+                    return children ? children.toLowerCase().includes(input.toLowerCase()) : false;
+                  }}
+                >
+                  {timeSegmentAllAccounts.map(account => (
+                    <Option 
+                      key={account.account} 
+                      value={account.account}
+                      disabled={false} // 允许选择所有账户，包括禁用的
+                    >
+                      <span style={{ 
+                        color: account.enabled ? '#000' : '#999',
+                        fontWeight: account.enabled ? 'normal' : 'normal'
+                      }}>
+                        {account.name} ({account.account})
+                        {!account.enabled && <span style={{ color: '#ff4d4f', marginLeft: 4 }}>[已禁用]</span>}
+                      </span>
+                    </Option>
+                  ))}
+                </Select>
+              </div>
+              
+              <div style={{ marginBottom: 12 }}>
                 <Checkbox
                   checked={timeSegmentSelectAll}
                   onChange={(e) => handleTimeSegmentSelectAll(e.target.checked)}
-                  style={{ fontWeight: 'bold' }}
                 >
                   全选账户 ({timeSegmentAllAccounts.length})
                 </Checkbox>
-              </div>
-              
-              <div style={{ 
-                display: 'flex', 
-                flexWrap: 'wrap', 
-                gap: 8,
-                marginBottom: 12
-              }}>
-                {timeSegmentAllAccounts.map(account => (
-                  <Checkbox
-                    key={account.account}
-                    checked={timeSegmentSelectedAccounts.includes(account.account)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        handleTimeSegmentAccountChange([...timeSegmentSelectedAccounts, account.account]);
-                      } else {
-                        handleTimeSegmentAccountChange(timeSegmentSelectedAccounts.filter(acc => acc !== account.account));
-                      }
-                    }}
-                    style={{
-                      padding: '4px 8px',
-                      backgroundColor: timeSegmentSelectedAccounts.includes(account.account) ? '#e6f7ff' : '#fff',
-                      border: '1px solid #d9d9d9',
-                      borderRadius: 4,
-                      minWidth: 120
-                    }}
-                  >
-                    {account.name}
-                  </Checkbox>
-                ))}
               </div>
               
               <div style={{ fontSize: '12px', color: '#666' }}>
@@ -4084,6 +4485,57 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
               </Option>
             ))}
           </Select>
+        </div>
+      </Modal>
+      
+      {/* 批量设置买入价降低幅度模态框 */}
+      <Modal
+        title="批量设置买入价降低幅度"
+        open={batchBuyPriceDecreaseModalVisible}
+        onCancel={() => {
+          setBatchBuyPriceDecreaseModalVisible(false);
+          setBatchBuyPriceDecreaseValue(0.5);
+        }}
+        onOk={async () => {
+          if (batchBuyPriceDecreaseValue <= 0) {
+            message.error('买入价降低幅度必须大于0');
+            return;
+          }
+          
+          const success = await handleBatchUpdateBuyPriceDecreasePercent(batchBuyPriceDecreaseValue);
+          if (success) {
+            setBatchBuyPriceDecreaseModalVisible(false);
+            setBatchBuyPriceDecreaseValue(0.5);
+          }
+        }}
+        confirmLoading={false}
+        okText="确定"
+        cancelText="取消"
+      >
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 8 }}>
+            已选择 <span style={{ color: '#1890ff', fontWeight: 'bold' }}>{selectedRowKeys.length}</span> 个策略标的
+          </div>
+          <div style={{ fontSize: '12px', color: '#666', marginBottom: 16 }}>
+            设置买入价格每次降低的百分比幅度
+          </div>
+          <label style={{ display: 'block', marginBottom: 8 }}>
+            降低幅度 (%)
+          </label>
+          <InputNumber
+            style={{ width: '100%' }}
+            placeholder="请输入降低幅度百分比"
+            value={batchBuyPriceDecreaseValue}
+            onChange={(value) => setBatchBuyPriceDecreaseValue(value || 0.5)}
+            min={0.01}
+            max={10}
+            step={0.01}
+            precision={2}
+            addonAfter="%"
+          />
+          <div style={{ fontSize: '12px', color: '#999', marginTop: 8 }}>
+            建议范围：0.1% - 2%，默认值 0.5%
+          </div>
         </div>
       </Modal>
       

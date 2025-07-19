@@ -837,7 +837,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       });
       hide();
       message.success(`已成功更新 ${selectedRowKeys.length} 条记录`);
-      setSelectedRowKeys([]);
+      // setSelectedRowKeys([]);
       actionRef.current?.reload();
       return true;
     } catch (error) {
@@ -863,7 +863,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       });
       hide();
       message.success(`已成功更新 ${selectedRowKeys.length} 条记录的状态`);
-      setSelectedRowKeys([]);
+      // setSelectedRowKeys([]);
       actionRef.current?.reload();
       return true;
     } catch (error) {
@@ -891,7 +891,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       });
       hide();
       message.success(`已成功更新 ${selectedRowKeys.length} 条记录的盈利比例为 ${profitRatio}%`);
-      setSelectedRowKeys([]);
+      // setSelectedRowKeys([]);
       actionRef.current?.reload();
       return true;
     } catch (error) {
@@ -922,7 +922,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       });
       message.success('批量更新时间成功');
       actionRef.current?.reload();
-      setSelectedRowKeys([]);
+      // setSelectedRowKeys([]);
     } catch (error) {
       console.error('批量更新时间失败:', error);
       message.error('批量更新时间失败');
@@ -960,7 +960,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       });
       message.success('批量更新未卖出堆栈值成功');
       actionRef.current?.reload();
-      setSelectedRowKeys([]);
+      // setSelectedRowKeys([]);
       setBatchUnsoldStackModalVisible(false);
     } catch (error) {
       console.error('批量更新未卖出堆栈值失败:', error);
@@ -983,7 +983,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       });
       message.success('批量更新限制开始份数成功');
       actionRef.current?.reload();
-      setSelectedRowKeys([]);
+      // setSelectedRowKeys([]);
       setBatchLimitStartModalVisible(false);
     } catch (error) {
       console.error('批量更新限制开始份数失败:', error);
@@ -1006,7 +1006,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       });
       message.success('批量更新最大持有买入单数成功');
       actionRef.current?.reload();
-      setSelectedRowKeys([]);
+      // setSelectedRowKeys([]);
       setBatchTotalFundModalVisible(false);
     } catch (error) {
       console.error('批量更新最大持有买入单数失败:', error);
@@ -1066,7 +1066,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       await Promise.all(updatePromises);
       hide();
       message.success(`已成功批量设置 ${selectedRowKeys.length} 条记录的买入单数配置`);
-      setSelectedRowKeys([]);
+      // setSelectedRowKeys([]);
       actionRef.current?.reload();
       setBatchBuyOrderModalVisible(false);
       batchBuyOrderForm.resetFields();
@@ -1155,7 +1155,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       hide();
       message.success('模版保存成功');
       setSaveTemplateModalVisible(false);
-      setSelectedRowKeys([]);
+      // setSelectedRowKeys([]);
       return true;
     } catch (error) {
       hide();
@@ -1187,7 +1187,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       hide();
       message.success(`模版已应用到 ${selectedRowKeys.length} 个配置`);
       setApplyTemplateModalVisible(false);
-      setSelectedRowKeys([]);
+      // setSelectedRowKeys([]);
       setSelectedTemplate(undefined);
       actionRef.current?.reload();
     } catch (error) {
@@ -1395,6 +1395,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       formItemProps: {
         name: 'strategyId',
       },
+      hideInTable: true, // 隐藏Strategy列
       width: 150,
     },
     {
@@ -2991,6 +2992,10 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           });
         }}
         columns={columns}
+        scroll={{
+          y: 'calc(100vh - 400px)', // 固定表头，设置表格高度
+          x: 'max-content', // 支持横向滚动
+        }}
         pagination={{
           defaultPageSize: 1000,
           showSizeChanger: true,
@@ -3929,7 +3934,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           if (!visible) {
             // 关闭时清理状态
             setTemplateInitialValues({});
-            setSelectedRowKeys([]);
+            // setSelectedRowKeys([]);
           }
         }}
         onFinish={handleSaveTemplate}
