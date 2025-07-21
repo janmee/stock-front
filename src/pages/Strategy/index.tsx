@@ -13,6 +13,7 @@ import StrategyConfigTemplateManagement from './components/StrategyConfigTemplat
 import AccountFundAllocation from './components/AccountFundAllocation';
 import UserTimeSegmentTemplateManagement from './components/UserTimeSegmentTemplateManagement';
 import StockTimeSegmentTemplateManagement from './components/StockTimeSegmentTemplateManagement';
+import ImmediateBuyRecordList from './components/ImmediateBuyRecordList';
 import { PlusOutlined } from '@ant-design/icons';
 
 const TabPane = Tabs.TabPane;
@@ -46,11 +47,12 @@ const StrategyPage: React.FC = () => {
   } | undefined>(undefined);
   
   // 策略任务列表引用，用于刷新列表
-  const strategyJobListRef = useRef<any>();
+  const strategyJobListRef = useRef<{ reload: () => void }>(null);
   // 策略股票关系列表引用
-  const strategyStockListRef = useRef<any>();
+  const strategyStockListRef = useRef<{ reload: () => void }>(null);
   // 策略用户股票关系列表引用
-  const strategyUserStockListRef = useRef<any>();
+  const strategyUserStockListRef = useRef<{ reload: () => void; openCreateModal: (data: any) => void }>(null);
+  const immediateBuyRecordListRef = useRef<{ reload: () => void }>(null);
   
   // 处理URL参数
   useEffect(() => {
@@ -134,6 +136,11 @@ const StrategyPage: React.FC = () => {
           break;
         case '7': // 股票档位配置
           // 股票档位配置组件内部使用Table，会自动刷新
+          break;
+        case '8': // 立即买入记录
+          if (immediateBuyRecordListRef.current?.reload) {
+            immediateBuyRecordListRef.current.reload();
+          }
           break;
         default:
           break;
@@ -332,6 +339,15 @@ const StrategyPage: React.FC = () => {
               strategyName={selectedStrategyName}
             />
           )}
+        </TabPane>
+
+        <TabPane 
+          tab="立即买入记录"
+          key="8"
+        >
+          <ImmediateBuyRecordList 
+            ref={immediateBuyRecordListRef}
+          />
         </TabPane>
 
 

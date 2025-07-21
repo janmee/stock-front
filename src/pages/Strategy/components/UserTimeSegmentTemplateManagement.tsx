@@ -425,6 +425,7 @@ const UserTimeSegmentTemplateManagement: React.FC<UserTimeSegmentTemplateManagem
       title: <FormattedMessage id="template.strategy" defaultMessage="策略" />,
       dataIndex: 'strategyName',
       key: 'strategyName',
+      hidden: true,
     },
     {
       title: <FormattedMessage id="template.stock" defaultMessage="股票代码" />,
@@ -478,6 +479,7 @@ const UserTimeSegmentTemplateManagement: React.FC<UserTimeSegmentTemplateManagem
       title: <FormattedMessage id="common.createTime" defaultMessage="创建时间" />,
       dataIndex: 'createTime',
       key: 'createTime',
+      hidden: true,
       render: (text: string) => new Date(text).toLocaleString(),
     },
     {

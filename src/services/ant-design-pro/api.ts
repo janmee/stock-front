@@ -1952,9 +1952,18 @@ export async function batchImmediateBuyStrategyStock(params: {
     successCount: number;
     failureCount: number;
     successStockCodes: string[];
+    successDetails: Array<{
+      stockCode: string;
+      account: string;
+      accountName: string;
+      price: number;
+      quantity: number;
+      buyRatio: number;
+    }>;
     failureDetails: Array<{
       stockCode: string;
       account: string;
+      accountName: string;
       errorMessage: string;
     }>;
   }>>('/api/strategy/stock/batch-immediate-buy', {
@@ -1962,6 +1971,41 @@ export async function batchImmediateBuyStrategyStock(params: {
     headers: {
       'Content-Type': 'application/json',
     },
+    data: params,
+  });
+}
+
+/**
+ * 单个立即买入策略股票
+ */
+export async function immediateBuyStrategyStock(params: {
+  strategyId: number;
+  stockCode: string;
+  fundPercent?: number; // 资金比例 (0-1)
+  fixedAmount?: number; // 固定资金
+  profitRatio?: number; // 盈利比例 (0-1)
+  buyReason?: string;
+}) {
+  return request<API.Response<{
+    stockCode: string;
+    totalCount: number;
+    successCount: number;
+    failureCount: number;
+    hasSuccess: boolean;
+    successDetails: Array<{
+      account: string;
+      accountName: string;
+      price: number;
+      quantity: number;
+      buyExtra: string;
+    }>;
+    failureDetails: Array<{
+      account: string;
+      accountName: string;
+      errorMessage: string;
+    }>;
+  }>>('/api/strategy/stock/immediate-buy', {
+    method: 'POST',
     data: params,
   });
 }

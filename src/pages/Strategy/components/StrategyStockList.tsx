@@ -17,7 +17,7 @@ import {
   ProFormDependency,
 } from '@ant-design/pro-components';
 import { PlusOutlined, DownOutlined, UpOutlined, SettingOutlined, ThunderboltOutlined, ExclamationCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, MinusCircleOutlined, EditOutlined, DeleteOutlined, CopyOutlined, SyncOutlined, FilterOutlined, EyeOutlined, EyeInvisibleOutlined, ClockCircleOutlined, InfoCircleOutlined, QuestionCircleOutlined, SearchOutlined, ReloadOutlined, DollarOutlined, SwapOutlined } from '@ant-design/icons';
-import { getConfigTemplateList, saveConfigTemplate, deleteConfigTemplate, applyConfigTemplate, listStrategyStock, createStrategyStock, updateStrategyStock, deleteStrategyStock, updateStrategyStockStatus, updateStrategyStockOpeningBuy, updateStrategyStockProfitSellBeforeClose, batchUpdateStrategyStockOpeningBuy, batchUpdateStrategyStockProfitSellBeforeClose, listStrategyJob, listStrategyUserStock, batchUpdateStrategyUserStockTimeSegmentConfig, batchUpdateStrategyStockStatus, listAccountInfo, getAccountConfigStatus, getConfigTemplateById, listTimeSegmentTemplates, createTimeSegmentTemplate, getTimeSegmentTemplateById, deleteTimeSegmentTemplate, getTimeSegmentTemplateLevels, listTimeSegmentTemplatesByLevel, applyTimeSegmentTemplateToStrategyStock, batchUpdateStrategyStockTimeSegmentConfig, batchSwitchStrategyStockTemplateLevel, batchImmediateBuyStrategyStock, updateStrategyStockYesterdayLowestBuy, batchUpdateStrategyStockYesterdayLowestBuy } from '@/services/ant-design-pro/api';
+import { getConfigTemplateList, saveConfigTemplate, deleteConfigTemplate, applyConfigTemplate, listStrategyStock, createStrategyStock, updateStrategyStock, deleteStrategyStock, updateStrategyStockStatus, updateStrategyStockOpeningBuy, updateStrategyStockProfitSellBeforeClose, batchUpdateStrategyStockOpeningBuy, batchUpdateStrategyStockProfitSellBeforeClose, listStrategyJob, listStrategyUserStock, batchUpdateStrategyUserStockTimeSegmentConfig, batchUpdateStrategyStockStatus, listAccountInfo, getAccountConfigStatus, getConfigTemplateById, listTimeSegmentTemplates, createTimeSegmentTemplate, getTimeSegmentTemplateById, deleteTimeSegmentTemplate, getTimeSegmentTemplateLevels, listTimeSegmentTemplatesByLevel, applyTimeSegmentTemplateToStrategyStock, batchUpdateStrategyStockTimeSegmentConfig, batchSwitchStrategyStockTemplateLevel, batchImmediateBuyStrategyStock, updateStrategyStockYesterdayLowestBuy, batchUpdateStrategyStockYesterdayLowestBuy, immediateBuyStrategyStock } from '@/services/ant-design-pro/api';
 import { useModel } from '@umijs/max';
 import { history } from '@umijs/max';
 import { FormattedMessage, useIntl } from '@umijs/max';
@@ -77,6 +77,11 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
   // 批量设置新字段相关状态
   const [batchBuyPriceDecreaseModalVisible, setBatchBuyPriceDecreaseModalVisible] = useState<boolean>(false);
   const [batchBuyPriceDecreaseValue, setBatchBuyPriceDecreaseValue] = useState<number>(0.5);
+  
+  // 立即买入对话框相关状态
+  const [immediateBuyModalVisible, setImmediateBuyModalVisible] = useState<boolean>(false);
+  const [immediateBuyRecord, setImmediateBuyRecord] = useState<API.StrategyStockItem | null>(null);
+  const [immediateBuyForm] = Form.useForm();
   
   const actionRef = useRef<ActionType>();
   const createFormRef = useRef<any>();
@@ -1162,6 +1167,16 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       dataIndex: 'option',
       valueType: 'option',
       render: (_, record) => [
+        <Button
+          key="immediateBuy"
+          type="primary"
+          danger
+          size="small"
+          onClick={() => handleImmediateBuy(record)}
+          style={{ marginRight: 8 }}
+        >
+          立即买入
+        </Button>,
         <a
           key="edit"
           onClick={() => {
@@ -1829,6 +1844,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         const targetRecords = userStockRes.data.filter((item: API.StrategyUserStockItem) => 
           timeSegmentSelectedAccounts.includes(item.account!)
         );
+        console.log('userStockRes.data', userStockRes.data);
         
         if (targetRecords.length === 0) {
           message.error('未找到选中账户的相关记录');
@@ -2416,34 +2432,77 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           hide();
           
           if (result.success && result.data) {
-            const { totalCount, successCount, failureCount, successStockCodes, failureDetails } = result.data;
+            const { totalCount, successCount, failureCount, successStockCodes, successDetails, failureDetails } = result.data;
             
-            // 构建详细的结果消息
-            const successMessage = successCount > 0 ? `成功买入 ${successCount} 只股票: ${successStockCodes.join(', ')}` : '';
-            const failureMessage = failureCount > 0 ? `失败 ${failureCount} 只股票` : '';
+            // 按股票代码分组成功和失败详情
+            const successByStock = new Map<string, any[]>();
+            const failureByStock = new Map<string, any[]>();
             
-            if (successCount === totalCount) {
-              message.success(`批量立即买入完成！${successMessage}`);
-            } else if (successCount > 0) {
-              message.warning(`批量立即买入部分成功！${successMessage}${failureMessage ? `；${failureMessage}` : ''}`);
-            } else {
-              message.error(`批量立即买入全部失败！${failureMessage}`);
+            // 分组成功详情
+            if (successDetails && successDetails.length > 0) {
+              successDetails.forEach((detail: any) => {
+                if (!successByStock.has(detail.stockCode)) {
+                  successByStock.set(detail.stockCode, []);
+                }
+                successByStock.get(detail.stockCode)!.push(detail);
+              });
             }
             
-            // 如果有失败详情，显示详细信息
-            if (failureCount > 0 && failureDetails && failureDetails.length > 0) {
-              const failureInfo = failureDetails.map(detail => 
-                `${detail.stockCode}${detail.account !== 'N/A' ? `(${detail.account})` : ''}: ${detail.errorMessage}`
-              ).join('\n');
+            // 分组失败详情
+            if (failureDetails && failureDetails.length > 0) {
+              failureDetails.forEach((detail: any) => {
+                if (!failureByStock.has(detail.stockCode)) {
+                  failureByStock.set(detail.stockCode, []);
+                }
+                failureByStock.get(detail.stockCode)!.push(detail);
+              });
+            }
+            
+            // 构建基本消息
+            if (successCount === totalCount) {
+              message.success(`批量立即买入全部成功！总计${totalCount}个操作`);
+            } else if (successCount > 0) {
+              message.warning(`批量立即买入部分成功！成功${successCount}个，失败${failureCount}个`);
+            } else {
+              message.error(`批量立即买入全部失败！失败${failureCount}个操作`);
+            }
+            
+            // 显示详细信息弹窗
+            const allStockCodes = new Set([...successByStock.keys(), ...failureByStock.keys()]);
+            
+            if (allStockCodes.size > 0) {
+              const detailInfo: string[] = [];
+              
+              Array.from(allStockCodes).sort().forEach(stockCode => {
+                detailInfo.push(`\n=== ${stockCode} ===`);
+                
+                // 显示成功账户
+                const stockSuccessDetails = successByStock.get(stockCode) || [];
+                if (stockSuccessDetails.length > 0) {
+                  detailInfo.push(`✅ 成功账户 (${stockSuccessDetails.length}个):`);
+                  stockSuccessDetails.forEach(detail => {
+                    detailInfo.push(`  • ${detail.account} (${detail.accountName}) - $${detail.price?.toFixed(4)} × ${detail.quantity?.toFixed(0)}股 = $${(detail.price * detail.quantity)?.toFixed(2)}`);
+                  });
+                }
+                
+                // 显示失败账户
+                const stockFailureDetails = failureByStock.get(stockCode) || [];
+                if (stockFailureDetails.length > 0) {
+                  detailInfo.push(`❌ 失败账户 (${stockFailureDetails.length}个):`);
+                  stockFailureDetails.forEach(detail => {
+                    detailInfo.push(`  • ${detail.account} (${detail.accountName}) - ${detail.errorMessage}`);
+                  });
+                }
+              });
               
               Modal.info({
-                title: '批量买入失败详情',
+                title: `批量立即买入详细结果,以下只是下单情况，并不代表订单已成交，详情请查看买入记录 (${allStockCodes.size}只股票)`,
                 content: (
-                  <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                    <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>{failureInfo}</pre>
+                  <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
+                    <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>{detailInfo.join('\n')}</pre>
                   </div>
                 ),
-                width: 600,
+                width: 800,
               });
             }
             
@@ -2458,6 +2517,138 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         }
       },
     });
+  };
+
+  // 处理单个立即买入
+  const handleImmediateBuy = (record: API.StrategyStockItem) => {
+    setImmediateBuyRecord(record);
+    setImmediateBuyModalVisible(true);
+    // 恢复上次保存的配置
+    restoreImmediateBuyConfig();
+  };
+
+  // 执行单个立即买入
+  const handleExecuteImmediateBuy = async (values: any) => {
+    if (!immediateBuyRecord) {
+      message.error('请先选择要买入的股票');
+      return false;
+    }
+
+    // 验证只能填入一个资金设置
+    if (values.fundPercent > 0 && values.fixedAmount > 0) {
+      message.error('资金比例和固定资金只能填入一个');
+      return false;
+    }
+
+    if (values.fundPercent <= 0 && values.fixedAmount <= 0) {
+      message.error('请填入资金比例或固定资金');
+      return false;
+    }
+
+    const hide = message.loading('正在执行立即买入...');
+    
+    try {
+      const params = {
+        strategyId: immediateBuyRecord.strategyId!,
+        stockCode: immediateBuyRecord.stockCode!,
+        fundPercent: values.fundPercent > 0 ? values.fundPercent / 100 : undefined, // 转换为小数
+        fixedAmount: values.fixedAmount > 0 ? values.fixedAmount : undefined,
+        profitRatio: values.profitRatio / 100, // 转换为小数
+        buyReason: '单个立即买入',
+      };
+
+      const result = await immediateBuyStrategyStock(params);
+      hide();
+      
+      if (result.success && result.data) {
+        // 保存配置到localStorage
+        const configToSave = {
+          fundPercent: values.fundPercent,
+          fixedAmount: values.fixedAmount,
+          profitRatio: values.profitRatio,
+        };
+        localStorage.setItem('immediateBuyConfig', JSON.stringify(configToSave));
+        
+        // 解析ImmediateBuyResultVO响应
+        const { stockCode, totalCount, successCount, failureCount, hasSuccess, successDetails, failureDetails } = result.data;
+        
+        if (hasSuccess && successCount > 0) {
+          // 构建成功消息
+          const successMessage = `立即买入成功！股票：${stockCode}，成功账户数：${successCount}/${totalCount}`;
+          message.success(successMessage);
+          
+          // 显示成功详情
+          if (successDetails && successDetails.length > 0) {
+            const successInfo = successDetails.map((detail: any) => 
+              `股票代码：${stockCode}\n账户：${detail.account} (${detail.accountName})\n买入价格：$${detail.price?.toFixed(4)}\n买入数量：${detail.quantity?.toFixed(0)} 股\n买入说明：${detail.buyExtra || ''}`
+            ).join('\n\n');
+            
+            Modal.info({
+              title: `立即买入成功详情 - ${stockCode}`,
+              content: (
+                <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                  <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>{successInfo}</pre>
+                </div>
+              ),
+              width: 700,
+            });
+          }
+        } else {
+          // 全部失败
+          message.error(`立即买入失败！股票：${stockCode}，失败账户数：${failureCount}/${totalCount}`);
+          
+          // 显示失败详情
+          if (failureDetails && failureDetails.length > 0) {
+            const failureInfo = failureDetails.map((detail: any) => 
+              `股票代码：${stockCode}\n账户：${detail.account} (${detail.accountName})\n失败原因：${detail.errorMessage}`
+            ).join('\n\n');
+            
+            Modal.error({
+              title: `立即买入失败详情 - ${stockCode}`,
+              content: (
+                <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                  <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>{failureInfo}</pre>
+                </div>
+              ),
+              width: 700,
+            });
+          }
+        }
+        
+        setImmediateBuyModalVisible(false);
+        immediateBuyForm.resetFields();
+        actionRef.current?.reload();
+        return true;
+      } else {
+        message.error(`立即买入失败：${result.message || '未知错误'}`);
+        return false;
+      }
+    } catch (error: any) {
+      hide();
+      message.error(`立即买入失败：${error.message || '网络错误'}`);
+      return false;
+    }
+  };
+
+  // 恢复立即买入配置的helper函数
+  const restoreImmediateBuyConfig = () => {
+    const savedConfig = localStorage.getItem('immediateBuyConfig');
+    let defaultValues = {
+      fundPercent: 1, // 默认1%
+      fixedAmount: 0, // 默认为0
+      profitRatio: 0.3, // 默认0.3%
+    };
+    
+    if (savedConfig) {
+      try {
+        const parsedConfig = JSON.parse(savedConfig);
+        defaultValues = { ...defaultValues, ...parsedConfig };
+      } catch (error) {
+        console.error('解析保存的配置失败:', error);
+      }
+    }
+    
+    immediateBuyForm.setFieldsValue(defaultValues);
   };
 
   return (
@@ -2912,7 +3103,17 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             addonAfter: '%',
           }}
           initialValue={0.1}
-          rules={[{ required: true }]}
+          rules={[
+            { required: true },
+            {
+              validator: (_, value) => {
+                if (value > 3) {
+                  return Promise.reject(new Error('⚠️ 警告：上方百分比超过3%，请谨慎操作！'));
+                }
+                return Promise.resolve();
+              }
+            }
+          ]}
         />
         </div>
         
@@ -3365,7 +3566,17 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             precision: 2,
             addonAfter: '%',
           }}
-          rules={[{ required: true }]}
+          rules={[
+            { required: true },
+            {
+              validator: (_, value) => {
+                if (value > 3) {
+                  return Promise.reject(new Error('⚠️ 警告：下方百分比超过3%，请谨慎操作！'));
+                }
+                return Promise.resolve();
+              }
+            }
+          ]}
         />
         </div>
         
@@ -3381,7 +3592,17 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             precision: 2,
             addonAfter: '%',
           }}
-          rules={[{ required: true }]}
+          rules={[
+            { required: true },
+            {
+              validator: (_, value) => {
+                if (value > 3) {
+                  return Promise.reject(new Error('⚠️ 警告：上方百分比超过3%，请谨慎操作！'));
+                }
+                return Promise.resolve();
+              }
+            }
+          ]}
         />
         </div>
         
@@ -4165,7 +4386,17 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
                         <Form.Item 
                           {...field} 
                           name={[field.name, 'maBelowPercent']} 
-                          rules={[{ required: true, message: '下方百分比必填' }]}
+                          rules={[
+                            { required: true, message: '下方百分比必填' },
+                            {
+                              validator: (_, value) => {
+                                if (value > 3) {
+                                  return Promise.reject(new Error('⚠️ 警告：下方百分比超过3%，请谨慎操作！'));
+                                }
+                                return Promise.resolve();
+                              }
+                            }
+                          ]}
                           style={{ margin: 0 }}
                         >
                           <InputNumber 
@@ -4183,7 +4414,17 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
                         <Form.Item 
                           {...field} 
                           name={[field.name, 'maAbovePercent']} 
-                          rules={[{ required: true, message: '上方百分比必填' }]}
+                          rules={[
+                            { required: true, message: '上方百分比必填' },
+                            {
+                              validator: (_, value) => {
+                                if (value > 3) {
+                                  return Promise.reject(new Error('⚠️ 警告：上方百分比超过3%，请谨慎操作！'));
+                                }
+                                return Promise.resolve();
+                              }
+                            }
+                          ]}
                           style={{ margin: 0 }}
                         >
                           <InputNumber 
@@ -4201,7 +4442,17 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
                         <Form.Item 
                           {...field} 
                           name={[field.name, 'profitPercent']} 
-                          rules={[{ required: true, message: '盈利点必填' }]}
+                          rules={[
+                            { required: true, message: '盈利点必填' },
+                            {
+                              validator: (_: any, value: any) => {
+                                if (value > 3) {
+                                  return Promise.reject(new Error('⚠️ 警告：盈利比例超过3%，请谨慎操作！'));
+                                }
+                                return Promise.resolve();
+                              }
+                            }
+                          ]}
                           style={{ margin: 0 }}
                         >
                           <InputNumber 
@@ -4292,7 +4543,33 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
               // 根据选中的档位等级自动生成档位名称
               const stockCode = timeSegmentCurrentRecord?.stockCode || '';
               const templateName = `${stockCode}_${value}档`;
-              timeSegmentTemplateFormRef.current?.setFieldsValue({ templateName });
+              
+              // 根据档位等级自动填入使用场景
+              let useScenario = '';
+              switch (value) {
+                case 'A':
+                  useScenario = '单边上涨';
+                  break;
+                case 'B':
+                  useScenario = '震荡上行';
+                  break;
+                case 'S':
+                  useScenario = '高位或低位震荡';
+                  break;
+                case 'C':
+                  useScenario = '震荡下行';
+                  break;
+                case 'D':
+                  useScenario = '单边下跌';
+                  break;
+                default:
+                  useScenario = '';
+              }
+              
+              timeSegmentTemplateFormRef.current?.setFieldsValue({ 
+                templateName,
+                useScenario 
+              });
             },
           }}
         />
@@ -4537,6 +4814,136 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             建议范围：0.1% - 2%，默认值 0.5%
           </div>
         </div>
+      </Modal>
+      
+      {/* 立即买入对话框 */}
+      <Modal
+        title="立即买入"
+        open={immediateBuyModalVisible}
+        onCancel={() => {
+          setImmediateBuyModalVisible(false);
+          restoreImmediateBuyConfig();
+        }}
+        footer={[
+          <Button 
+            key="cancel" 
+            onClick={() => {
+              setImmediateBuyModalVisible(false);
+              restoreImmediateBuyConfig();
+            }}
+          >
+            取消
+          </Button>,
+          <Button 
+            key="submit" 
+            type="primary" 
+            danger
+            onClick={() => {
+              immediateBuyForm.submit();
+            }}
+          >
+            确认买入
+          </Button>,
+        ]}
+        width={500}
+      >
+        <div style={{ marginBottom: 16, padding: 12, backgroundColor: '#f6f6f6', borderRadius: 4 }}>
+          <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: 8 }}>
+            股票代码: {immediateBuyRecord?.stockCode}
+          </div>
+          <div style={{ fontSize: '12px', color: '#ff4d4f' }}>
+            ⚠️ 注意：此操作将立即执行买入，不受时间限制，请确认当前为合适的交易时间。
+          </div>
+        </div>
+
+        <Form
+          form={immediateBuyForm}
+          onFinish={handleExecuteImmediateBuy}
+          layout="vertical"
+          initialValues={{
+            fundPercent: 1, // 默认1%
+            fixedAmount: 0, // 默认为0
+            profitRatio: 0.3, // 默认0.3%
+          }}
+        >
+          <Form.Item
+            name="fundPercent"
+            label="资金比例 (%)"
+            extra="使用账户总资金的百分比进行买入"
+            rules={[
+              {
+                validator: (_: any, value: any) => {
+                  if (value > 10) {
+                    return Promise.reject(new Error('⚠️ 警告：资金比例超过10%，请谨慎操作！'));
+                  }
+                  return Promise.resolve();
+                }
+              }
+            ]}
+          >
+            <InputNumber
+              style={{ width: '100%' }}
+              placeholder="请输入资金比例"
+              min={0}
+              max={100}
+              step={0.1}
+              precision={2}
+              addonAfter="%"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="fixedAmount"
+            label="固定资金"
+            extra="使用固定金额进行买入（与资金比例只能填入一个）"
+            rules={[
+              {
+                validator: (_: any, value: any) => {
+                  if (value > 100000) {
+                    return Promise.reject(new Error('⚠️ 警告：固定资金超过10万美元，请谨慎操作！'));
+                  }
+                  return Promise.resolve();
+                }
+              }
+            ]}
+          >
+            <InputNumber
+              style={{ width: '100%' }}
+              placeholder="请输入固定金额"
+              min={0}
+              step={100}
+              precision={2}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="profitRatio"
+            label="盈利比例 (%)"
+            extra="达到此盈利比例时卖出"
+            rules={[
+              { required: true, message: '请输入盈利比例' },
+              { type: 'number', min: 0.1, message: '盈利比例必须大于0.1%' },
+              {
+                validator: (_, value) => {
+                  if (value > 3) {
+                    return Promise.reject(new Error('⚠️ 警告：盈利比例超过3%，请谨慎操作！'));
+                  }
+                  return Promise.resolve();
+                }
+              }
+            ]}
+          >
+            <InputNumber
+              style={{ width: '100%' }}
+              placeholder="请输入盈利比例"
+              min={0.1}
+              max={100}
+              step={0.1}
+              precision={2}
+              addonAfter="%"
+            />
+          </Form.Item>
+        </Form>
       </Modal>
       
       {renderBatchSwitchExecutionResultDetail()}

@@ -399,6 +399,7 @@ const StockTimeSegmentTemplateManagement: React.FC<StockTimeSegmentTemplateManag
       title: <FormattedMessage id="template.strategy" defaultMessage="策略" />,
       dataIndex: 'strategyName',
       key: 'strategyName',
+      hidden: true,
     },
     {
       title: <FormattedMessage id="template.stock" defaultMessage="股票代码" />,

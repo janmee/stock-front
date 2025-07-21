@@ -1337,8 +1337,12 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         totalDailyMaxHolding += dailyMaxHolding;
         totalMaxHolding += maxHolding;
         
-        const accountAmount = accountTotalAmountMap.get(record.account || '') || 0;
-        totalAccountAmount += accountAmount;
+        // 重新计算账户总资金（去重）
+        totalAccountAmount = 0;
+        Array.from(accountSet).forEach(account => {
+          const accountAmount = accountTotalAmountMap.get(account) || 0;
+          totalAccountAmount += accountAmount;
+        });
         
         if (maxHolding > maxStockAmount) {
           maxStockAmount = maxHolding;
@@ -3154,6 +3158,22 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                     if (!value && !maxAmount) {
                       return Promise.reject(new Error('资金占比和最大金额至少需要填入一个'));
                     }
+                    
+                    // 检查最大金额*3%是否大于账户总资金的10%
+                    if (value && value > 0) {
+                      const account = createForm.getFieldValue('account');
+                      if (account) {
+                        const accountTotalAmount = accountTotalAmountMap.get(account);
+                        if (accountTotalAmount && accountTotalAmount > 0) {
+                          const maxAmountTimesThreePercent = value * 0.03;
+                          const tenPercentOfTotalAmount = accountTotalAmount * 0.1;
+                          if (maxAmountTimesThreePercent > tenPercentOfTotalAmount) {
+                            return Promise.reject(new Error(`⚠️ 警告：最大金额 × 3% ($${maxAmountTimesThreePercent.toFixed(0)}) 超过账户总资金的10% ($${tenPercentOfTotalAmount.toFixed(0)})，请谨慎操作！`));
+                          }
+                        }
+                      }
+                    }
+                    
                     return Promise.resolve();
                   },
                 },
@@ -3175,6 +3195,22 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                     if (!value && !fundPercent) {
                       return Promise.reject(new Error('资金占比和最大金额至少需要填入一个'));
                     }
+                    
+                    // 检查最大金额*3%是否大于账户总资金的10%
+                    if (value && value > 0) {
+                      const account = createForm.getFieldValue('account');
+                      if (account) {
+                        const accountTotalAmount = accountTotalAmountMap.get(account);
+                        if (accountTotalAmount && accountTotalAmount > 0) {
+                          const maxAmountTimesThreePercent = value * 0.03;
+                          const tenPercentOfTotalAmount = accountTotalAmount * 0.1;
+                          if (maxAmountTimesThreePercent > tenPercentOfTotalAmount) {
+                            return Promise.reject(new Error(`⚠️ 警告：最大金额 × 3% ($${maxAmountTimesThreePercent.toFixed(0)}) 超过账户总资金的10% ($${tenPercentOfTotalAmount.toFixed(0)})，请谨慎操作！`));
+                          }
+                        }
+                      }
+                    }
+                    
                     return Promise.resolve();
                   },
                 },
@@ -3578,6 +3614,22 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                     if (!value && !maxAmount) {
                       return Promise.reject(new Error('资金占比和最大金额至少需要填入一个'));
                     }
+                    
+                    // 检查最大金额*3%是否大于账户总资金的10%
+                    if (value && value > 0) {
+                      const account = currentRow?.account; // 编辑时使用currentRow的账户信息
+                      if (account) {
+                        const accountTotalAmount = accountTotalAmountMap.get(account);
+                        if (accountTotalAmount && accountTotalAmount > 0) {
+                          const maxAmountTimesThreePercent = value * 0.03;
+                          const tenPercentOfTotalAmount = accountTotalAmount * 0.1;
+                          if (maxAmountTimesThreePercent > tenPercentOfTotalAmount) {
+                            return Promise.reject(new Error(`⚠️ 警告：最大金额 × 3% ($${maxAmountTimesThreePercent.toFixed(0)}) 超过账户总资金的10% ($${tenPercentOfTotalAmount.toFixed(0)})，请谨慎操作！`));
+                          }
+                        }
+                      }
+                    }
+                    
                     return Promise.resolve();
                   },
                 },
@@ -3599,6 +3651,22 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                     if (!value && !fundPercent) {
                       return Promise.reject(new Error('资金占比和最大金额至少需要填入一个'));
                     }
+                    
+                    // 检查最大金额*3%是否大于账户总资金的10%
+                    if (value && value > 0) {
+                      const account = currentRow?.account; // 编辑时使用currentRow的账户信息
+                      if (account) {
+                        const accountTotalAmount = accountTotalAmountMap.get(account);
+                        if (accountTotalAmount && accountTotalAmount > 0) {
+                          const maxAmountTimesThreePercent = value * 0.03;
+                          const tenPercentOfTotalAmount = accountTotalAmount * 0.1;
+                          if (maxAmountTimesThreePercent > tenPercentOfTotalAmount) {
+                            return Promise.reject(new Error(`⚠️ 警告：最大金额 × 3% ($${maxAmountTimesThreePercent.toFixed(0)}) 超过账户总资金的10% ($${tenPercentOfTotalAmount.toFixed(0)})，请谨慎操作！`));
+                          }
+                        }
+                      }
+                    }
+                    
                     return Promise.resolve();
                   },
                 },
@@ -4483,6 +4551,25 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                     if (!value && !maxAmount) {
                       return Promise.reject(new Error('资金占比和最大金额至少需要填入一个'));
                     }
+                    
+                    // 检查最大金额*0.03是否大于任一选中账户总资金的10%
+                    if (value && value > 0 && selectedAccountsInfo.length > 0) {
+                      const warnings: string[] = [];
+                      selectedAccountsInfo.forEach(accountInfo => {
+                        if (accountInfo.totalAmount && accountInfo.totalAmount > 0) {
+                          const maxAmountTimesThreePercent = value * 0.03;
+                          const tenPercentOfTotalAmount = accountInfo.totalAmount * 0.1;
+                          if (maxAmountTimesThreePercent > tenPercentOfTotalAmount) {
+                            warnings.push(`${accountInfo.account}: $${maxAmountTimesThreePercent.toFixed(0)} > $${tenPercentOfTotalAmount.toFixed(0)}`);
+                          }
+                        }
+                      });
+                      
+                      if (warnings.length > 0) {
+                        return Promise.reject(new Error(`⚠️ 警告：以下账户的最大金额 × 3% 超过账户总资金的10%：${warnings.join('; ')}，请谨慎操作！`));
+                      }
+                    }
+                    
                     return Promise.resolve();
                   },
                 },
@@ -4504,6 +4591,25 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                     if (!value && !fundPercent) {
                       return Promise.reject(new Error('资金占比和最大金额至少需要填入一个'));
                     }
+                    
+                    // 检查最大金额*3%是否大于任一选中账户总资金的10%
+                    if (value && value > 0 && selectedAccountsInfo.length > 0) {
+                      const warnings: string[] = [];
+                      selectedAccountsInfo.forEach(accountInfo => {
+                        if (accountInfo.totalAmount && accountInfo.totalAmount > 0) {
+                          const maxAmountTimesThreePercent = value * 0.03;
+                          const tenPercentOfTotalAmount = accountInfo.totalAmount * 0.1;
+                          if (maxAmountTimesThreePercent > tenPercentOfTotalAmount) {
+                            warnings.push(`${accountInfo.account}: $${maxAmountTimesThreePercent.toFixed(0)} > $${tenPercentOfTotalAmount.toFixed(0)}`);
+                          }
+                        }
+                      });
+                      
+                      if (warnings.length > 0) {
+                        return Promise.reject(new Error(`⚠️ 警告：以下账户的最大金额 × 3% 超过账户总资金的10%：${warnings.join('; ')}，请谨慎操作！`));
+                      }
+                    }
+                    
                     return Promise.resolve();
                   },
                 },
@@ -5126,7 +5232,33 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               const stockCode = timeSegmentCurrentRecord?.stockCode || '';
               const accountName = timeSegmentCurrentRecord?.accountName || '';
               const templateName = `${stockCode}_${accountName}_${value}档`;
-              saveTimeSegmentTemplateFormRef.current?.setFieldsValue({ templateName });
+              
+              // 根据档位等级自动填入使用场景
+              let useScenario = '';
+              switch (value) {
+                case 'A':
+                  useScenario = '单边上涨';
+                  break;
+                case 'B':
+                  useScenario = '震荡上行';
+                  break;
+                case 'S':
+                  useScenario = '高位或低位震荡';
+                  break;
+                case 'C':
+                  useScenario = '震荡下行';
+                  break;
+                case 'D':
+                  useScenario = '单边下跌';
+                  break;
+                default:
+                  useScenario = '';
+              }
+              
+              saveTimeSegmentTemplateFormRef.current?.setFieldsValue({ 
+                templateName,
+                useScenario 
+              });
             },
           }}
         />
