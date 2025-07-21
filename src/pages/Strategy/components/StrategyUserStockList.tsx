@@ -466,6 +466,39 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     console.log('handleAdd被调用，提交的完整字段:', JSON.stringify(fields, null, 2));
     console.log('账户别名字段:', fields.accountName);
     
+    // 检查最大金额警告并进行二次确认
+    if (fields.maxAmount && fields.maxAmount > 0 && fields.account) {
+      const accountTotalAmount = accountTotalAmountMap.get(fields.account);
+      if (accountTotalAmount && accountTotalAmount > 0) {
+        const maxAmountTimesThreePercent = fields.maxAmount * 0.03;
+        const tenPercentOfTotalAmount = accountTotalAmount * 0.1;
+        if (maxAmountTimesThreePercent > tenPercentOfTotalAmount) {
+          const confirmed = await new Promise((resolve) => {
+            Modal.confirm({
+              title: '⚠️ 风险提醒',
+              content: (
+                <div>
+                  <p><strong>检测到高风险配置：</strong></p>
+                  <p>最大金额：<span style={{color: '#1890ff', fontWeight: 'bold'}}>${fields.maxAmount.toLocaleString()}</span></p>
+                  <p>最大金额 × 3% <span style={{color: '#ff4d4f'}}>(${maxAmountTimesThreePercent.toFixed(0)})</span> 超过账户总资金的10% <span style={{color: '#52c41a'}}>(${tenPercentOfTotalAmount.toFixed(0)})</span></p>
+                  <p>这可能导致较高的资金风险，请确认是否继续提交？</p>
+                </div>
+              ),
+              okText: '确认提交',
+              cancelText: '取消',
+              okButtonProps: { danger: true },
+              onOk: () => resolve(true),
+              onCancel: () => resolve(false),
+            });
+          });
+          
+          if (!confirmed) {
+            return false; // 用户取消，不继续提交
+          }
+        }
+      }
+    }
+    
     const hide = message.loading(intl.formatMessage({ id: 'pages.message.creating' }));
     
     // 如果有选择策略，则使用选定的策略ID和名称
@@ -661,6 +694,43 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
 
   // 更新策略用户股票关系
   const handleUpdate = async (fields: any) => {
+    if (!currentRow) {
+      return false;
+    }
+    
+    // 检查最大金额警告并进行二次确认
+    if (fields.maxAmount && fields.maxAmount > 0 && currentRow.account) {
+      const accountTotalAmount = accountTotalAmountMap.get(currentRow.account);
+      if (accountTotalAmount && accountTotalAmount > 0) {
+        const maxAmountTimesThreePercent = fields.maxAmount * 0.03;
+        const tenPercentOfTotalAmount = accountTotalAmount * 0.1;
+        if (maxAmountTimesThreePercent > tenPercentOfTotalAmount) {
+          const confirmed = await new Promise((resolve) => {
+            Modal.confirm({
+              title: '⚠️ 风险提醒',
+              content: (
+                <div>
+                  <p><strong>检测到高风险配置：</strong></p>
+                  <p>最大金额：<span style={{color: '#1890ff', fontWeight: 'bold'}}>${fields.maxAmount.toLocaleString()}</span></p>
+                  <p>最大金额 × 3% <span style={{color: '#ff4d4f'}}>(${maxAmountTimesThreePercent.toFixed(0)})</span> 超过账户总资金的10% <span style={{color: '#52c41a'}}>(${tenPercentOfTotalAmount.toFixed(0)})</span></p>
+                  <p>这可能导致较高的资金风险，请确认是否继续更新？</p>
+                </div>
+              ),
+              okText: '确认更新',
+              cancelText: '取消',
+              okButtonProps: { danger: true },
+              onOk: () => resolve(true),
+              onCancel: () => resolve(false),
+            });
+          });
+          
+          if (!confirmed) {
+            return false; // 用户取消，不继续更新
+          }
+        }
+      }
+    }
+    
     const hide = message.loading(intl.formatMessage({ id: 'pages.message.updating' }));
     
     if (!currentRow) {
@@ -2543,7 +2613,12 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
   // 批量设置买入单数相关状态
   const [batchBuyOrderModalVisible, setBatchBuyOrderModalVisible] = useState<boolean>(false);
   const [batchBuyOrderForm] = Form.useForm();
-
+  
+  // 表单警告状态
+  const [createFormWarnings, setCreateFormWarnings] = useState<{[key: string]: string}>({});
+  const [updateFormWarnings, setUpdateFormWarnings] = useState<{[key: string]: string}>({});
+  const [batchFormWarnings, setBatchFormWarnings] = useState<{[key: string]: string}>({});
+  
   return (
     <>
       {renderFilterTag()}
@@ -3168,7 +3243,8 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                           const maxAmountTimesThreePercent = value * 0.03;
                           const tenPercentOfTotalAmount = accountTotalAmount * 0.1;
                           if (maxAmountTimesThreePercent > tenPercentOfTotalAmount) {
-                            return Promise.reject(new Error(`⚠️ 警告：最大金额 × 3% ($${maxAmountTimesThreePercent.toFixed(0)}) 超过账户总资金的10% ($${tenPercentOfTotalAmount.toFixed(0)})，请谨慎操作！`));
+                            // 显示警告消息但不阻止提交
+                            message.warning(`⚠️ 警告：最大金额 × 3% ($${maxAmountTimesThreePercent.toFixed(0)}) 超过账户总资金的10% ($${tenPercentOfTotalAmount.toFixed(0)})，请谨慎操作！`);
                           }
                         }
                       }
@@ -3188,6 +3264,40 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               placeholder={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmount.placeholder', defaultMessage: '填入最大资金' })}
               tooltip={intl.formatMessage({ id: 'pages.strategy.user.stockRelation.maxAmountTip' })}
               min={0}
+              fieldProps={{
+                onChange: (value: any) => {
+                  // 只处理警告状态，不干扰输入值
+                  // 检查最大金额*3%是否大于账户总资金的10%
+                  if (value != null && value > 0) {
+                    const account = createForm.getFieldValue('account');
+                    if (account) {
+                      const accountTotalAmount = accountTotalAmountMap.get(account);
+                      if (accountTotalAmount && accountTotalAmount > 0) {
+                        const maxAmountTimesThreePercent = value * 0.03;
+                        const tenPercentOfTotalAmount = accountTotalAmount * 0.1;
+                        if (maxAmountTimesThreePercent > tenPercentOfTotalAmount) {
+                          setCreateFormWarnings(prev => ({
+                            ...prev, 
+                            maxAmount: `⚠️ 警告：最大金额 × 3% ($${maxAmountTimesThreePercent.toFixed(0)}) 超过账户总资金的10% ($${tenPercentOfTotalAmount.toFixed(0)})，请谨慎操作！`
+                          }));
+                        } else {
+                          setCreateFormWarnings(prev => {
+                            const newWarnings = {...prev};
+                            delete newWarnings.maxAmount;
+                            return newWarnings;
+                          });
+                        }
+                      }
+                    }
+                  } else {
+                    setCreateFormWarnings(prev => {
+                      const newWarnings = {...prev};
+                      delete newWarnings.maxAmount;
+                      return newWarnings;
+                    });
+                  }
+                }
+              }}
               rules={[
                 {
                   validator: (_: any, value: any) => {
@@ -3195,27 +3305,22 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                     if (!value && !fundPercent) {
                       return Promise.reject(new Error('资金占比和最大金额至少需要填入一个'));
                     }
-                    
-                    // 检查最大金额*3%是否大于账户总资金的10%
-                    if (value && value > 0) {
-                      const account = createForm.getFieldValue('account');
-                      if (account) {
-                        const accountTotalAmount = accountTotalAmountMap.get(account);
-                        if (accountTotalAmount && accountTotalAmount > 0) {
-                          const maxAmountTimesThreePercent = value * 0.03;
-                          const tenPercentOfTotalAmount = accountTotalAmount * 0.1;
-                          if (maxAmountTimesThreePercent > tenPercentOfTotalAmount) {
-                            return Promise.reject(new Error(`⚠️ 警告：最大金额 × 3% ($${maxAmountTimesThreePercent.toFixed(0)}) 超过账户总资金的10% ($${tenPercentOfTotalAmount.toFixed(0)})，请谨慎操作！`));
-                          }
-                        }
-                      }
-                    }
-                    
                     return Promise.resolve();
-                  },
+                  }
                 },
               ]}
             />
+            {createFormWarnings.maxAmount && (
+              <div style={{ 
+                marginTop: 4, 
+                marginLeft: 24,
+                fontSize: '12px', 
+                color: '#faad14',
+                lineHeight: '20px'
+              }}>
+                {createFormWarnings.maxAmount}
+              </div>
+            )}
           </div>
           
           <div style={{ width: 'calc(33.33% - 8px)' }}>
@@ -3624,7 +3729,8 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                           const maxAmountTimesThreePercent = value * 0.03;
                           const tenPercentOfTotalAmount = accountTotalAmount * 0.1;
                           if (maxAmountTimesThreePercent > tenPercentOfTotalAmount) {
-                            return Promise.reject(new Error(`⚠️ 警告：最大金额 × 3% ($${maxAmountTimesThreePercent.toFixed(0)}) 超过账户总资金的10% ($${tenPercentOfTotalAmount.toFixed(0)})，请谨慎操作！`));
+                            // 显示警告但不阻止提交
+                            return Promise.resolve(); // 警告但不阻止提交
                           }
                         }
                       }
@@ -3661,7 +3767,8 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                           const maxAmountTimesThreePercent = value * 0.03;
                           const tenPercentOfTotalAmount = accountTotalAmount * 0.1;
                           if (maxAmountTimesThreePercent > tenPercentOfTotalAmount) {
-                            return Promise.reject(new Error(`⚠️ 警告：最大金额 × 3% ($${maxAmountTimesThreePercent.toFixed(0)}) 超过账户总资金的10% ($${tenPercentOfTotalAmount.toFixed(0)})，请谨慎操作！`));
+                            // 显示警告但不阻止提交
+                            return Promise.resolve(); // 警告但不阻止提交
                           }
                         }
                       }
@@ -4566,7 +4673,8 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                       });
                       
                       if (warnings.length > 0) {
-                        return Promise.reject(new Error(`⚠️ 警告：以下账户的最大金额 × 3% 超过账户总资金的10%：${warnings.join('; ')}，请谨慎操作！`));
+                        // 显示警告但不阻止提交
+                            // 显示警告但不阻止提交
                       }
                     }
                     
@@ -4606,7 +4714,8 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
                       });
                       
                       if (warnings.length > 0) {
-                        return Promise.reject(new Error(`⚠️ 警告：以下账户的最大金额 × 3% 超过账户总资金的10%：${warnings.join('; ')}，请谨慎操作！`));
+                        // 显示警告但不阻止提交
+                            // 显示警告但不阻止提交
                       }
                     }
                     

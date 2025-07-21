@@ -83,6 +83,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
   const [immediateBuyRecord, setImmediateBuyRecord] = useState<API.StrategyStockItem | null>(null);
   const [immediateBuyForm] = Form.useForm();
   
+  // 表单警告状态
+  const [immediateBuyWarnings, setImmediateBuyWarnings] = useState<{[key: string]: string}>({});
+  
   const actionRef = useRef<ActionType>();
   const createFormRef = useRef<any>();
   const updateFormRef = useRef<any>();
@@ -1177,6 +1180,19 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         >
           立即买入
         </Button>,
+        <Tooltip
+          key="strategyImmediateBuy"
+          title="使用策略配置值进行买入"
+        >
+          <Button
+            type="primary"
+            size="small"
+            onClick={() => handleStrategyImmediateBuy(record)}
+            style={{ marginRight: 8 }}
+          >
+            策略立即买入
+          </Button>
+        </Tooltip>,
         <a
           key="edit"
           onClick={() => {
@@ -2651,6 +2667,101 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     immediateBuyForm.setFieldsValue(defaultValues);
   };
 
+  // 策略立即买入（使用策略配置值）
+  const handleStrategyImmediateBuy = async (record: API.StrategyStockItem) => {
+    Modal.confirm({
+      title: '确认策略立即买入',
+      content: (
+        <div>
+          <p>确定要对股票 <strong>{record.stockCode}</strong> 执行策略立即买入操作吗？</p>
+          <p style={{ color: '#1890ff', fontSize: '12px' }}>
+            💡 此操作将使用该股票在策略中的配置值进行买入（profitRatio等）
+          </p>
+          <p style={{ color: '#ff4d4f', fontSize: '12px' }}>
+            ⚠️ 注意：此操作将立即执行买入，不受时间限制，请确认当前为合适的交易时间。
+          </p>
+        </div>
+      ),
+      okText: '确认买入',
+      cancelText: '取消',
+      okType: 'danger',
+      width: 500,
+      onOk: async () => {
+        const hide = message.loading('正在执行策略立即买入...');
+        try {
+          // 调用批量立即买入接口，但只传入一个股票ID
+          const result = await batchImmediateBuyStrategyStock({
+            ids: [record.id!],
+            strategyId: record.strategyId!,
+            buyReason: '策略立即买入',
+          });
+          
+          hide();
+          
+          if (result && result.success) {
+            const { totalCount, successCount, failureCount, successDetails, failureDetails } = result.data || {};
+            
+            if (failureCount === 0) {
+              const successMessage = `策略立即买入成功！股票：${record.stockCode}，成功账户数：${successCount}/${totalCount}`;
+              message.success(successMessage);
+              
+              // 显示成功详情
+              if (successDetails && successDetails.length > 0) {
+                Modal.info({
+                  title: `策略立即买入成功详情 - ${record.stockCode}`,
+                  content: (
+                    <div>
+                      <p style={{ marginBottom: 8 }}>🎉 使用策略配置值买入成功！</p>
+                      {successDetails.map((detail: any, index: number) => (
+                        <div key={index} style={{ marginBottom: 4, fontSize: '12px' }}>
+                          账户 <strong>{detail.account}</strong>: ✅ 成功 
+                          {detail.accountName && ` (${detail.accountName})`}
+                          <br />
+                          {detail.price && `价格: $${detail.price}`}
+                          {detail.quantity && ` | 数量: ${detail.quantity}`}
+                          {(detail.buyAmount || (detail.price && detail.quantity)) && 
+                            ` | 买入资金: $${(detail.buyAmount || (detail.price * detail.quantity)).toFixed(2)}`}
+                        </div>
+                      ))}
+                    </div>
+                  ),
+                  width: 600,
+                });
+              }
+            } else {
+              message.error(`策略立即买入失败！股票：${record.stockCode}，失败账户数：${failureCount}/${totalCount}`);
+              
+              // 显示失败详情
+              if (failureDetails && failureDetails.length > 0) {
+                Modal.error({
+                  title: `策略立即买入失败详情 - ${record.stockCode}`,
+                  content: (
+                    <div>
+                      {failureDetails.map((detail: any, index: number) => (
+                        <div key={index} style={{ marginBottom: 4, fontSize: '12px' }}>
+                          账户 <strong>{detail.account}</strong>: ❌ 失败 
+                          {detail.accountName && ` (${detail.accountName})`}
+                          {detail.message && ` - ${detail.message}`}
+                        </div>
+                      ))}
+                    </div>
+                  ),
+                  width: 600,
+                });
+              }
+            }
+          } else {
+            message.error(`策略立即买入失败：${result.message || '未知错误'}`);
+          }
+        } catch (error: any) {
+          hide();
+          console.error('策略立即买入失败:', error);
+          message.error(`策略立即买入失败：${error.message || '网络错误'}`);
+        }
+      },
+    });
+  };
+
   return (
     <>
       {renderFilterTag()}
@@ -3106,9 +3217,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           rules={[
             { required: true },
             {
-              validator: (_, value) => {
+              validator: (_: any, value: any) => {
                 if (value > 3) {
-                  return Promise.reject(new Error('⚠️ 警告：上方百分比超过3%，请谨慎操作！'));
+                  return Promise.resolve();
                 }
                 return Promise.resolve();
               }
@@ -3569,9 +3680,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           rules={[
             { required: true },
             {
-              validator: (_, value) => {
+              validator: (_: any, value: any) => {
                 if (value > 3) {
-                  return Promise.reject(new Error('⚠️ 警告：下方百分比超过3%，请谨慎操作！'));
+                  return Promise.resolve();
                 }
                 return Promise.resolve();
               }
@@ -3595,9 +3706,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           rules={[
             { required: true },
             {
-              validator: (_, value) => {
+              validator: (_: any, value: any) => {
                 if (value > 3) {
-                  return Promise.reject(new Error('⚠️ 警告：上方百分比超过3%，请谨慎操作！'));
+                  return Promise.resolve();
                 }
                 return Promise.resolve();
               }
@@ -4389,9 +4500,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
                           rules={[
                             { required: true, message: '下方百分比必填' },
                             {
-                              validator: (_, value) => {
+                              validator: (_: any, value: any) => {
                                 if (value > 3) {
-                                  return Promise.reject(new Error('⚠️ 警告：下方百分比超过3%，请谨慎操作！'));
+                                  return Promise.resolve();
                                 }
                                 return Promise.resolve();
                               }
@@ -4417,9 +4528,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
                           rules={[
                             { required: true, message: '上方百分比必填' },
                             {
-                              validator: (_, value) => {
+                              validator: (_: any, value: any) => {
                                 if (value > 3) {
-                                  return Promise.reject(new Error('⚠️ 警告：上方百分比超过3%，请谨慎操作！'));
+                                  return Promise.resolve();
                                 }
                                 return Promise.resolve();
                               }
@@ -4447,7 +4558,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
                             {
                               validator: (_: any, value: any) => {
                                 if (value > 3) {
-                                  return Promise.reject(new Error('⚠️ 警告：盈利比例超过3%，请谨慎操作！'));
+                                  return Promise.resolve();
                                 }
                                 return Promise.resolve();
                               }
@@ -4870,25 +4981,28 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             name="fundPercent"
             label="资金比例 (%)"
             extra="使用账户总资金的百分比进行买入"
-            rules={[
-              {
-                validator: (_: any, value: any) => {
-                  if (value > 10) {
-                    return Promise.reject(new Error('⚠️ 警告：资金比例超过10%，请谨慎操作！'));
-                  }
-                  return Promise.resolve();
-                }
-              }
-            ]}
+            help={immediateBuyWarnings.fundPercent}
+            validateStatus={immediateBuyWarnings.fundPercent ? 'warning' : undefined}
           >
             <InputNumber
               style={{ width: '100%' }}
               placeholder="请输入资金比例"
               min={0}
-              max={100}
+              max={200}
               step={0.1}
               precision={2}
               addonAfter="%"
+              onChange={(value: any) => {
+                if (value != null && value >= 10) {
+                  setImmediateBuyWarnings(prev => ({...prev, fundPercent: '⚠️ 警告：资金比例超过10%，请谨慎操作！'}));
+                } else {
+                  setImmediateBuyWarnings(prev => {
+                    const newWarnings = {...prev};
+                    delete newWarnings.fundPercent;
+                    return newWarnings;
+                  });
+                }
+              }}
             />
           </Form.Item>
 
@@ -4896,16 +5010,8 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             name="fixedAmount"
             label="固定资金"
             extra="使用固定金额进行买入（与资金比例只能填入一个）"
-            rules={[
-              {
-                validator: (_: any, value: any) => {
-                  if (value > 100000) {
-                    return Promise.reject(new Error('⚠️ 警告：固定资金超过10万美元，请谨慎操作！'));
-                  }
-                  return Promise.resolve();
-                }
-              }
-            ]}
+            help={immediateBuyWarnings.fixedAmount}
+            validateStatus={immediateBuyWarnings.fixedAmount ? 'warning' : undefined}
           >
             <InputNumber
               style={{ width: '100%' }}
@@ -4913,6 +5019,17 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
               min={0}
               step={100}
               precision={2}
+              onChange={(value: any) => {
+                if (value != null && value >= 100000) {
+                  setImmediateBuyWarnings(prev => ({...prev, fixedAmount: '⚠️ 警告：固定资金超过10万美元，请谨慎操作！'}));
+                } else {
+                  setImmediateBuyWarnings(prev => {
+                    const newWarnings = {...prev};
+                    delete newWarnings.fixedAmount;
+                    return newWarnings;
+                  });
+                }
+              }}
             />
           </Form.Item>
 
@@ -4920,17 +5037,11 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             name="profitRatio"
             label="盈利比例 (%)"
             extra="达到此盈利比例时卖出"
+            help={immediateBuyWarnings.profitRatio}
+            validateStatus={immediateBuyWarnings.profitRatio ? 'warning' : undefined}
             rules={[
               { required: true, message: '请输入盈利比例' },
-              { type: 'number', min: 0.1, message: '盈利比例必须大于0.1%' },
-              {
-                validator: (_, value) => {
-                  if (value > 3) {
-                    return Promise.reject(new Error('⚠️ 警告：盈利比例超过3%，请谨慎操作！'));
-                  }
-                  return Promise.resolve();
-                }
-              }
+              { type: 'number', min: 0.1, message: '盈利比例必须大于0.1%' }
             ]}
           >
             <InputNumber
@@ -4941,6 +5052,17 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
               step={0.1}
               precision={2}
               addonAfter="%"
+              onChange={(value: any) => {
+                if (value != null && value >= 3) {
+                  setImmediateBuyWarnings(prev => ({...prev, profitRatio: '⚠️ 警告：盈利比例超过3%，请谨慎操作！'}));
+                } else {
+                  setImmediateBuyWarnings(prev => {
+                    const newWarnings = {...prev};
+                    delete newWarnings.profitRatio;
+                    return newWarnings;
+                  });
+                }
+              }}
             />
           </Form.Item>
         </Form>

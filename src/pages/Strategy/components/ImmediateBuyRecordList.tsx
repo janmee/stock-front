@@ -56,6 +56,7 @@ const ImmediateBuyRecordList = forwardRef<{ reload: () => void }, {}>((props, re
   const intl = useIntl();
   const actionRef = useRef<ActionType>();
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [accountOptions, setAccountOptions] = useState<{label: string, value: string}[]>([]);
 
   // 暴露reload方法给父组件
   useImperativeHandle(ref, () => ({
@@ -63,6 +64,28 @@ const ImmediateBuyRecordList = forwardRef<{ reload: () => void }, {}>((props, re
       actionRef.current?.reload();
     },
   }));
+
+  // 加载账户选项
+  useEffect(() => {
+    const fetchAccountOptions = async () => {
+      try {
+        // 使用和策略用户股票关系相同的API
+        const { listAccount } = await import('@/services/ant-design-pro/api');
+        const accountResponse = await listAccount();
+        if (accountResponse.success && accountResponse.data) {
+          const options = accountResponse.data.map((account: any) => ({
+            label: account.name || account.account,
+            value: account.account,
+          }));
+          setAccountOptions(options);
+        }
+      } catch (error) {
+        console.error('获取账户选项失败:', error);
+      }
+    };
+
+    fetchAccountOptions();
+  }, []);
 
   // 获取买入记录列表（包含订单状态）
   const fetchImmediateBuyRecords = async (params: QueryParams) => {
@@ -229,9 +252,7 @@ const ImmediateBuyRecordList = forwardRef<{ reload: () => void }, {}>((props, re
       width: 120,
       ellipsis: true,
       hidden: true,
-      search: {
-        transform: (value) => ({ strategyName: value }),
-      },
+      search: false, // 移除搜索
     },
     {
       title: '股票代码',
@@ -246,17 +267,22 @@ const ImmediateBuyRecordList = forwardRef<{ reload: () => void }, {}>((props, re
       dataIndex: 'account',
       width: 100,
       hidden: true,
-      search: {
-        transform: (value) => ({ account: value }),
-      },
+      search: false, // 移除搜索
     },
     {
       title: '账户名称',
       dataIndex: 'accountName',
       width: 120,
       ellipsis: true,
+      valueType: 'select',
+      fieldProps: {
+        options: accountOptions,
+        showSearch: true,
+        placeholder: '请选择账户',
+        allowClear: true,
+      },
       search: {
-        transform: (value) => ({ accountName: value }),
+        transform: (value) => ({ account: value }),
       },
     },
     {
@@ -268,9 +294,7 @@ const ImmediateBuyRecordList = forwardRef<{ reload: () => void }, {}>((props, re
         SUCCESS: '成功',
         FAILED: '失败',
       },
-      search: {
-        transform: (value) => ({ buyStatus: value }),
-      },
+      search: false, // 移除搜索
     },
     {
       title: '订单状态',
@@ -287,9 +311,7 @@ const ImmediateBuyRecordList = forwardRef<{ reload: () => void }, {}>((props, re
         SINGLE: '单个买入',
         BATCH: '批量买入',
       },
-      search: {
-        transform: (value) => ({ buyType: value }),
-      },
+      search: false, // 移除搜索
     },
     {
       title: '资金设置',
@@ -389,7 +411,6 @@ const ImmediateBuyRecordList = forwardRef<{ reload: () => void }, {}>((props, re
       valueType: 'dateTime',
       search: false,
       sorter: true,
-      hidden: true,
     },
     {
       title: '操作',
