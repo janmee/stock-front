@@ -25,6 +25,10 @@ export interface ImmediateBuyRecord {
   fillQty: number;
   fillAvgPrice: number;
   fillAmount: number;
+  sellOrderNo: string;
+  sellOrderStatus: number;
+  sellOrderStatusName: string;
+  profitAmount: number;
   buyStatus: string;
   failureReason: string;
   extraInfo: string;

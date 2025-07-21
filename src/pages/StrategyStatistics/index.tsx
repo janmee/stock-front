@@ -572,9 +572,9 @@ const StrategyStatistics: React.FC = () => {
                 style={{ marginBottom: 0 }}
               />
             </Col>
-            <Col span={3}>
+            <Col span={4}>
               <Statistic
-                title="卖出订单数"
+                title="卖出订单数(含未成交)"
                 value={statisticsData.sellOrderCount || 0}
                 precision={0}
                 style={{ marginBottom: 0 }}
@@ -734,9 +734,9 @@ const StrategyStatistics: React.FC = () => {
                       style={{ marginBottom: 0 }}
                     />
                   </Col>
-                  <Col span={3}>
+                  <Col span={4}>
                     <Statistic
-                      title="卖出订单数"
+                      title="卖出订单数(含未成交)"
                       value={stockData.sellOrderCount || 0}
                       precision={0}
                       style={{ marginBottom: 0 }}

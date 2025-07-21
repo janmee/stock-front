@@ -4,7 +4,7 @@ import { Button, message, Tag, Space, Card, Tooltip, Modal } from 'antd';
 import { ReloadOutlined, StopOutlined } from '@ant-design/icons';
 import { FormattedMessage, useIntl } from 'umi';
 import { PageContainer } from '@ant-design/pro-layout';
-import { immediateBuyRecordService } from '@/services/immediateBuyRecord';
+import { immediateBuyRecordService } from '../../../services/immediateBuyRecord';
 
 interface ImmediateBuyRecord {
   id: number;
@@ -29,6 +29,10 @@ interface ImmediateBuyRecord {
   fillQty: number;
   fillAvgPrice: number;
   fillAmount: number;
+  sellOrderNo: string;
+  sellOrderStatus: number;
+  sellOrderStatusName: string;
+  profitAmount: number;
   buyStatus: string;
   failureReason: string;
   extraInfo: string;
@@ -158,7 +162,7 @@ const ImmediateBuyRecordList = forwardRef<{ reload: () => void }, {}>((props, re
         
         if (successDetails && successDetails.length > 0) {
           detailInfo.push('✅ 成功撤销:');
-          successDetails.forEach(detail => {
+          successDetails.forEach((detail: string) => {
             detailInfo.push(`  ${detail}`);
           });
           detailInfo.push('');
@@ -166,7 +170,7 @@ const ImmediateBuyRecordList = forwardRef<{ reload: () => void }, {}>((props, re
         
         if (failureDetails && failureDetails.length > 0) {
           detailInfo.push('❌ 撤销失败:');
-          failureDetails.forEach(detail => {
+          failureDetails.forEach((detail: string) => {
             detailInfo.push(`  ${detail}`);
           });
         }
@@ -383,6 +387,55 @@ const ImmediateBuyRecordList = forwardRef<{ reload: () => void }, {}>((props, re
       copyable: true,
       search: false,
     },
+    {
+      title: '卖出单号',
+      dataIndex: 'sellOrderNo',
+      width: 120,
+      ellipsis: true,
+      copyable: true,
+      render: (value) => value || '-',
+      search: false,
+    },
+    {
+      title: '卖出状态',
+      dataIndex: 'sellOrderStatusName',
+      width: 120,
+      render: (_, record) => {
+        if (!record.sellOrderStatus) {
+          return <Tag color="gray">无卖出</Tag>;
+        }
+
+        let color = 'blue';
+        if (record.sellOrderStatus === 11) { // 已成交
+          color = 'green';
+        } else if (record.sellOrderStatus === 5) { // 等待成交
+          color = 'orange';
+        } else if (record.sellOrderStatus === 21 || record.sellOrderStatus === 22) { // 已撤销
+          color = 'red';
+        }
+
+        return <Tag color={color}>{record.sellOrderStatusName || '未知状态'}</Tag>;
+      },
+      search: false,
+    },
+    {
+      title: '盈利金额',
+      dataIndex: 'profitAmount',
+      width: 120,
+      render: (_, record) => {
+        if (record.profitAmount === null || record.profitAmount === undefined) {
+          return '-';
+        }
+        const color = record.profitAmount >= 0 ? 'green' : 'red';
+        const symbol = record.profitAmount >= 0 ? '+' : '';
+        return (
+          <span style={{ color }}>
+            {symbol}${record.profitAmount.toFixed(2)}
+          </span>
+        );
+      },
+      search: false,
+    },
     
     {
       title: '买入原因',
@@ -415,7 +468,7 @@ const ImmediateBuyRecordList = forwardRef<{ reload: () => void }, {}>((props, re
     {
       title: '操作',
       valueType: 'option',
-      width: 150,
+      width: 80,
       fixed: 'right',
       render: (_, record) => renderActions(record),
     },

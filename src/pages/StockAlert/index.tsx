@@ -118,6 +118,7 @@ const StockAlert: React.FC = () => {
     minMarketCap: null,
     mergeSameStock: true, // 默认合并相同股票数据
     showFirstTriggerTime: true, // 默认显示首次触发时间
+    todayOnly: true, // 默认只显示今天的数据
   });
 
   // 生成策略配置相关状态
@@ -135,6 +136,7 @@ const StockAlert: React.FC = () => {
         minMarketCap: search.minMarketCap || undefined,
         mergeSameStock: search.mergeSameStock,
         showFirstTriggerTime: search.showFirstTriggerTime, // 添加showFirstTriggerTime参数
+        todayOnly: search.todayOnly, // 添加todayOnly参数
       };
 
       // 添加排序参数
@@ -274,6 +276,7 @@ const StockAlert: React.FC = () => {
       minMarketCap: values.minMarketCap || null,
       mergeSameStock: values.mergeSameStock !== undefined ? values.mergeSameStock : true,
       showFirstTriggerTime: values.showFirstTriggerTime !== undefined ? values.showFirstTriggerTime : true,
+      todayOnly: values.todayOnly !== undefined ? values.todayOnly : true,
     };
     setSearchParams(newSearchParams);
     fetchData(1, pagination.pageSize, newSearchParams);
@@ -286,6 +289,7 @@ const StockAlert: React.FC = () => {
       minMarketCap: null,
       mergeSameStock: true,
       showFirstTriggerTime: true,
+      todayOnly: true,
     };
     setSearchParams(defaultParams);
     fetchData(1, pagination.pageSize, defaultParams);
@@ -361,6 +365,14 @@ const StockAlert: React.FC = () => {
       width: 80,
       render: (marketCap: number) => marketCap ? `${marketCap.toLocaleString()}亿` : '-',
       sorter: (a: StockMinuteAlert, b: StockMinuteAlert) => a.marketCap! - b.marketCap!,
+    },
+    {
+      title: <FormattedMessage id="pages.stockAlert.triggerTime" defaultMessage="触发时间" />,
+      dataIndex: 'alertTime',
+      key: 'alertTime',
+      width: 180,
+      render: (time: string) => moment(time).format('YYYY-MM-DD HH:mm:ss'),
+      sorter: (a: StockMinuteAlert, b: StockMinuteAlert) => moment(a.alertTime).valueOf() - moment(b.alertTime).valueOf(),
     },
     {
       title: <FormattedMessage id="pages.stockAlert.triggerChange" defaultMessage="触发时涨跌幅" />,
@@ -480,14 +492,6 @@ const StockAlert: React.FC = () => {
           </div>
         );
       },
-    },
-    {
-      title: <FormattedMessage id="pages.stockAlert.triggerTime" defaultMessage="触发时间" />,
-      dataIndex: 'alertTime',
-      key: 'alertTime',
-      width: 180,
-      render: (time: string) => moment(time).format('YYYY-MM-DD HH:mm:ss'),
-      sorter: (a: StockMinuteAlert, b: StockMinuteAlert) => moment(a.alertTime).valueOf() - moment(b.alertTime).valueOf(),
     },
     {
       title: <FormattedMessage id="pages.stockAlert.action" defaultMessage="操作" />,
@@ -626,7 +630,10 @@ const StockAlert: React.FC = () => {
           <Form 
             layout="inline" 
             onFinish={handleSearch}
-            initialValues={searchParams}
+            initialValues={{
+              ...searchParams,
+              todayOnly: searchParams.todayOnly
+            }}
             style={{ marginBottom: 0 }}
           >
             <Form.Item 
@@ -688,6 +695,23 @@ const StockAlert: React.FC = () => {
                 unCheckedChildren={intl.formatMessage({
                   id: 'pages.stockAlert.search.showFirstTriggerTime.off',
                   defaultMessage: '最新'
+                })}
+              />
+            </Form.Item>
+
+            <Form.Item 
+              name="todayOnly" 
+              label={<FormattedMessage id="pages.stockAlert.search.todayOnly" defaultMessage="只显示今日异动" />}
+              valuePropName="checked"
+            >
+              <Switch 
+                checkedChildren={intl.formatMessage({
+                  id: 'pages.stockAlert.search.todayOnly.on',
+                  defaultMessage: '今日'
+                })}
+                unCheckedChildren={intl.formatMessage({
+                  id: 'pages.stockAlert.search.todayOnly.off',
+                  defaultMessage: '全部'
                 })}
               />
             </Form.Item>
