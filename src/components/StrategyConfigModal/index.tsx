@@ -92,10 +92,10 @@ const StrategyConfigModal: React.FC<StrategyConfigModalProps> = ({
         stockCode: stockCode,
         profitRatio: 1.0, // 默认盈利比例1%
         levelPercent: 1.5, // 默认档位百分比1.5%
-        unsoldStackLimit: 2, // 默认未卖出堆栈值
-        totalFundShares: 5, // 默认最大持有买入单数
-        limitStartShares: 5, // 默认限制开始单数
-        enableOpeningBuy: true, // 默认开启开盘买入
+        unsoldStackLimit: 1, // 默认未卖出堆栈值
+        totalFundShares: 2, // 默认最大持有买入单数
+        limitStartShares: 2, // 默认限制开始单数
+        enableOpeningBuy: false, // 默认开启开盘买入
         marketCapScale: marketCapScale, // 根据市值自动设置
         enableProfitSellBeforeClose: 'PROFIT_SELL_BEFORE_CLOSE', // 默认收盘前盈利卖出
         enableYesterdayLowestBuy: false, // 默认关闭昨天最低价买入

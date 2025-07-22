@@ -87,7 +87,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
   const [immediateBuyWarnings, setImmediateBuyWarnings] = useState<{[key: string]: string}>({});
   
   // 用户列表相关状态
-  const [userOptions, setUserOptions] = useState<{label: string, value: string, disabled?: boolean}[]>([]);
+  const [userOptions, setUserOptions] = useState<{label: string, value: string, disabled?: boolean, status?: string}[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [loadingUsers, setLoadingUsers] = useState<boolean>(false);
   
@@ -99,7 +99,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
   // 批量立即买入对话框状态
   const [batchBuyModalVisible, setBatchBuyModalVisible] = useState<boolean>(false);
   const [batchBuyUsers, setBatchBuyUsers] = useState<string[]>([]);
-  const [batchBuyUserOptions, setBatchBuyUserOptions] = useState<{label: string, value: string, disabled?: boolean}[]>([]);
+  const [batchBuyUserOptions, setBatchBuyUserOptions] = useState<{label: string, value: string, disabled?: boolean, status?: string}[]>([]);
   
   const actionRef = useRef<ActionType>();
   const createFormRef = useRef<any>();
@@ -2467,12 +2467,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       return false;
     }
 
-    // 验证是否选择了用户
-    if (!selectedUsers || selectedUsers.length === 0) {
-      message.error('请至少选择一个用户进行买入');
-      return false;
-    }
-
     // 验证只能填入一个资金设置
     if (values.fundPercent > 0 && values.fixedAmount > 0) {
       message.error('资金比例和固定资金只能填入一个');
@@ -2625,9 +2619,10 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       
       if (response.success && response.data) {
         const options = response.data.map((item: any) => ({
-          label: `${item.accountName || item.account} (${item.account})`,
+          label: `${item.accountName || item.account} (${item.account})${item.status !== '1' ? ' [策略禁用]' : ''}`,
           value: item.account,
-          disabled: item.status !== '1', // 如果状态不是启用，则禁用选择
+          disabled: false, // 允许选择所有用户，包括禁用状态的
+          status: item.status, // 保存状态信息供后续使用
         }));
         setUserOptions(options);
         
@@ -2643,21 +2638,21 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           }
         }
         
-        // 如果有保存的用户选择，则恢复有效的用户选择
+        // 如果有保存的用户选择，则恢复所有保存的用户选择（不论启用或禁用状态）
         if (savedUsers.length > 0) {
           const validUsers = savedUsers.filter((user: string) => 
-            options.some((option: {value: string, disabled?: boolean}) => option.value === user && !option.disabled)
+            options.some((option: {value: string}) => option.value === user)
           );
           if (validUsers.length > 0) {
             setSelectedUsers(validUsers);
           } else {
             // 如果保存的用户都无效，则默认选择所有启用的用户
-            const enabledUsers = options.filter((option: {value: string, disabled?: boolean}) => !option.disabled).map((option: {value: string}) => option.value);
+            const enabledUsers = options.filter((option: {status: string}) => option.status === '1').map((option: {value: string}) => option.value);
             setSelectedUsers(enabledUsers);
           }
         } else {
           // 默认选择所有启用的用户
-          const enabledUsers = options.filter((option: {value: string, disabled?: boolean}) => !option.disabled).map((option: {value: string}) => option.value);
+          const enabledUsers = options.filter((option: {status: string}) => option.status === '1').map((option: {value: string}) => option.value);
           setSelectedUsers(enabledUsers);
         }
       }
@@ -2675,6 +2670,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     try {
       // 获取所有股票对应的用户列表，然后取交集
       const allUserSets: Set<string>[] = [];
+      const allUserData: Map<string, any> = new Map(); // 存储用户数据
       
       for (const stockCode of stockCodes) {
         const response = await request('/api/strategy/user-stock/page', {
@@ -2690,8 +2686,11 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         if (response.success && response.data) {
           const users = new Set<string>();
           response.data.forEach((item: any) => {
-            if (item.status === '1') { // 只包含启用的用户
-              users.add(item.account);
+            // 包含所有用户，不论启用或禁用状态
+            users.add(item.account);
+            // 存储用户数据，如果账户已存在且当前是启用状态，则保持启用状态
+            if (!allUserData.has(item.account) || item.status === '1') {
+              allUserData.set(item.account, item);
             }
           });
           allUserSets.push(users);
@@ -2710,37 +2709,22 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         commonUsers = newCommonUsers;
       }
       
-      // 获取用户详细信息
+      // 构建用户选项
       if (commonUsers.size > 0) {
-        const response = await request('/api/strategy/user-stock/page', {
-          method: 'GET',
-          params: {
-            strategyId: strategyId,
-            current: 1,
-            pageSize: 1000,
-          },
+        const options = Array.from(commonUsers).map(account => {
+          const userInfo = allUserData.get(account);
+          return {
+            label: `${userInfo?.accountName || account} (${account})${userInfo?.status !== '1' ? ' [策略禁用]' : ''}`,
+            value: account,
+            disabled: false, // 允许选择所有用户，包括禁用状态的
+            status: userInfo?.status, // 保存状态信息供后续使用
+          };
         });
         
-        if (response.success && response.data) {
-          const userMap = new Map<string, any>();
-          response.data.forEach((item: any) => {
-            if (!userMap.has(item.account)) {
-              userMap.set(item.account, item);
-            }
-          });
-          
-          const options = Array.from(commonUsers).map(account => {
-            const userInfo = userMap.get(account);
-            return {
-              label: `${userInfo?.accountName || account} (${account})`,
-              value: account,
-              disabled: false,
-            };
-          });
-          
-          setBatchBuyUserOptions(options);
-          setBatchBuyUsers(Array.from(commonUsers)); // 默认选择所有可用用户
-        }
+        setBatchBuyUserOptions(options);
+        // 默认选择所有启用的用户
+        const enabledUsers = options.filter(option => option.status === '1').map(option => option.value);
+        setBatchBuyUsers(enabledUsers);
       } else {
         setBatchBuyUserOptions([]);
         setBatchBuyUsers([]);
@@ -2758,12 +2742,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
   const handleExecuteStrategyBuy = async () => {
     if (!strategyBuyRecord) {
       message.error('请先选择要买入的股票');
-      return false;
-    }
-
-    // 验证是否选择了用户
-    if (!strategyBuyUsers || strategyBuyUsers.length === 0) {
-      message.error('请至少选择一个用户进行买入');
       return false;
     }
 
@@ -2849,12 +2827,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
 
   // 执行批量立即买入
   const handleExecuteBatchBuy = async () => {
-    // 验证是否选择了用户
-    if (!batchBuyUsers || batchBuyUsers.length === 0) {
-      message.error('请至少选择一个用户进行买入');
-      return false;
-    }
-
     // 从选中的记录中获取策略ID
     let effectiveStrategyId = strategyId;
     if (!effectiveStrategyId && currentTableData.length > 0) {
@@ -5193,9 +5165,8 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             allowClear
           >
             {userOptions.map(option => (
-              <Option key={option.value} value={option.value} disabled={option.disabled}>
+              <Option key={option.value} value={option.value}>
                 {option.label}
-                {option.disabled && <span style={{ color: '#ff4d4f' }}> (已禁用)</span>}
               </Option>
             ))}
           </Select>
@@ -5204,11 +5175,21 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
               size="small"
               type="link"
               onClick={() => {
-                const enabledUsers = userOptions.filter(option => !option.disabled).map(option => option.value);
+                const enabledUsers = userOptions.filter(option => option.status === '1').map(option => option.value);
                 setSelectedUsers(enabledUsers);
               }}
             >
               全选启用用户
+            </Button>
+            <Button
+              size="small"
+              type="link"
+              onClick={() => {
+                const allUsers = userOptions.map(option => option.value);
+                setSelectedUsers(allUsers);
+              }}
+            >
+              全选所有用户
             </Button>
             <Button
               size="small"
@@ -5378,9 +5359,8 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             allowClear
           >
             {userOptions.map(option => (
-              <Option key={option.value} value={option.value} disabled={option.disabled}>
+              <Option key={option.value} value={option.value}>
                 {option.label}
-                {option.disabled && <span style={{ color: '#ff4d4f' }}> (已禁用)</span>}
               </Option>
             ))}
           </Select>
@@ -5389,11 +5369,21 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
               size="small"
               type="link"
               onClick={() => {
-                const enabledUsers = userOptions.filter(option => !option.disabled).map(option => option.value);
+                const enabledUsers = userOptions.filter(option => option.status === '1').map(option => option.value);
                 setStrategyBuyUsers(enabledUsers);
               }}
             >
               全选启用用户
+            </Button>
+            <Button
+              size="small"
+              type="link"
+              onClick={() => {
+                const allUsers = userOptions.map(option => option.value);
+                setStrategyBuyUsers(allUsers);
+              }}
+            >
+              全选所有用户
             </Button>
             <Button
               size="small"
@@ -5462,9 +5452,8 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             allowClear
           >
             {batchBuyUserOptions.map(option => (
-              <Option key={option.value} value={option.value} disabled={option.disabled}>
+              <Option key={option.value} value={option.value}>
                 {option.label}
-                {option.disabled && <span style={{ color: '#ff4d4f' }}> (已禁用)</span>}
               </Option>
             ))}
           </Select>
@@ -5473,11 +5462,21 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
               size="small"
               type="link"
               onClick={() => {
-                const enabledUsers = batchBuyUserOptions.filter(option => !option.disabled).map(option => option.value);
+                const enabledUsers = batchBuyUserOptions.filter(option => option.status === '1').map(option => option.value);
                 setBatchBuyUsers(enabledUsers);
               }}
             >
               全选启用用户
+            </Button>
+            <Button
+              size="small"
+              type="link"
+              onClick={() => {
+                const allUsers = batchBuyUserOptions.map(option => option.value);
+                setBatchBuyUsers(allUsers);
+              }}
+            >
+              全选所有用户
             </Button>
             <Button
               size="small"
