@@ -1365,6 +1365,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     let disabledCount = 0;
     let recordCount = 0;
     const accountSet = new Set<string>();
+    const enabledAccountSet = new Set<string>(); // 只统计启用状态的账户
     
     // 初始化市值规模统计
     const marketCapStats = {
@@ -1388,6 +1389,10 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       // 统计账户
       if (record.account) {
         accountSet.add(record.account);
+        // 只有启用状态的用户策略关系才计入资金统计
+        if (record.status === '1') {
+          enabledAccountSet.add(record.account);
+        }
       }
       
       // 统计市值规模
@@ -1396,33 +1401,35 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
         marketCapStats[strategyStock.marketCapScale as keyof typeof marketCapStats]++;
       }
       
-      // 计算资金相关统计 - 暂时跳过有问题的属性
-      try {
-        const buyRatioConfig = parseBuyRatioConfig((record as any).buyRatioConfig || '');
-        const singleAmount = calculateSingleAmount(record, buyRatioConfig);
-        const dailyMaxHolding = calculateDailyMaxHolding(record, singleAmount);
-        const maxHolding = calculateMaxHolding(record, buyRatioConfig, singleAmount);
-        
-        totalSingleAmount += singleAmount;
-        totalDailyMaxHolding += dailyMaxHolding;
-        totalMaxHolding += maxHolding;
-        
-        // 重新计算账户总资金（去重）
-        totalAccountAmount = 0;
-        Array.from(accountSet).forEach(account => {
-          const accountAmount = accountTotalAmountMap.get(account) || 0;
-          totalAccountAmount += accountAmount;
-        });
-        
-        if (maxHolding > maxStockAmount) {
-          maxStockAmount = maxHolding;
-          maxStockCode = record.stockCode || '';
-          maxStockSingleAmount = singleAmount;
+      // 计算资金相关统计 - 只计算启用状态的用户策略关系
+      if (record.status === '1') {
+        try {
+          const buyRatioConfig = parseBuyRatioConfig((record as any).buyRatioConfig || '');
+          const singleAmount = calculateSingleAmount(record, buyRatioConfig);
+          const dailyMaxHolding = calculateDailyMaxHolding(record, singleAmount);
+          const maxHolding = calculateMaxHolding(record, buyRatioConfig, singleAmount);
+          
+          totalSingleAmount += singleAmount;
+          totalDailyMaxHolding += dailyMaxHolding;
+          totalMaxHolding += maxHolding;
+          
+          if (maxHolding > maxStockAmount) {
+            maxStockAmount = maxHolding;
+            maxStockCode = record.stockCode || '';
+            maxStockSingleAmount = singleAmount;
+          }
+        } catch (error) {
+          // 如果计算出错，跳过这条记录的资金计算
+          console.warn('计算资金统计时出错:', error);
         }
-      } catch (error) {
-        // 如果计算出错，跳过这条记录的资金计算
-        console.warn('计算资金统计时出错:', error);
       }
+    });
+
+    // 重新计算账户总资金（只统计有启用策略关系的账户）
+    totalAccountAmount = 0;
+    Array.from(enabledAccountSet).forEach(account => {
+      const accountAmount = accountTotalAmountMap.get(account) || 0;
+      totalAccountAmount += accountAmount;
     });
 
     const singleAmountRatio = totalAccountAmount > 0 ? (totalSingleAmount / totalAccountAmount) * 100 : 0;
@@ -1434,6 +1441,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
     return {
       recordCount,
       accountCount: accountSet.size,
+      enabledAccountCount: enabledAccountSet.size, // 新增启用账户数统计
       totalSingleAmount,
       totalDailyMaxHolding,
       totalMaxHolding,
@@ -1915,6 +1923,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       dataIndex: 'secondStageEnabled',
       valueType: 'switch',
       hideInSearch: true,
+      hidden: true,
       render: (_, record) => (
         <Switch
           checkedChildren="是"
@@ -1944,6 +1953,7 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
       title: '启动二阶段策略日期',
       dataIndex: 'secondStageStartDate',
       hideInSearch: true,
+      hidden: true,
       render: (text) => text || '-',
     },
     {
@@ -2644,13 +2654,24 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Statistic 
-              title="账户总资金" 
+              title="启用账户" 
+              value={summaryData.enabledAccountCount}
+              suffix={`/ ${summaryData.accountCount}`}
+              valueStyle={{ color: '#52c41a' }}
+              formatter={(value) => value?.toLocaleString()}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Statistic 
+              title="账户总资金(启用)" 
               prefix={'$'}
               value={summaryData.totalAccountAmount}
               valueStyle={{ color: '#52c41a' }}
               formatter={(value) => Math.round(Number(value) || 0).toLocaleString()}
             />
           </Col>
+        </Row>
+        <Row gutter={16} style={{ marginTop: 16 }}>
           <Col xs={24} sm={12} md={6}>
             <Statistic 
               title="单次资金总计" 
@@ -2661,8 +2682,6 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
               formatter={(value) => Math.round(Number(value) || 0).toLocaleString()}
             />
           </Col>
-        </Row>
-        <Row gutter={16} style={{ marginTop: 16 }}>
           <Col xs={24} sm={12} md={6}>
             <Statistic 
               title="单天最大持有资金" 
@@ -2687,13 +2706,6 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
             <Statistic 
               title="资金最大使用股票单次资金" 
               value={summaryData.maxStockCode ? `${summaryData.maxStockCode}($${Math.round(summaryData.maxStockSingleAmount).toLocaleString()}/${summaryData.maxStockSingleRatio.toFixed(2)}%)` : '无'}
-              valueStyle={{ color: '#ff4d4f' }}
-            />
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Statistic 
-              title="资金最大使用股票总资金" 
-              value={summaryData.maxStockCode ? `${summaryData.maxStockCode}($${Math.round(summaryData.maxStockAmount).toLocaleString()}/${summaryData.maxStockRatio.toFixed(2)}%)` : '无'}
               valueStyle={{ color: '#ff4d4f' }}
             />
           </Col>
@@ -5685,4 +5697,4 @@ const StrategyUserStockList = forwardRef((props: StrategyUserStockListProps, ref
   );
 });
 
-export default StrategyUserStockList; 
+export default StrategyUserStockList;

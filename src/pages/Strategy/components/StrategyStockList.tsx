@@ -20,7 +20,7 @@ import { PlusOutlined, DownOutlined, UpOutlined, SettingOutlined, ThunderboltOut
 import { getConfigTemplateList, saveConfigTemplate, deleteConfigTemplate, applyConfigTemplate, listStrategyStock, createStrategyStock, updateStrategyStock, deleteStrategyStock, updateStrategyStockStatus, updateStrategyStockOpeningBuy, updateStrategyStockProfitSellBeforeClose, batchUpdateStrategyStockOpeningBuy, batchUpdateStrategyStockProfitSellBeforeClose, listStrategyJob, listStrategyUserStock, batchUpdateStrategyUserStockTimeSegmentConfig, batchUpdateStrategyStockStatus, listAccountInfo, getAccountConfigStatus, getConfigTemplateById, listTimeSegmentTemplates, createTimeSegmentTemplate, getTimeSegmentTemplateById, deleteTimeSegmentTemplate, getTimeSegmentTemplateLevels, listTimeSegmentTemplatesByLevel, applyTimeSegmentTemplateToStrategyStock, batchUpdateStrategyStockTimeSegmentConfig, batchSwitchStrategyStockTemplateLevel, batchImmediateBuyStrategyStock, updateStrategyStockYesterdayLowestBuy, batchUpdateStrategyStockYesterdayLowestBuy, immediateBuyStrategyStock } from '@/services/ant-design-pro/api';
 import { useModel } from '@umijs/max';
 import { history } from '@umijs/max';
-import { FormattedMessage, useIntl } from '@umijs/max';
+import { FormattedMessage, useIntl, request } from '@umijs/max';
 import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import enUS from 'antd/locale/en_US';
@@ -85,6 +85,21 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
   
   // 表单警告状态
   const [immediateBuyWarnings, setImmediateBuyWarnings] = useState<{[key: string]: string}>({});
+  
+  // 用户列表相关状态
+  const [userOptions, setUserOptions] = useState<{label: string, value: string, disabled?: boolean}[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState<boolean>(false);
+  
+  // 策略立即买入对话框状态
+  const [strategyBuyModalVisible, setStrategyBuyModalVisible] = useState<boolean>(false);
+  const [strategyBuyRecord, setStrategyBuyRecord] = useState<API.StrategyStockItem | null>(null);
+  const [strategyBuyUsers, setStrategyBuyUsers] = useState<string[]>([]);
+  
+  // 批量立即买入对话框状态
+  const [batchBuyModalVisible, setBatchBuyModalVisible] = useState<boolean>(false);
+  const [batchBuyUsers, setBatchBuyUsers] = useState<string[]>([]);
+  const [batchBuyUserOptions, setBatchBuyUserOptions] = useState<{label: string, value: string, disabled?: boolean}[]>([]);
   
   const actionRef = useRef<ActionType>();
   const createFormRef = useRef<any>();
@@ -2422,117 +2437,15 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       return;
     }
 
-    Modal.confirm({
-      title: '确认批量立即买入',
-      content: (
-        <div>
-          <p>确定要对选中的 <strong>{selectedRowKeys.length}</strong> 只股票执行立即买入操作吗？</p>
-          <p style={{ color: '#ff4d4f', fontSize: '12px' }}>
-            ⚠️ 注意：此操作将立即执行买入，不受时间限制，请确认当前为合适的交易时间。
-          </p>
-        </div>
-      ),
-      okText: '确认买入',
-      cancelText: '取消',
-      okType: 'danger',
-      width: 500,
-      onOk: async () => {
-        const hide = message.loading('正在执行批量立即买入...');
-        try {
-          const result = await batchImmediateBuyStrategyStock({
-            ids: selectedRowKeys as number[],
-            strategyId: effectiveStrategyId,
-            forceExecute: true,
-            buyReason: '批量立即买入',
-          });
-          hide();
-          
-          if (result.success && result.data) {
-            const { totalCount, successCount, failureCount, successStockCodes, successDetails, failureDetails } = result.data;
-            
-            // 按股票代码分组成功和失败详情
-            const successByStock = new Map<string, any[]>();
-            const failureByStock = new Map<string, any[]>();
-            
-            // 分组成功详情
-            if (successDetails && successDetails.length > 0) {
-              successDetails.forEach((detail: any) => {
-                if (!successByStock.has(detail.stockCode)) {
-                  successByStock.set(detail.stockCode, []);
-                }
-                successByStock.get(detail.stockCode)!.push(detail);
-              });
-            }
-            
-            // 分组失败详情
-            if (failureDetails && failureDetails.length > 0) {
-              failureDetails.forEach((detail: any) => {
-                if (!failureByStock.has(detail.stockCode)) {
-                  failureByStock.set(detail.stockCode, []);
-                }
-                failureByStock.get(detail.stockCode)!.push(detail);
-              });
-            }
-            
-            // 构建基本消息
-            if (successCount === totalCount) {
-              message.success(`批量立即买入全部成功！总计${totalCount}个操作`);
-            } else if (successCount > 0) {
-              message.warning(`批量立即买入部分成功！成功${successCount}个，失败${failureCount}个`);
-            } else {
-              message.error(`批量立即买入全部失败！失败${failureCount}个操作`);
-            }
-            
-            // 显示详细信息弹窗
-            const allStockCodes = new Set([...successByStock.keys(), ...failureByStock.keys()]);
-            
-            if (allStockCodes.size > 0) {
-              const detailInfo: string[] = [];
-              
-              Array.from(allStockCodes).sort().forEach(stockCode => {
-                detailInfo.push(`\n=== ${stockCode} ===`);
-                
-                // 显示成功账户
-                const stockSuccessDetails = successByStock.get(stockCode) || [];
-                if (stockSuccessDetails.length > 0) {
-                  detailInfo.push(`✅ 成功账户 (${stockSuccessDetails.length}个):`);
-                  stockSuccessDetails.forEach(detail => {
-                    detailInfo.push(`  • ${detail.account} (${detail.accountName}) - $${detail.price?.toFixed(4)} × ${detail.quantity?.toFixed(0)}股 = $${(detail.price * detail.quantity)?.toFixed(2)}`);
-                  });
-                }
-                
-                // 显示失败账户
-                const stockFailureDetails = failureByStock.get(stockCode) || [];
-                if (stockFailureDetails.length > 0) {
-                  detailInfo.push(`❌ 失败账户 (${stockFailureDetails.length}个):`);
-                  stockFailureDetails.forEach(detail => {
-                    detailInfo.push(`  • ${detail.account} (${detail.accountName}) - ${detail.errorMessage}`);
-                  });
-                }
-              });
-              
-              Modal.info({
-                title: `批量立即买入详细结果,以下只是下单情况，并不代表订单已成交，详情请查看买入记录 (${allStockCodes.size}只股票)`,
-                content: (
-                  <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
-                    <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>{detailInfo.join('\n')}</pre>
-                  </div>
-                ),
-                width: 800,
-              });
-            }
-            
-            // setSelectedRowKeys([]); // 保持选中状态，不清空选择
-            actionRef.current?.reload();
-          } else {
-            message.error('批量立即买入失败');
-          }
-        } catch (error) {
-          hide();
-          message.error('批量立即买入失败');
-        }
-      },
-    });
+    // 获取选中股票的代码列表
+    const selectedStockCodes = currentTableData
+      .filter(item => selectedRowKeys.includes(item.id!))
+      .map(item => item.stockCode)
+      .filter((code): code is string => !!code); // 过滤掉undefined值
+
+    // 显示用户选择对话框
+    setBatchBuyModalVisible(true);
+    await loadBatchBuyUsers(effectiveStrategyId, selectedStockCodes);
   };
 
   // 处理单个立即买入
@@ -2541,12 +2454,22 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     setImmediateBuyModalVisible(true);
     // 恢复上次保存的配置
     restoreImmediateBuyConfig();
+    // 加载用户列表
+    if (record.strategyId && record.stockCode) {
+      loadImmediateBuyUsers(record.strategyId, record.stockCode);
+    }
   };
 
   // 执行单个立即买入
   const handleExecuteImmediateBuy = async (values: any) => {
     if (!immediateBuyRecord) {
       message.error('请先选择要买入的股票');
+      return false;
+    }
+
+    // 验证是否选择了用户
+    if (!selectedUsers || selectedUsers.length === 0) {
+      message.error('请至少选择一个用户进行买入');
       return false;
     }
 
@@ -2571,6 +2494,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         fixedAmount: values.fixedAmount > 0 ? values.fixedAmount : undefined,
         profitRatio: values.profitRatio / 100, // 转换为小数
         buyReason: '单个立即买入',
+        selectedUsers: selectedUsers, // 添加选中的用户列表
       };
 
       const result = await immediateBuyStrategyStock(params);
@@ -2582,6 +2506,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           fundPercent: values.fundPercent,
           fixedAmount: values.fixedAmount,
           profitRatio: values.profitRatio,
+          selectedUsers: selectedUsers, // 保存用户选择
         };
         localStorage.setItem('immediateBuyConfig', JSON.stringify(configToSave));
         
@@ -2633,6 +2558,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         
         setImmediateBuyModalVisible(false);
         immediateBuyForm.resetFields();
+        // 不清空用户选择状态，保留用户选择以便下次使用
         actionRef.current?.reload();
         return true;
       } else {
@@ -2664,102 +2590,383 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
       }
     }
     
-    immediateBuyForm.setFieldsValue(defaultValues);
+    immediateBuyForm.setFieldsValue({
+      fundPercent: defaultValues.fundPercent,
+      fixedAmount: defaultValues.fixedAmount,
+      profitRatio: defaultValues.profitRatio,
+    });
   };
 
   // 策略立即买入（使用策略配置值）
   const handleStrategyImmediateBuy = async (record: API.StrategyStockItem) => {
-    Modal.confirm({
-      title: '确认策略立即买入',
-      content: (
-        <div>
-          <p>确定要对股票 <strong>{record.stockCode}</strong> 执行策略立即买入操作吗？</p>
-          <p style={{ color: '#1890ff', fontSize: '12px' }}>
-            💡 此操作将使用该股票在策略中的配置值进行买入（profitRatio等）
-          </p>
-          <p style={{ color: '#ff4d4f', fontSize: '12px' }}>
-            ⚠️ 注意：此操作将立即执行买入，不受时间限制，请确认当前为合适的交易时间。
-          </p>
-        </div>
-      ),
-      okText: '确认买入',
-      cancelText: '取消',
-      okType: 'danger',
-      width: 500,
-      onOk: async () => {
-        const hide = message.loading('正在执行策略立即买入...');
-        try {
-          // 调用批量立即买入接口，但只传入一个股票ID
-          const result = await batchImmediateBuyStrategyStock({
-            ids: [record.id!],
-            strategyId: record.strategyId!,
-            buyReason: '策略立即买入',
+    setStrategyBuyRecord(record);
+    setStrategyBuyModalVisible(true);
+    // 加载用户列表
+    if (record.strategyId && record.stockCode) {
+      await loadImmediateBuyUsers(record.strategyId, record.stockCode);
+      // 复制用户选择到策略买入状态
+      setStrategyBuyUsers([...selectedUsers]);
+    }
+  };
+
+  // 加载用户列表
+  const loadImmediateBuyUsers = async (strategyId: number, stockCode: string) => {
+    setLoadingUsers(true);
+    try {
+      const response = await request('/api/strategy/user-stock/page', {
+        method: 'GET',
+        params: {
+          strategyId: strategyId,
+          stockCode: stockCode,
+          current: 1,
+          pageSize: 1000,
+        },
+      });
+      
+      if (response.success && response.data) {
+        const options = response.data.map((item: any) => ({
+          label: `${item.accountName || item.account} (${item.account})`,
+          value: item.account,
+          disabled: item.status !== '1', // 如果状态不是启用，则禁用选择
+        }));
+        setUserOptions(options);
+        
+        // 尝试恢复保存的用户选择
+        const savedConfig = localStorage.getItem('immediateBuyConfig');
+        let savedUsers: string[] = [];
+        if (savedConfig) {
+          try {
+            const parsedConfig = JSON.parse(savedConfig);
+            savedUsers = parsedConfig.selectedUsers || [];
+          } catch (error) {
+            console.error('解析保存的用户配置失败:', error);
+          }
+        }
+        
+        // 如果有保存的用户选择，则恢复有效的用户选择
+        if (savedUsers.length > 0) {
+          const validUsers = savedUsers.filter((user: string) => 
+            options.some((option: {value: string, disabled?: boolean}) => option.value === user && !option.disabled)
+          );
+          if (validUsers.length > 0) {
+            setSelectedUsers(validUsers);
+          } else {
+            // 如果保存的用户都无效，则默认选择所有启用的用户
+            const enabledUsers = options.filter((option: {value: string, disabled?: boolean}) => !option.disabled).map((option: {value: string}) => option.value);
+            setSelectedUsers(enabledUsers);
+          }
+        } else {
+          // 默认选择所有启用的用户
+          const enabledUsers = options.filter((option: {value: string, disabled?: boolean}) => !option.disabled).map((option: {value: string}) => option.value);
+          setSelectedUsers(enabledUsers);
+        }
+      }
+    } catch (error) {
+      console.error('获取用户列表失败:', error);
+      message.error('获取用户列表失败');
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  // 加载批量买入用户列表
+  const loadBatchBuyUsers = async (strategyId: number, stockCodes: string[]) => {
+    setLoadingUsers(true);
+    try {
+      // 获取所有股票对应的用户列表，然后取交集
+      const allUserSets: Set<string>[] = [];
+      
+      for (const stockCode of stockCodes) {
+        const response = await request('/api/strategy/user-stock/page', {
+          method: 'GET',
+          params: {
+            strategyId: strategyId,
+            stockCode: stockCode,
+            current: 1,
+            pageSize: 1000,
+          },
+        });
+        
+        if (response.success && response.data) {
+          const users = new Set<string>();
+          response.data.forEach((item: any) => {
+            if (item.status === '1') { // 只包含启用的用户
+              users.add(item.account);
+            }
+          });
+          allUserSets.push(users);
+        }
+      }
+      
+      // 计算交集（所有股票都有的用户）
+      let commonUsers = allUserSets[0] || new Set<string>();
+      for (let i = 1; i < allUserSets.length; i++) {
+        const newCommonUsers = new Set<string>();
+        for (const user of commonUsers) {
+          if (allUserSets[i].has(user)) {
+            newCommonUsers.add(user);
+          }
+        }
+        commonUsers = newCommonUsers;
+      }
+      
+      // 获取用户详细信息
+      if (commonUsers.size > 0) {
+        const response = await request('/api/strategy/user-stock/page', {
+          method: 'GET',
+          params: {
+            strategyId: strategyId,
+            current: 1,
+            pageSize: 1000,
+          },
+        });
+        
+        if (response.success && response.data) {
+          const userMap = new Map<string, any>();
+          response.data.forEach((item: any) => {
+            if (!userMap.has(item.account)) {
+              userMap.set(item.account, item);
+            }
           });
           
-          hide();
+          const options = Array.from(commonUsers).map(account => {
+            const userInfo = userMap.get(account);
+            return {
+              label: `${userInfo?.accountName || account} (${account})`,
+              value: account,
+              disabled: false,
+            };
+          });
           
-          if (result && result.success) {
-            const { totalCount, successCount, failureCount, successDetails, failureDetails } = result.data || {};
-            
-            if (failureCount === 0) {
-              const successMessage = `策略立即买入成功！股票：${record.stockCode}，成功账户数：${successCount}/${totalCount}`;
-              message.success(successMessage);
-              
-              // 显示成功详情
-              if (successDetails && successDetails.length > 0) {
-                Modal.info({
-                  title: `策略立即买入成功详情 - ${record.stockCode}`,
-                  content: (
-                    <div>
-                      <p style={{ marginBottom: 8 }}>🎉 使用策略配置值买入成功！</p>
-                      {successDetails.map((detail: any, index: number) => (
-                        <div key={index} style={{ marginBottom: 4, fontSize: '12px' }}>
-                          账户 <strong>{detail.account}</strong>: ✅ 成功 
-                          {detail.accountName && ` (${detail.accountName})`}
-                          <br />
-                          {detail.price && `价格: $${detail.price}`}
-                          {detail.quantity && ` | 数量: ${detail.quantity}`}
-                          {(detail.buyAmount || (detail.price && detail.quantity)) && 
-                            ` | 买入资金: $${(detail.buyAmount || (detail.price * detail.quantity)).toFixed(2)}`}
-                        </div>
-                      ))}
-                    </div>
-                  ),
-                  width: 600,
-                });
-              }
-            } else {
-              message.error(`策略立即买入失败！股票：${record.stockCode}，失败账户数：${failureCount}/${totalCount}`);
-              
-              // 显示失败详情
-              if (failureDetails && failureDetails.length > 0) {
-                Modal.error({
-                  title: `策略立即买入失败详情 - ${record.stockCode}`,
-                  content: (
-                    <div>
-                      {failureDetails.map((detail: any, index: number) => (
-                        <div key={index} style={{ marginBottom: 4, fontSize: '12px' }}>
-                          账户 <strong>{detail.account}</strong>: ❌ 失败 
-                          {detail.accountName && ` (${detail.accountName})`}
-                          {detail.message && ` - ${detail.message}`}
-                        </div>
-                      ))}
-                    </div>
-                  ),
-                  width: 600,
-                });
-              }
-            }
-          } else {
-            message.error(`策略立即买入失败：${result.message || '未知错误'}`);
-          }
-        } catch (error: any) {
-          hide();
-          console.error('策略立即买入失败:', error);
-          message.error(`策略立即买入失败：${error.message || '网络错误'}`);
+          setBatchBuyUserOptions(options);
+          setBatchBuyUsers(Array.from(commonUsers)); // 默认选择所有可用用户
         }
-      },
-    });
+      } else {
+        setBatchBuyUserOptions([]);
+        setBatchBuyUsers([]);
+        message.warning('没有找到所有选中股票都配置的用户');
+      }
+    } catch (error) {
+      console.error('获取批量买入用户列表失败:', error);
+      message.error('获取批量买入用户列表失败');
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  // 执行策略立即买入
+  const handleExecuteStrategyBuy = async () => {
+    if (!strategyBuyRecord) {
+      message.error('请先选择要买入的股票');
+      return false;
+    }
+
+    // 验证是否选择了用户
+    if (!strategyBuyUsers || strategyBuyUsers.length === 0) {
+      message.error('请至少选择一个用户进行买入');
+      return false;
+    }
+
+    const hide = message.loading('正在执行策略立即买入...');
+    try {
+      // 调用批量立即买入接口，但只传入一个股票ID，并指定用户
+      const result = await batchImmediateBuyStrategyStock({
+        ids: [strategyBuyRecord.id!],
+        strategyId: strategyBuyRecord.strategyId!,
+        buyReason: '策略立即买入',
+        selectedUsers: strategyBuyUsers, // 添加选中的用户列表
+      });
+      
+      hide();
+      
+      if (result && result.success) {
+        const { totalCount, successCount, failureCount, successDetails, failureDetails } = result.data || {};
+        
+        if (failureCount === 0) {
+          const successMessage = `策略立即买入成功！股票：${strategyBuyRecord.stockCode}，成功账户数：${successCount}/${totalCount}`;
+          message.success(successMessage);
+          
+          // 显示成功详情
+          if (successDetails && successDetails.length > 0) {
+            Modal.info({
+              title: `策略立即买入成功详情 - ${strategyBuyRecord.stockCode}`,
+              content: (
+                <div>
+                  <p style={{ marginBottom: 8 }}>🎉 使用策略配置值买入成功！</p>
+                  {successDetails.map((detail: any, index: number) => (
+                    <div key={index} style={{ marginBottom: 4, fontSize: '12px' }}>
+                      账户 <strong>{detail.account}</strong>: ✅ 成功 
+                      {detail.accountName && ` (${detail.accountName})`}
+                      <br />
+                      {detail.price && `价格: $${detail.price}`}
+                      {detail.quantity && ` | 数量: ${detail.quantity}`}
+                      {(detail.buyAmount || (detail.price && detail.quantity)) && 
+                        ` | 买入资金: $${(detail.buyAmount || (detail.price * detail.quantity)).toFixed(2)}`}
+                    </div>
+                  ))}
+                </div>
+              ),
+              width: 600,
+            });
+          }
+        } else {
+          message.error(`策略立即买入失败！股票：${strategyBuyRecord.stockCode}，失败账户数：${failureCount}/${totalCount}`);
+          
+          // 显示失败详情
+          if (failureDetails && failureDetails.length > 0) {
+            Modal.error({
+              title: `策略立即买入失败详情 - ${strategyBuyRecord.stockCode}`,
+              content: (
+                <div>
+                  {failureDetails.map((detail: any, index: number) => (
+                    <div key={index} style={{ marginBottom: 4, fontSize: '12px' }}>
+                      账户 <strong>{detail.account}</strong>: ❌ 失败 
+                      {detail.accountName && ` (${detail.accountName})`}
+                      {detail.message && ` - ${detail.message}`}
+                    </div>
+                  ))}
+                </div>
+              ),
+              width: 600,
+            });
+          }
+        }
+        
+        setStrategyBuyModalVisible(false);
+        actionRef.current?.reload();
+        return true;
+      } else {
+        message.error(`策略立即买入失败：${result.message || '未知错误'}`);
+        return false;
+      }
+    } catch (error: any) {
+      hide();
+      console.error('策略立即买入失败:', error);
+      message.error(`策略立即买入失败：${error.message || '网络错误'}`);
+      return false;
+    }
+  };
+
+  // 执行批量立即买入
+  const handleExecuteBatchBuy = async () => {
+    // 验证是否选择了用户
+    if (!batchBuyUsers || batchBuyUsers.length === 0) {
+      message.error('请至少选择一个用户进行买入');
+      return false;
+    }
+
+    // 从选中的记录中获取策略ID
+    let effectiveStrategyId = strategyId;
+    if (!effectiveStrategyId && currentTableData.length > 0) {
+      const firstSelectedRecord = currentTableData.find(item => selectedRowKeys.includes(item.id!));
+      if (firstSelectedRecord && firstSelectedRecord.strategyId) {
+        effectiveStrategyId = firstSelectedRecord.strategyId;
+      }
+    }
+
+    if (!effectiveStrategyId) {
+      message.error('无法获取策略ID，请确认已选择有效的股票记录');
+      return false;
+    }
+
+    const hide = message.loading('正在执行批量立即买入...');
+    try {
+      const result = await batchImmediateBuyStrategyStock({
+        ids: selectedRowKeys as number[],
+        strategyId: effectiveStrategyId,
+        forceExecute: true,
+        buyReason: '批量立即买入',
+        selectedUsers: batchBuyUsers,
+      });
+      hide();
+      
+      if (result.success && result.data) {
+        const { totalCount, successCount, failureCount, successStockCodes, successDetails, failureDetails } = result.data;
+        
+        // 按股票代码分组成功和失败详情
+        const successByStock = new Map<string, any[]>();
+        const failureByStock = new Map<string, any[]>();
+        
+        // 分组成功详情
+        if (successDetails && successDetails.length > 0) {
+          successDetails.forEach((detail: any) => {
+            if (!successByStock.has(detail.stockCode)) {
+              successByStock.set(detail.stockCode, []);
+            }
+            successByStock.get(detail.stockCode)!.push(detail);
+          });
+        }
+        
+        // 分组失败详情
+        if (failureDetails && failureDetails.length > 0) {
+          failureDetails.forEach((detail: any) => {
+            if (!failureByStock.has(detail.stockCode)) {
+              failureByStock.set(detail.stockCode, []);
+            }
+            failureByStock.get(detail.stockCode)!.push(detail);
+          });
+        }
+        
+        // 构建基本消息
+        if (successCount === totalCount) {
+          message.success(`批量立即买入全部成功！总计${totalCount}个操作`);
+        } else if (successCount > 0) {
+          message.warning(`批量立即买入部分成功！成功${successCount}个，失败${failureCount}个`);
+        } else {
+          message.error(`批量立即买入全部失败！失败${failureCount}个操作`);
+        }
+        
+        // 显示详细信息弹窗
+        const allStockCodes = new Set([...successByStock.keys(), ...failureByStock.keys()]);
+        
+        if (allStockCodes.size > 0) {
+          const detailInfo: string[] = [];
+          
+          Array.from(allStockCodes).sort().forEach(stockCode => {
+            detailInfo.push(`\n=== ${stockCode} ===`);
+            
+            // 显示成功账户
+            const stockSuccessDetails = successByStock.get(stockCode) || [];
+            if (stockSuccessDetails.length > 0) {
+              detailInfo.push(`✅ 成功账户 (${stockSuccessDetails.length}个):`);
+              stockSuccessDetails.forEach(detail => {
+                detailInfo.push(`  • ${detail.account} (${detail.accountName}) - $${detail.price?.toFixed(4)} × ${detail.quantity?.toFixed(0)}股 = $${(detail.price * detail.quantity)?.toFixed(2)}`);
+              });
+            }
+            
+            // 显示失败账户
+            const stockFailureDetails = failureByStock.get(stockCode) || [];
+            if (stockFailureDetails.length > 0) {
+              detailInfo.push(`❌ 失败账户 (${stockFailureDetails.length}个):`);
+              stockFailureDetails.forEach(detail => {
+                detailInfo.push(`  • ${detail.account} (${detail.accountName}) - ${detail.errorMessage}`);
+              });
+            }
+          });
+          
+          Modal.info({
+            title: `批量立即买入详细结果,以下只是下单情况，并不代表订单已成交，详情请查看买入记录 (${allStockCodes.size}只股票)`,
+            content: (
+              <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
+                <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>{detailInfo.join('\n')}</pre>
+              </div>
+            ),
+            width: 800,
+          });
+        }
+        
+        setBatchBuyModalVisible(false);
+        actionRef.current?.reload();
+        return true;
+      } else {
+        message.error('批量立即买入失败');
+        return false;
+      }
+    } catch (error) {
+      hide();
+      message.error('批量立即买入失败');
+      return false;
+    }
   };
 
   return (
@@ -4934,12 +5141,18 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         onCancel={() => {
           setImmediateBuyModalVisible(false);
           restoreImmediateBuyConfig();
+          // 清理用户选择状态
+          setUserOptions([]);
+          setSelectedUsers([]);
         }}
         footer={[
           <Button 
             key="cancel" 
             onClick={() => {
               setImmediateBuyModalVisible(false);
+              // 清理用户选择状态
+              setUserOptions([]);
+              setSelectedUsers([]);
               restoreImmediateBuyConfig();
             }}
           >
@@ -4967,6 +5180,49 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           </div>
         </div>
 
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 8, fontWeight: 'bold' }}>选择执行用户：</div>
+          <Select
+            mode="multiple"
+            style={{ width: '100%' }}
+            placeholder="请选择要执行立即买入的用户"
+            value={selectedUsers}
+            onChange={setSelectedUsers}
+            loading={loadingUsers}
+            maxTagCount="responsive"
+            allowClear
+          >
+            {userOptions.map(option => (
+              <Option key={option.value} value={option.value} disabled={option.disabled}>
+                {option.label}
+                {option.disabled && <span style={{ color: '#ff4d4f' }}> (已禁用)</span>}
+              </Option>
+            ))}
+          </Select>
+          <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+            <Button
+              size="small"
+              type="link"
+              onClick={() => {
+                const enabledUsers = userOptions.filter(option => !option.disabled).map(option => option.value);
+                setSelectedUsers(enabledUsers);
+              }}
+            >
+              全选启用用户
+            </Button>
+            <Button
+              size="small"
+              type="link"
+              onClick={() => setSelectedUsers([])}
+            >
+              清除选择
+            </Button>
+            <span style={{ fontSize: '12px', color: '#666', marginLeft: 'auto' }}>
+              已选择 {selectedUsers.length} 个用户
+            </span>
+          </div>
+        </div>
+
         <Form
           form={immediateBuyForm}
           onFinish={handleExecuteImmediateBuy}
@@ -4989,7 +5245,7 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
               placeholder="请输入资金比例"
               min={0}
               max={200}
-              step={0.1}
+              step={1}
               precision={2}
               addonAfter="%"
               onChange={(value: any) => {
@@ -5066,6 +5322,178 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             />
           </Form.Item>
         </Form>
+      </Modal>
+      
+      {/* 策略立即买入对话框 */}
+      <Modal
+        title="策略立即买入"
+        open={strategyBuyModalVisible}
+        onCancel={() => {
+          setStrategyBuyModalVisible(false);
+          setStrategyBuyUsers([]);
+        }}
+        footer={[
+          <Button 
+            key="cancel" 
+            onClick={() => {
+              setStrategyBuyModalVisible(false);
+              setStrategyBuyUsers([]);
+            }}
+          >
+            取消
+          </Button>,
+          <Button 
+            key="submit" 
+            type="primary" 
+            danger
+            onClick={handleExecuteStrategyBuy}
+          >
+            确认买入
+          </Button>,
+        ]}
+        width={500}
+      >
+        <div style={{ marginBottom: 16, padding: 12, backgroundColor: '#f6f6f6', borderRadius: 4 }}>
+          <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: 8 }}>
+            股票代码: {strategyBuyRecord?.stockCode}
+          </div>
+          <div style={{ fontSize: '12px', color: '#1890ff', marginBottom: 4 }}>
+            💡 此操作将使用该股票在策略中的配置值进行买入（profitRatio等）
+          </div>
+          <div style={{ fontSize: '12px', color: '#ff4d4f' }}>
+            ⚠️ 注意：此操作将立即执行买入，不受时间限制，请确认当前为合适的交易时间。
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 8, fontWeight: 'bold' }}>选择执行用户：</div>
+          <Select
+            mode="multiple"
+            style={{ width: '100%' }}
+            placeholder="请选择要执行策略立即买入的用户"
+            value={strategyBuyUsers}
+            onChange={setStrategyBuyUsers}
+            loading={loadingUsers}
+            maxTagCount="responsive"
+            allowClear
+          >
+            {userOptions.map(option => (
+              <Option key={option.value} value={option.value} disabled={option.disabled}>
+                {option.label}
+                {option.disabled && <span style={{ color: '#ff4d4f' }}> (已禁用)</span>}
+              </Option>
+            ))}
+          </Select>
+          <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+            <Button
+              size="small"
+              type="link"
+              onClick={() => {
+                const enabledUsers = userOptions.filter(option => !option.disabled).map(option => option.value);
+                setStrategyBuyUsers(enabledUsers);
+              }}
+            >
+              全选启用用户
+            </Button>
+            <Button
+              size="small"
+              type="link"
+              onClick={() => setStrategyBuyUsers([])}
+            >
+              清除选择
+            </Button>
+            <span style={{ fontSize: '12px', color: '#666', marginLeft: 'auto' }}>
+              已选择 {strategyBuyUsers.length} 个用户
+            </span>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 批量立即买入对话框 */}
+      <Modal
+        title="批量立即买入"
+        open={batchBuyModalVisible}
+        onCancel={() => {
+          setBatchBuyModalVisible(false);
+          setBatchBuyUsers([]);
+          setBatchBuyUserOptions([]);
+        }}
+        footer={[
+          <Button 
+            key="cancel" 
+            onClick={() => {
+              setBatchBuyModalVisible(false);
+              setBatchBuyUsers([]);
+              setBatchBuyUserOptions([]);
+            }}
+          >
+            取消
+          </Button>,
+          <Button 
+            key="submit" 
+            type="primary" 
+            danger
+            onClick={handleExecuteBatchBuy}
+          >
+            确认买入
+          </Button>,
+        ]}
+        width={500}
+      >
+        <div style={{ marginBottom: 16, padding: 12, backgroundColor: '#f6f6f6', borderRadius: 4 }}>
+          <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: 8 }}>
+            已选择 {selectedRowKeys.length} 只股票进行批量买入
+          </div>
+          <div style={{ fontSize: '12px', color: '#ff4d4f' }}>
+            ⚠️ 注意：此操作将立即执行买入，不受时间限制，请确认当前为合适的交易时间。
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 8, fontWeight: 'bold' }}>选择执行用户：</div>
+          <Select
+            mode="multiple"
+            style={{ width: '100%' }}
+            placeholder="请选择要执行批量立即买入的用户"
+            value={batchBuyUsers}
+            onChange={setBatchBuyUsers}
+            loading={loadingUsers}
+            maxTagCount="responsive"
+            allowClear
+          >
+            {batchBuyUserOptions.map(option => (
+              <Option key={option.value} value={option.value} disabled={option.disabled}>
+                {option.label}
+                {option.disabled && <span style={{ color: '#ff4d4f' }}> (已禁用)</span>}
+              </Option>
+            ))}
+          </Select>
+          <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+            <Button
+              size="small"
+              type="link"
+              onClick={() => {
+                const enabledUsers = batchBuyUserOptions.filter(option => !option.disabled).map(option => option.value);
+                setBatchBuyUsers(enabledUsers);
+              }}
+            >
+              全选启用用户
+            </Button>
+            <Button
+              size="small"
+              type="link"
+              onClick={() => setBatchBuyUsers([])}
+            >
+              清除选择
+            </Button>
+            <span style={{ fontSize: '12px', color: '#666', marginLeft: 'auto' }}>
+              已选择 {batchBuyUsers.length} 个用户
+            </span>
+          </div>
+          <div style={{ marginTop: 8, fontSize: '12px', color: '#666' }}>
+            注：只显示所有选中股票都配置的用户
+          </div>
+        </div>
       </Modal>
       
       {renderBatchSwitchExecutionResultDetail()}

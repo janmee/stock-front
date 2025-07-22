@@ -1946,6 +1946,7 @@ export async function batchImmediateBuyStrategyStock(params: {
   strategyId: number;
   forceExecute?: boolean;
   buyReason?: string;
+  selectedUsers?: string[]; // 添加选中的用户列表
 }) {
   return request<API.Response<{
     totalCount: number;
