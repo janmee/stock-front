@@ -297,6 +297,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     if (fields.intraUpPullbackPercent) {
       fields.intraUpPullbackPercent = fields.intraUpPullbackPercent / 100;
     }
+    if (fields.intraDnRallyPercent) {
+      fields.intraDnRallyPercent = fields.intraDnRallyPercent / 100;
+    }
     if (fields.intraDnBelowAvgPercent) {
       fields.intraDnBelowAvgPercent = fields.intraDnBelowAvgPercent / 100;
     }
@@ -398,6 +401,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     }
     if (fields.intraUpPullbackPercent) {
       fields.intraUpPullbackPercent = fields.intraUpPullbackPercent / 100;
+    }
+    if (fields.intraDnRallyPercent) {
+      fields.intraDnRallyPercent = fields.intraDnRallyPercent / 100;
     }
     if (fields.intraDnBelowAvgPercent) {
       fields.intraDnBelowAvgPercent = fields.intraDnBelowAvgPercent / 100;
@@ -997,6 +1003,21 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
     {
       title: (
         <>
+          <>日内下跌反弹百分比(%)</>
+          <Tooltip title="当股票日内持续下跌后从低点反弹该百分比时触发买入信号（如2表示2%）">
+            <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </>
+      ),
+      dataIndex: 'intraDnRallyPercent',
+      valueType: 'digit',
+      hideInSearch: true,
+      hideInTable: true,
+      render: (_, record) => record.intraDnRallyPercent ? `${(record.intraDnRallyPercent * 100).toFixed(1)}%` : '-',
+    },
+    {
+      title: (
+        <>
           <>是否开盘买入</>
           <Tooltip title="是否在开盘时执行买入策略，默认开启">
             <QuestionCircleOutlined style={{ marginLeft: 4 }} />
@@ -1227,6 +1248,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             }
             if (editItem.intraUpPullbackPercent !== undefined) {
               editItem.intraUpPullbackPercent = editItem.intraUpPullbackPercent * 100;
+            }
+            if (editItem.intraDnRallyPercent !== undefined) {
+              editItem.intraDnRallyPercent = editItem.intraDnRallyPercent * 100;
             }
             if (editItem.intraDnBelowAvgPercent !== undefined) {
               editItem.intraDnBelowAvgPercent = editItem.intraDnBelowAvgPercent * 100;
@@ -3406,6 +3430,22 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           ]}
         />
         </div>
+
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
+          <ProFormSelect
+            name="marketCapScale"
+            label="市值规模"
+            tooltip="股票的市值规模分类"
+            valueEnum={{
+              '小盘股': '小盘股',
+              '中盘股': '中盘股',
+              '大盘股': '大盘股',
+              'ETF': 'ETF',
+            }}
+            placeholder="请选择市值规模"
+            rules={[{ required: true }]}
+          />
+        </div>
         
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
@@ -3463,77 +3503,44 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
               step: 1,
               precision: 0,
             }}
-            initialValue={10}
+            initialValue={20}
             rules={[{ required: true }]}
           />
         </div>
         
-
-        {/* <div style={{ width: 'calc(33.33% - 8px)' }}>
-        <ProFormDigit
-          name="intraUpPullbackPercent"
-          label="日内持续上涨并高位回调百分比(%)"
-          tooltip="当股票日内持续上涨后从高点回调该百分比时触发买入信号（如3表示3%）"
-          min={0}
-          max={100}
-          fieldProps={{
-            step: 0.01,
-            precision: 2,
-            addonAfter: '%',
-          }}
-          initialValue={3}
-          rules={[{ required: true }]}
-        />
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
+          <ProFormDigit
+            name="intraUpPullbackPercent"
+            label="日内上涨回调百分比(%)"
+            tooltip="当股票日内持续上涨后从高点回调该百分比时触发买入信号（如3表示3%）"
+            min={0}
+            max={100}
+            fieldProps={{
+              step: 0.01,
+              precision: 2,
+              addonAfter: '%',
+            }}
+            initialValue={3}
+            rules={[{ required: true }]}
+          />
         </div>
 
         <div style={{ width: 'calc(33.33% - 8px)' }}>
-        <ProFormDigit
-          name="intraUpDurationMinutes"
-          label="日内持续上涨时间(分钟)"
-          tooltip="当股票持续上涨达到该时间长度时触发买入信号（如30表示30分钟）"
-          min={1}
-          max={1440}
-          fieldProps={{
-            step: 1,
-            precision: 0,
-            addonAfter: '分钟',
-          }}
-          initialValue={30}
-        />
+          <ProFormDigit
+            name="intraDnRallyPercent"
+            label="日内下跌反弹百分比(%)"
+            tooltip="当股票日内持续下跌后从低点反弹该百分比时触发买入信号（如2表示2%）"
+            min={0}
+            max={100}
+            fieldProps={{
+              step: 0.01,
+              precision: 2,
+              addonAfter: '%',
+            }}
+            initialValue={2}
+            rules={[{ required: true }]}
+          />
         </div>
-        
-        <div style={{ width: 'calc(33.33% - 8px)' }}>
-        <ProFormDigit
-          name="intraDnBelowAvgPercent"
-          label="日内持续下跌并低于分时均价百分比(%)"
-          tooltip="当股票日内持续下跌且低于分时均价该百分比时触发买入信号（如1表示1%）"
-          min={0}
-          max={100}
-          fieldProps={{
-            step: 0.01,
-            precision: 2,
-            addonAfter: '%',
-          }}
-          initialValue={1}
-          rules={[{ required: true }]}
-        />
-        </div>
-        
-        <div style={{ width: 'calc(33.33% - 8px)' }}>
-        <ProFormDigit
-          name="intraDnDurationMinutes"
-          label="日内持续下跌时间(分钟)"
-          tooltip="当股票持续下跌达到该时间长度时触发买入信号（如30表示30分钟）"
-          min={1}
-          max={1440}
-          fieldProps={{
-            step: 1,
-            precision: 0,
-            addonAfter: '分钟',
-          }}
-          initialValue={30}
-        />
-        </div> */}
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
           <ProFormSwitch
@@ -3544,21 +3551,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           />
         </div>
         
-        <div style={{ width: 'calc(33.33% - 8px)' }}>
-          <ProFormSelect
-            name="marketCapScale"
-            label="市值规模"
-            tooltip="股票的市值规模分类"
-            valueEnum={{
-              '小盘股': '小盘股',
-              '中盘股': '中盘股',
-              '大盘股': '大盘股',
-              'ETF': 'ETF',
-            }}
-            placeholder="请选择市值规模"
-            rules={[{ required: true }]}
-          />
-        </div>
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
           <ProFormSelect
@@ -3761,6 +3753,9 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
               // 确保布尔字段有明确的值
               buyPriceGraduallyDecreasing: currentRow.buyPriceGraduallyDecreasing !== undefined ? currentRow.buyPriceGraduallyDecreasing : false,
               immediateBuyAtDecreasedPrice: currentRow.immediateBuyAtDecreasedPrice !== undefined ? currentRow.immediateBuyAtDecreasedPrice : false,
+              // 为新增的两个字段设置默认值
+              intraUpPullbackPercent: currentRow.intraUpPullbackPercent !== undefined ? currentRow.intraUpPullbackPercent : 3,
+              intraDnRallyPercent: currentRow.intraDnRallyPercent !== undefined ? currentRow.intraDnRallyPercent : 2,
             };
             
             console.log('设置编辑表单初始值 - 三个新字段:', {
@@ -3896,6 +3891,21 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
         />
         </div>
         
+        <div style={{ width: 'calc(33.33% - 8px)' }}>
+          <ProFormSelect
+            name="marketCapScale"
+            label="市值规模"
+            tooltip="股票的市值规模分类"
+            valueEnum={{
+              '小盘股': '小盘股',
+              '中盘股': '中盘股',
+              '大盘股': '大盘股',
+              'ETF': 'ETF',
+            }}
+            placeholder="请选择市值规模"
+            rules={[{ required: true }]}
+          />
+        </div>
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
         <ProFormDigit
@@ -3957,70 +3967,40 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
             rules={[{ required: true }]}
           />
         </div>
-{/* 
+        
         <div style={{ width: 'calc(33.33% - 8px)' }}>
-        <ProFormDigit
-          name="intraUpPullbackPercent"
-          label="日内持续上涨并高位回调百分比(%)"
-          tooltip="当股票日内持续上涨后从高点回调该百分比时触发买入信号（如3表示3%）"
-          min={0}
-          max={100}
-          fieldProps={{
-            step: 0.01,
-            precision: 2,
-            addonAfter: '%',
-          }}
-        />
+          <ProFormDigit
+            name="intraUpPullbackPercent"
+            label="日内上涨回调百分比(%)"
+            tooltip="当股票日内持续上涨后从高点回调该百分比时触发买入信号（如3表示3%）"
+            min={0}
+            max={100}
+            fieldProps={{
+              step: 0.01,
+              precision: 2,
+              addonAfter: '%',
+            }}
+            initialValue={3}
+            rules={[{ required: true }]}
+          />
         </div>
 
         <div style={{ width: 'calc(33.33% - 8px)' }}>
-        <ProFormDigit
-          name="intraUpDurationMinutes"
-          label="日内持续上涨时间(分钟)"
-          tooltip="当股票持续上涨达到该时间长度时触发买入信号（如30表示30分钟）"
-          min={1}
-          max={1440}
-          fieldProps={{
-            step: 1,
-            precision: 0,
-            addonAfter: '分钟',
-          }}
-          initialValue={30}
-        />
+          <ProFormDigit
+            name="intraDnRallyPercent"
+            label="日内下跌反弹百分比(%)"
+            tooltip="当股票日内持续下跌后从低点反弹该百分比时触发买入信号（如2表示2%）"
+            min={0}
+            max={100}
+            fieldProps={{
+              step: 0.01,
+              precision: 2,
+              addonAfter: '%',
+            }}
+            initialValue={2}
+            rules={[{ required: true }]}
+          />
         </div>
-        
-        <div style={{ width: 'calc(33.33% - 8px)' }}>
-        <ProFormDigit
-          name="intraDnBelowAvgPercent"
-          label="日内持续下跌并低于分时均价百分比(%)"
-          tooltip="当股票日内持续下跌且低于分时均价该百分比时触发买入信号（如1表示1%）"
-          min={0}
-          max={100}
-          fieldProps={{
-            step: 0.01,
-            precision: 2,
-            addonAfter: '%',
-          }}
-          initialValue={1}
-          rules={[{ required: true }]}
-        />
-        </div>
-        
-        <div style={{ width: 'calc(33.33% - 8px)' }}>
-        <ProFormDigit
-          name="intraDnDurationMinutes"
-          label="日内持续下跌时间(分钟)"
-          tooltip="当股票持续下跌达到该时间长度时触发买入信号（如30表示30分钟）"
-          min={1}
-          max={1440}
-          fieldProps={{
-            step: 1,
-            precision: 0,
-            addonAfter: '分钟',
-          }}
-          initialValue={30}
-        />
-        </div> */}
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
           <ProFormSwitch
@@ -4031,21 +4011,6 @@ const StrategyStockList = forwardRef((props: StrategyStockListProps, ref) => {
           />
         </div>
         
-        <div style={{ width: 'calc(33.33% - 8px)' }}>
-          <ProFormSelect
-            name="marketCapScale"
-            label="市值规模"
-            tooltip="股票的市值规模分类"
-            valueEnum={{
-              '小盘股': '小盘股',
-              '中盘股': '中盘股',
-              '大盘股': '大盘股',
-              'ETF': 'ETF',
-            }}
-            placeholder="请选择市值规模"
-            rules={[{ required: true }]}
-          />
-        </div>
         
         <div style={{ width: 'calc(33.33% - 8px)' }}>
           <ProFormSelect

@@ -253,6 +253,7 @@ declare namespace API {
     maAbovePercent?: number;
     levelPercent?: number;
     intraUpPullbackPercent?: number;
+    intraDnRallyPercent?: number;
     intraDnBelowAvgPercent?: number;
     intraDnDurationMinutes?: number;
     intraUpDurationMinutes?: number;
