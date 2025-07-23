@@ -480,21 +480,15 @@ const StrategyJobList = forwardRef((props: StrategyJobListProps, ref) => {
         >
           切换档位
         </Button>,
-        <span key="status-wrapper" style={{ display: 'inline-flex', alignItems: 'center' }}>
-          <span style={{ marginRight: 4 }}>
-            <FormattedMessage id="pages.common.status" defaultMessage="状态" />:
-          </span>
-          <Switch
-            key="status"
-            checked={record.status === '1'}
-            onChange={(checked) => handleToggleStatus(record, checked)}
-            checkedChildren={<FormattedMessage id="pages.common.enabled" defaultMessage="启用" />}
-            unCheckedChildren={<FormattedMessage id="pages.common.disabled" defaultMessage="禁用" />}
-            size="small"
-            title={record.status === '1' ? '点击禁用' : '点击启用'}
-            loading={record.running === '1'}
-          />
-        </span>,
+        <Switch
+          key="status"
+          checked={record.status === '1'}
+          onChange={(checked) => handleToggleStatus(record, checked)}
+          checkedChildren={<FormattedMessage id="pages.common.enabled" defaultMessage="启用" />}
+          unCheckedChildren={<FormattedMessage id="pages.common.disabled" defaultMessage="禁用" />}
+          size="small"
+          title={record.status === '1' ? '点击禁用' : '点击启用'}
+        />,
       ],
     },
   ];
